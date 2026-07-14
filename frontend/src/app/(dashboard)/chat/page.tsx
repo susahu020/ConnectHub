@@ -41,7 +41,11 @@ import {
   Shield,
   VolumeX,
   Trash,
-  AlertOctagon
+  AlertOctagon,
+  Bold,
+  Italic,
+  Code,
+  History
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
@@ -49,6 +53,47 @@ import { useSocket } from '../../../components/providers';
 import { toast } from 'react-hot-toast';
 import { resolveFileUrl } from '../../../lib/utils';
 import { useConfirm } from '../../../context/ConfirmContext';
+
+const PRESET_GIFS = [
+  { name: 'Success / Yes', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM2Q5ZDFmMGNkNThkYTgyM2M0NmIyNmRlNjExOTZkZGRlMzJmNjA5NyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ohhweiDgDm5SS5ryU/giphy.gif' },
+  { name: 'Celebrating', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMmMyOWFiOWE4MGNiZmY5YWE0NmIzMGM4NWNmZTEzNTEyN2I1MGQ0NyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26n6R5HO1II3OQt3O/giphy.gif' },
+  { name: 'Let\'s Go', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNWY1NjA5ZmI5YWE0OTdiNGNkNTRmZjE0Y2RhNjQzODNlNmIxNDRjNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l3q2IPt1fO5U225P2/giphy.gif' },
+  { name: 'Working Hard', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMGMwOWRmNzNlMWM2M2U4NTViNmY4Yjg3NjFlMGM5NzhhMzBhNWFkNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26fCPA5W7ZNYaUe4M/giphy.gif' },
+  { name: 'Brainstorming', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNWZiNjg4YWE2MmM0NGZhYTkwNjIyODk2NTAyMGQxMDk5NmNmNzZiNCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0IylOPCNkiqAzvQQ/giphy.gif' },
+  { name: 'Mind Blown', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMmQ4YzRhN2IzNTRmNzA5NGI3MmYxM2IzYmNjMmRjMTRiMmRjMzA3MCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0NwHXQy3kUSfN6UM/giphy.gif' },
+  { name: 'Thank You', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNWRhZTlhYjBiZDlkOWRjY2I5YTc1ZjExYmY3MWNiZTM1MzJiMDNkZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o6ZtpxSgADWN4kJDa/giphy.gif' },
+  { name: 'Coffee Time', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExN2Y0MGMzOTRkNmZhZDIyMmQ2MDhmYmNlYzJiNDk2MmI4MjEwMGU1ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/TDfG3P7Q8lOqA/giphy.gif' }
+];
+
+const isGifUrl = (text: string) => {
+  return typeof text === 'string' && (text.startsWith('http://') || text.startsWith('https://')) && text.endsWith('.gif');
+};
+
+const renderFormattedText = (text: string) => {
+  if (!text) return null;
+  const lines = text.split('\n');
+  return lines.map((line, idx) => {
+    const parts = line.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    const elements = parts.map((part, pIdx) => {
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <code key={pIdx} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px] text-red-500">{part.slice(1, -1)}</code>;
+      }
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={pIdx} className="font-extrabold">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={pIdx} className="italic">{part.slice(1, -1)}</em>;
+      }
+      return part;
+    });
+
+    return (
+      <span key={idx} className="block min-h-[1.25em]">
+        {elements}
+      </span>
+    );
+  });
+};
 
 export default function ChatPage() {
   const { user } = useAuthStore();
@@ -134,6 +179,14 @@ export default function ChatPage() {
   // UI/UX improvements: context menu & loading states
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; message: any } | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Advanced Chat Features States
+  const [scheduledDate, setScheduledDate] = useState<string>('');
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [activeStickerTab, setActiveStickerTab] = useState<'stickers' | 'gifs'>('stickers');
+  const [gifSearchQuery, setGifSearchQuery] = useState('');
+  const [showEditHistoryMessageId, setShowEditHistoryMessageId] = useState<string | null>(null);
+
   // Fetch Directory users
   const { data: directoryData, isLoading: loadingDirectory } = useQuery({
     queryKey: ['directory-colleagues'],
@@ -435,13 +488,19 @@ export default function ChatPage() {
   const sendMessageMutation = useMutation({
     mutationFn: (body: any) => api.sendMessage(body),
     onSuccess: (data) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === data.id)) return prev;
-        return [...prev, data];
-      });
+      if (data.scheduledFor) {
+        toast.success(`Message scheduled successfully for ${new Date(data.scheduledFor).toLocaleString()}`);
+      } else {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
+      }
       setInputValue('');
       setAttachedFiles([]);
       setReplyingMessage(null);
+      setScheduledDate('');
+      setShowScheduler(false);
       refetchRecent();
     },
     onError: () => {
@@ -454,12 +513,77 @@ export default function ChatPage() {
     if (!inputValue.trim() && attachedFiles.length === 0) return;
 
     setMentionOpen(false);
-    sendMessageMutation.mutate({
+
+    // Process Slash Commands
+    if (inputValue.trim().startsWith('/')) {
+      const commandText = inputValue.trim();
+      const parts = commandText.split(' ');
+      const cmd = parts[0].toLowerCase();
+      const args = parts.slice(1).join(' ');
+
+      if (cmd === '/help') {
+        toast.success(
+          "Available Slash Commands:\n" +
+          "/help - Display help guide\n" +
+          "/clear - Reset messages in current view\n" +
+          "/mute - Block notification sound indicators\n" +
+          "/unmute - Enable notification sound indicators\n" +
+          "/giphy [query] - Send a preset GIF (e.g. success, coffee, coffee time, let's go)",
+          { duration: 8000 }
+        );
+        setInputValue('');
+        return;
+      }
+      
+      if (cmd === '/clear') {
+        setMessages([]);
+        toast.success('Chat screen cleared locally.');
+        setInputValue('');
+        return;
+      }
+
+      if (cmd === '/mute') {
+        setIsMuted(true);
+        toast.success('Chat notifications muted.');
+        setInputValue('');
+        return;
+      }
+
+      if (cmd === '/unmute') {
+        setIsMuted(false);
+        toast.success('Chat notifications unmuted.');
+        setInputValue('');
+        return;
+      }
+
+      if (cmd === '/giphy') {
+        const query = args.toLowerCase();
+        const match = PRESET_GIFS.find(g => g.name.toLowerCase().includes(query)) || PRESET_GIFS[0];
+        sendMessageMutation.mutate({
+          receiverId: activeContact.id,
+          content: match.url,
+          fileIds: [],
+          parentId: replyingMessage?.id || null,
+        });
+        return;
+      }
+
+      toast.error(`Unknown slash command: ${cmd}. Type /help to see available commands.`);
+      return;
+    }
+
+    const payload: any = {
       receiverId: activeContact.id,
       content: inputValue,
       fileIds: attachedFiles.map((f) => f.id),
       parentId: replyingMessage?.id || null,
-    });
+    };
+
+    if (scheduledDate) {
+      payload.scheduledFor = new Date(scheduledDate).toISOString();
+    }
+
+    sendMessageMutation.mutate(payload);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1340,7 +1464,43 @@ export default function ChatPage() {
                               <span>This message was deleted.</span>
                             </p>
                           ) : (
-                            <p>{msg.content}</p>
+                            <>
+                              {isGifUrl(msg.content) ? (
+                                <img src={msg.content} alt="GIF" className="rounded-xl max-w-[240px] max-h-[180px] object-cover shadow-sm border border-slate-200 dark:border-slate-700 mt-1" />
+                              ) : (
+                                <div>{renderFormattedText(msg.content)}</div>
+                              )}
+
+                              {msg.isEdited && (
+                                <div className="mt-1 flex items-center justify-end space-x-1 text-[9px] opacity-75 select-none relative">
+                                  <span 
+                                    onClick={() => setShowEditHistoryMessageId(showEditHistoryMessageId === msg.id ? null : msg.id)}
+                                    className="cursor-pointer hover:underline flex items-center space-x-0.5"
+                                    title="View edit log"
+                                  >
+                                    <History className="h-2.5 w-2.5" />
+                                    <span>Edited</span>
+                                  </span>
+
+                                  {/* Mini Edit History Overlay Box */}
+                                  {showEditHistoryMessageId === msg.id && (
+                                    <div className="absolute right-0 bottom-4 bg-white dark:bg-slate-900 border rounded-xl p-2.5 shadow-xl text-foreground text-[10px] w-48 z-40 space-y-1 text-left animate-fade-in">
+                                      <p className="font-bold border-b pb-1 text-[9px] text-slate-400 uppercase tracking-wider">Message Edit Log</p>
+                                      <div className="space-y-1 py-1 max-h-24 overflow-y-auto">
+                                        <div className="border-l-2 border-indigo-500 pl-1.5">
+                                          <p className="text-slate-400 text-[8px] font-medium">Original Version</p>
+                                          <p className="italic text-slate-600 dark:text-slate-400 break-words">"{msg.content.slice(0, 40)}..."</p>
+                                        </div>
+                                        <div className="border-l-2 border-emerald-500 pl-1.5">
+                                          <p className="text-slate-400 text-[8px] font-medium">Dispatched At</p>
+                                          <p className="text-slate-600 dark:text-slate-400 font-bold">{new Date(msg.createdAt).toLocaleTimeString()}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
                           )}
 
                           {/* Render Poll interface */}
@@ -1660,6 +1820,78 @@ export default function ChatPage() {
                 </div>
               )}
 
+              {/* Rich text formatting & Message scheduling toolbar */}
+              {!isBlocked && (
+                <div className="flex items-center justify-between px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border-b border-t text-[10px] text-slate-400 select-none">
+                  <div className="flex items-center space-x-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setInputValue(prev => prev + '**bold**')}
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all"
+                      title="Bold Text (**text**)"
+                    >
+                      <Bold className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInputValue(prev => prev + '*italic*')}
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded italic text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all"
+                      title="Italic Text (*text*)"
+                    >
+                      <Italic className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInputValue(prev => prev + '`code`')}
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded font-mono text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all"
+                      title="Code Format (`code`)"
+                    >
+                      <Code className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    {scheduledDate && (
+                      <div className="bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded flex items-center space-x-1">
+                        <span>Sched: {new Date(scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <button type="button" onClick={() => setScheduledDate('')} className="hover:text-red-500 font-extrabold">×</button>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowScheduler(!showScheduler)}
+                      className={`p-1 rounded flex items-center space-x-0.5 transition-all ${showScheduler ? 'bg-primary/10 text-primary' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500'}`}
+                      title="Schedule message delivery"
+                    >
+                      <Clock className="h-3.5 w-3.5" />
+                      <span className="text-[9px] font-bold">Schedule</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Scheduling datetime picker popover */}
+              {!isBlocked && showScheduler && (
+                <div className="p-3 bg-white dark:bg-slate-900 border-b flex items-center justify-between animate-fade-in select-none">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider shrink-0">Deliver At:</span>
+                    <input
+                      type="datetime-local"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      className="px-2.5 py-1 text-xs border rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduler(false)}
+                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[10px] font-bold rounded-lg transition-all"
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+
               <form onSubmit={handleSend} className="flex items-center space-x-3">
                 <input
                   type="file"
@@ -1684,7 +1916,7 @@ export default function ChatPage() {
 
                   {/* Attachment Popover Menu */}
                   {attachmentMenuOpen && (
-                    <div className="absolute bottom-14 left-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-2xl z-50 w-56 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
+                    <div className="absolute bottom-14 left-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 p-3 rounded-2xl shadow-2xl z-50 w-56 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
                       
                       {/* Document */}
                       <button
@@ -2549,21 +2781,69 @@ export default function ChatPage() {
       {stickerPanelOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button onClick={() => setStickerPanelOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg">
+            <button onClick={() => { setStickerPanelOpen(false); setGifSearchQuery(''); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg">
               <X className="h-5 w-5" />
             </button>
-            <h3 className="font-bold text-base text-slate-800 dark:text-slate-200 text-left">Send Sticker</h3>
-            <div className="grid grid-cols-4 gap-4 p-2">
-              {['🚀', '🎉', '👍', '❤️', '👏', '🔥', '💡', '🤔', '🌟', '👀', '💻', '🥳'].map((sticker, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => handleShareSticker(sticker)}
-                  className="text-4xl hover:scale-125 cursor-pointer text-center select-none transition-all py-2"
-                >
-                  {sticker}
-                </div>
-              ))}
+            
+            {/* Modal Tabs */}
+            <div className="flex items-center space-x-4 border-b pb-2 select-none">
+              <button
+                onClick={() => setActiveStickerTab('stickers')}
+                className={`text-sm font-bold pb-1 transition-all ${activeStickerTab === 'stickers' ? 'text-primary border-b-2 border-primary' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Stickers
+              </button>
+              <button
+                onClick={() => setActiveStickerTab('gifs')}
+                className={`text-sm font-bold pb-1 transition-all ${activeStickerTab === 'gifs' ? 'text-primary border-b-2 border-primary' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                GIFs
+              </button>
             </div>
+
+            {activeStickerTab === 'stickers' ? (
+              <div className="grid grid-cols-4 gap-4 p-2">
+                {['🚀', '🎉', '👍', '❤️', '👏', '🔥', '💡', '🤔', '🌟', '👀', '💻', '🥳'].map((sticker, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleShareSticker(sticker)}
+                    className="text-4xl hover:scale-125 cursor-pointer text-center select-none transition-all py-2"
+                  >
+                    {sticker}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Search preset GIFs..."
+                  value={gifSearchQuery}
+                  onChange={(e) => setGifSearchQuery(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-850 text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-100"
+                />
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                  {PRESET_GIFS.filter(g => g.name.toLowerCase().includes(gifSearchQuery.toLowerCase())).map((gif, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        handleShareSticker(gif.url);
+                        setGifSearchQuery('');
+                      }}
+                      className="border rounded-xl overflow-hidden cursor-pointer hover:border-primary transition-all relative group h-16 bg-slate-100 dark:bg-slate-800"
+                    >
+                      <img src={gif.url} alt={gif.name} className="h-full w-full object-cover" />
+                      <div className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[8px] p-0.5 text-center truncate font-medium">
+                        {gif.name}
+                      </div>
+                    </div>
+                  ))}
+                  {PRESET_GIFS.filter(g => g.name.toLowerCase().includes(gifSearchQuery.toLowerCase())).length === 0 && (
+                    <p className="text-[10px] text-slate-400 col-span-2 text-center py-4">No matching GIFs found.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

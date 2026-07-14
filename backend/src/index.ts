@@ -105,6 +105,58 @@ app.get('/health', (req, res) => {
 // Error handling middleware
 app.use(errorHandler as any);
 
+// Background worker for scheduled messages delivery
+setInterval(async () => {
+  try {
+    const now = new Date();
+    const pendingMessages = await prisma.message.findMany({
+      where: {
+        scheduledFor: {
+          lte: now,
+          not: null
+        }
+      },
+      include: {
+        sender: {
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true, designation: true }
+        },
+        attachments: true,
+        parent: {
+          include: {
+            sender: {
+              select: { id: true, firstName: true, lastName: true, avatarUrl: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (pendingMessages.length > 0) {
+      for (const msg of pendingMessages) {
+        // Mark message as active (nullify scheduledFor)
+        await prisma.message.update({
+          where: { id: msg.id },
+          data: { scheduledFor: null }
+        });
+
+        // Broadcast message to clients
+        const io = app.get('io');
+        if (io) {
+          const payload = { ...msg, scheduledFor: null };
+          if (msg.groupId) {
+            io.to(`group:${msg.groupId}`).emit('new_message', payload);
+          } else if (msg.receiverId) {
+            io.to(`user:${msg.receiverId}`).to(`user:${msg.senderId}`).emit('new_message', payload);
+          }
+        }
+      }
+      console.log(`Dispatched ${pendingMessages.length} scheduled messages.`);
+    }
+  } catch (err) {
+    console.error('Error in scheduled messages worker:', err);
+  }
+}, 10000); // Check every 10 seconds
+
 // Listen on all network interfaces
 server.listen(PORT, () => {
   console.log(`==================================================`);

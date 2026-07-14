@@ -294,4 +294,5 @@ export const api = {
   createProject: (body: any) => request('/projects', 'POST', body),
   updateProject: (id: string, body: any) => request(`/projects/${id}`, 'PUT', body),
   deleteProject: (id: string) => request(`/projects/${id}`, 'DELETE'),
+  sendContactMessage: (body: { name: string; email: string; message: string }) => request('/auth/contact', 'POST', body),
 };

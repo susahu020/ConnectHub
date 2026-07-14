@@ -45,6 +45,7 @@ import {
   setup2FA,
   activate2FA,
   disable2FA,
+  sendContactMessage,
 } from '../controllers/auth.controller';
 
 import {
@@ -206,6 +207,7 @@ router.post('/auth/extend-session', authenticate as any, extendSession as any);
 router.post('/auth/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 router.post('/auth/reset-password', validate(resetPasswordSchema), resetPassword);
 router.post('/auth/change-password', authenticate as any, changePassword as any);
+router.post('/auth/contact', sendContactMessage as any);
 router.post('/auth/invite', authenticate as any, checkPermission('Users', 'Update'), inviteUser as any);
 router.get('/auth/invite/verify', verifyInvitation);
 router.post('/auth/invite/complete', completeOnboarding);

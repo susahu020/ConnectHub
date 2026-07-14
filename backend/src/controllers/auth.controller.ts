@@ -1058,3 +1058,43 @@ export const disable2FA = async (req: AuthenticatedRequest, res: Response, next:
     next(error);
   }
 };
+
+export const sendContactMessage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { name, email, message } = req.body;
+    if (!name || !email || !message) {
+      res.status(400).json({ message: 'Name, email, and message are required.' });
+      return;
+    }
+
+    const adminUser = await prisma.user.findFirst({
+      where: { role: 'ADMIN' },
+    });
+    const adminEmail = adminUser?.email || process.env.SMTP_USER || 'susahu02@gmail.com';
+
+    const subject = `New Contact Form Message from ${name}`;
+    const text = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #4f46e5; border-bottom: 1px solid #eee; padding-bottom: 10px;">New Contact Form Submission</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+        <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 15px;">
+          <h4 style="margin-top: 0; color: #111827;">Message:</h4>
+          <p style="white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #4b5563;">${message}</p>
+        </div>
+        <p style="font-size: 11px; color: #9ca3af; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
+          This message was sent from the ConnectHub contact form.
+        </p>
+      </div>
+    `;
+
+    await sendEmail(adminEmail, subject, text, html);
+
+    res.status(200).json({
+      message: 'Message sent successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};

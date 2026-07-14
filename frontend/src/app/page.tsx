@@ -17,9 +17,18 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Mail,
+  Phone,
+  MapPin,
+  Award,
+  Activity,
+  TrendingUp,
+  Send
 } from 'lucide-react';
 import { useAuthStore } from '../lib/store';
+import { toast } from 'react-hot-toast';
+import { api } from '../services/api';
 
 export default function LandingPage() {
   const { isAuthenticated } = useAuthStore();
@@ -27,6 +36,11 @@ export default function LandingPage() {
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [mockupTab, setMockupTab] = useState<'tasks' | 'users' | 'chats'>('tasks');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactSubmitted, setContactSubmitted] = useState(false);
 
   const features = [
     {
@@ -105,8 +119,10 @@ export default function LandingPage() {
 
           <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-muted-foreground">
             <a href="#features" id="nav-features-link" className="hover:text-foreground transition-all">Features</a>
+            <a href="#about" id="nav-about-link" className="hover:text-foreground transition-all">About</a>
             <a href="#pricing" id="nav-pricing-link" className="hover:text-foreground transition-all">Pricing</a>
             <a href="#faq" id="nav-faq-link" className="hover:text-foreground transition-all">FAQs</a>
+            <a href="#contact" id="nav-contact-link" className="hover:text-foreground transition-all">Contact</a>
           </nav>
 
           <div className="flex items-center space-x-4">
@@ -323,6 +339,77 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* About Section */}
+      <section id="about" className="py-24 relative overflow-hidden bg-white dark:bg-slate-900 border-b">
+        <div className="max-w-7xl mx-auto px-6 space-y-16">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="space-y-6"
+            >
+              <span className="px-3 py-1 text-xs font-semibold bg-primary/10 text-primary rounded-full uppercase tracking-wider">
+                Our Story
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                Pioneering the Next Generation of Workspaces
+              </h2>
+              <p className="text-muted-foreground leading-relaxed text-sm">
+                ConnectHub was born out of a simple realization: modern teams waste too much time jumping between disjointed apps. By merging communication, project tracking, file storage, and analytics into a single high-velocity interface, we help organizations work smarter and faster.
+              </p>
+              <p className="text-muted-foreground leading-relaxed text-sm">
+                Our secure-by-default architecture guarantees data integrity, while our elegant UI minimizes friction so teams can focus on what matters most: creating great results.
+              </p>
+              <div className="grid grid-cols-2 gap-6 pt-4">
+                <div className="border-l-4 border-primary pl-4 space-y-1">
+                  <h4 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">99.99%</h4>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">System Uptime</p>
+                </div>
+                <div className="border-l-4 border-indigo-500 pl-4 space-y-1">
+                  <h4 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">2.5x</h4>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Team Velocity Boost</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="grid grid-cols-2 gap-4"
+            >
+              <div className="space-y-4">
+                <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border space-y-3 hover:shadow-md transition-all">
+                  <Award className="h-6 w-6 text-primary" />
+                  <h3 className="font-bold text-sm">Security First</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">JWT rotating sessions, secure bcrypt hashing, and complete data encryption.</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border space-y-3 hover:shadow-md transition-all">
+                  <TrendingUp className="h-6 w-6 text-emerald-500" />
+                  <h3 className="font-bold text-sm">Scale Fast</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Engineered for lightweight deployment on cost-free tiers with zero overhead.</p>
+                </div>
+              </div>
+              <div className="space-y-4 pt-8">
+                <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border space-y-3 hover:shadow-md transition-all">
+                  <Activity className="h-6 w-6 text-indigo-500" />
+                  <h3 className="font-bold text-sm">Real-time Sync</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Socket-based channels, active status tracking, and instant alerts.</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-2xl border space-y-3 hover:shadow-md transition-all">
+                  <Users className="h-6 w-6 text-yellow-500" />
+                  <h3 className="font-bold text-sm">Team Harmony</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Shared spaces, Kanban pipelines, and fluid colleague directories.</p>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* Pricing Section */}
       <section id="pricing" className="py-20">
         <div className="max-w-7xl mx-auto px-6 space-y-12">
@@ -373,25 +460,22 @@ export default function LandingPage() {
                   
                   <div className="flex flex-col items-start space-y-1">
                     <div className="flex items-baseline space-x-2">
-                      {plan.name === 'Business Pro' && (
+                      {billingCycle === 'yearly' && (
                         <span className="text-lg text-slate-400 line-through font-bold">
-                          {billingCycle === 'monthly' ? '$19' : '$180'}
+                          {plan.name === 'Starter' ? '$108' : '$228'}
                         </span>
                       )}
-                      {plan.name === 'Starter' && (
-                        <span className="text-lg text-slate-400 line-through font-bold">
-                          {billingCycle === 'monthly' ? '$9' : '$80'}
-                        </span>
-                      )}
-                      <span className="text-5xl font-extrabold">
-                        $0
+                      <span className="text-5xl font-extrabold text-slate-900 dark:text-slate-100">
+                        {plan.name === 'Starter'
+                          ? (billingCycle === 'monthly' ? '$9' : '$80')
+                          : (billingCycle === 'monthly' ? '$19' : '$180')}
                       </span>
-                      <span className="text-muted-foreground text-sm">
+                      <span className="text-muted-foreground text-sm font-semibold">
                         / {billingCycle === 'monthly' ? 'month' : 'year'}
                       </span>
                     </div>
                     <span className="text-[9px] text-emerald-500 font-black tracking-wider uppercase leading-none">
-                      {billingCycle === 'yearly' ? 'Sponsor active • billed annually' : 'Sponsor active • billed monthly'}
+                      {billingCycle === 'yearly' ? 'billed annually (save 20%)' : 'billed monthly'}
                     </span>
                   </div>
                   <hr />
@@ -482,6 +566,183 @@ export default function LandingPage() {
                 </p>
               )}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="py-24 bg-slate-50 dark:bg-slate-950/40 relative overflow-hidden border-t border-b">
+        <div className="max-w-7xl mx-auto px-6 space-y-12">
+          <div className="text-center space-y-4 max-w-2xl mx-auto">
+            <span className="px-3 py-1 text-xs font-semibold bg-primary/10 text-primary rounded-full uppercase tracking-wider">
+              Get In Touch
+            </span>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-105 animate-fade-in">We'd Love to Hear From You</h2>
+            <p className="text-muted-foreground text-sm">
+              Have questions, feedback, or need deployment support? Fill out the form or reach us via our details.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-5 gap-12 max-w-5xl mx-auto">
+            {/* Contact Details Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="md:col-span-2 bg-white dark:bg-slate-900 border p-8 rounded-3xl shadow-sm space-y-8 flex flex-col justify-between"
+            >
+              <div className="space-y-6 text-left">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Contact Information</h3>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Our professional support team responds within 24 hours to help you optimize your ConnectHub deployment.
+                </p>
+              </div>
+
+              <div className="space-y-4 text-left">
+                <div className="flex items-center space-x-3.5">
+                  <div className="p-2.5 bg-primary/10 rounded-2xl text-primary shrink-0">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider block">Email Us</span>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">support@connecthub.com</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3.5">
+                  <div className="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-500 shrink-0">
+                    <Phone className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider block">Call Us</span>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">+1 (800) 555-CHAT</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3.5">
+                  <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-500 shrink-0">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider block">Visit Us</span>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">San Francisco, CA, USA</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider text-left">
+                MIT Licensed • Community Driven
+              </div>
+            </motion.div>
+
+            {/* Interactive Contact Form */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="md:col-span-3 bg-white dark:bg-slate-900 border p-8 rounded-3xl shadow-sm relative text-left"
+            >
+              {contactSubmitted ? (
+                <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 z-10 rounded-3xl flex flex-col items-center justify-center space-y-4 p-6 text-center animate-fade-in">
+                  <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-full animate-bounce">
+                    <CheckCircle2 className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Message Sent Successfully!</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs leading-relaxed">
+                    Thank you for reaching out, {contactName}. Our team will review your message and contact you at {contactEmail} shortly.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setContactSubmitted(false);
+                      setContactName('');
+                      setContactEmail('');
+                      setContactMessage('');
+                    }}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-xs font-bold transition-all text-slate-700 dark:text-slate-350"
+                  >
+                    Send Another Message
+                  </button>
+                </div>
+              ) : null}
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (contactName && contactEmail && contactMessage) {
+                    api.sendContactMessage({
+                      name: contactName,
+                      email: contactEmail,
+                      message: contactMessage
+                    })
+                    .then(() => {
+                      setContactSubmitted(true);
+                      toast.success('Message sent to administrator!');
+                      setTimeout(() => {
+                        setContactSubmitted(false);
+                        setContactName('');
+                        setContactEmail('');
+                        setContactMessage('');
+                      }, 5000);
+                    })
+                    .catch(() => {
+                      toast.error('Failed to send message. Please try again.');
+                    });
+                  } else {
+                    toast.error('Please fill in all contact fields.');
+                  }
+                }}
+                className="space-y-4"
+              >
+                <div className="space-y-1">
+                  <label htmlFor="contact-name" className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-wider block">Full Name</label>
+                  <input
+                    type="text"
+                    id="contact-name"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    required
+                    placeholder="Enter your full name"
+                    className="w-full px-4 py-2.5 text-xs font-semibold rounded-xl border bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900 border-slate-150 dark:border-slate-850 focus:border-primary focus:ring-1 focus:ring-primary outline-hidden transition-all text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="contact-email" className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-wider block">Email Address</label>
+                  <input
+                    type="email"
+                    id="contact-email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    required
+                    placeholder="you@example.com"
+                    className="w-full px-4 py-2.5 text-xs font-semibold rounded-xl border bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900 border-slate-150 dark:border-slate-850 focus:border-primary focus:ring-1 focus:ring-primary outline-hidden transition-all text-slate-800 dark:text-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="contact-message" className="text-[10px] font-black text-slate-450 dark:text-slate-500 uppercase tracking-wider block">Message</label>
+                  <textarea
+                    id="contact-message"
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value)}
+                    required
+                    rows={4}
+                    placeholder="Type your message here..."
+                    className="w-full px-4 py-2.5 text-xs font-semibold rounded-xl border bg-slate-50 dark:bg-slate-950 focus:bg-white dark:focus:bg-slate-900 border-slate-150 dark:border-slate-850 focus:border-primary focus:ring-1 focus:ring-primary outline-hidden transition-all text-slate-800 dark:text-slate-200 resize-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-primary hover:bg-primary/95 text-white font-bold text-xs rounded-xl shadow-md shadow-primary/10 hover:shadow-lg transition-all flex items-center justify-center space-x-1.5"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>Send Message</span>
+                </button>
+              </form>
+            </motion.div>
           </div>
         </div>
       </section>
