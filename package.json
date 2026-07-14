@@ -1,0 +1,14 @@
+{
+  "name": "connecthub",
+  "version": "1.0.0",
+  "description": "ConnectHub Enterprise Collaboration Platform",
+  "scripts": {
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down",
+    "backend:dev": "npm run --prefix backend dev",
+    "frontend:dev": "npm run --prefix frontend dev",
+    "backend:install": "npm install --prefix backend",
+    "frontend:install": "npm install --prefix frontend",
+    "install:all": "npm run backend:install && npm run frontend:install"
+  }
+}

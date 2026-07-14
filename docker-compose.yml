@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: connecthub-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: connecthub
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - connecthub-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: connecthub-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - connecthub-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: connecthub-backend
+    restart: on-failure
+    command: sh -c "npx prisma db push --accept-data-loss && npm run seed && npm start"
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - PORT=5000
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/connecthub?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_ACCESS_SECRET=default-local-jwt-access-secret-123456
+      - JWT_REFRESH_SECRET=default-local-jwt-refresh-secret-123456
+      - JWT_ACCESS_EXPIRES_IN=15m
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - FRONTEND_URL=http://localhost:3000
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - backend_uploads:/app/uploads
+    networks:
+      - connecthub-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: connecthub-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api/v1
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
+    depends_on:
+      - backend
+    networks:
+      - connecthub-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_uploads:
+
+networks:
+  connecthub-network:
+    driver: bridge
