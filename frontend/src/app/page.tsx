@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useTheme } from 'next-themes';
 import { 
   MessageSquare, 
   Trello, 
@@ -12,12 +13,18 @@ import {
   Users, 
   ArrowRight, 
   CheckCircle2, 
-  Layers 
+  Layers,
+  Sun,
+  Moon,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useAuthStore } from '../lib/store';
 
 export default function LandingPage() {
   const { isAuthenticated } = useAuthStore();
+  const { theme, setTheme } = useTheme();
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   const features = [
     {
@@ -101,6 +108,16 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center space-x-4">
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all shrink-0"
+              title="Toggle theme"
+              type="button"
+            >
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+
             {isAuthenticated ? (
               <Link href="/dashboard" className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1">
                 <span>Dashboard</span>
@@ -293,24 +310,53 @@ export default function LandingPage() {
             <p className="text-muted-foreground">Have questions about ConnectHub? We have answers.</p>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm">
-              <h3 className="font-semibold text-lg">Can I deploy this platform on free cloud tiers?</h3>
-              <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                Yes! The entire ConnectHub stack (NextJS, Node API, PostgreSQL, Redis, Cloudinary) is engineered to run seamlessly on the free tiers of Vercel, Render, Supabase, and Upstash.
-              </p>
+          <div className="space-y-4">
+            {/* FAQ 1 */}
+            <div 
+              onClick={() => setActiveFaq(activeFaq === 0 ? null : 0)}
+              className="bg-white dark:bg-slate-900 border p-5 rounded-2xl shadow-sm cursor-pointer hover:border-primary/45 transition-all text-left space-y-2 select-none"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base text-foreground">Can I deploy this platform on free cloud tiers?</h3>
+                {activeFaq === 0 ? <ChevronUp className="h-4.5 w-4.5 text-primary shrink-0 animate-fade-in" /> : <ChevronDown className="h-4.5 w-4.5 text-slate-400 shrink-0" />}
+              </div>
+              {activeFaq === 0 && (
+                <p className="text-muted-foreground text-xs leading-relaxed animate-fade-in pr-6">
+                  Yes! The entire ConnectHub stack (NextJS, Node API, PostgreSQL, Redis, Cloudinary) is engineered to run seamlessly on the free tiers of Vercel, Render, Supabase, and Upstash.
+                </p>
+              )}
             </div>
-            <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm">
-              <h3 className="font-semibold text-lg">How is data security handled?</h3>
-              <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                ConnectHub utilizes production-ready JWT authentication (rotating short-lived access tokens and refresh cookies), bcrypt password hashing, and Helmet headers to protect endpoints from cross-site vulnerabilities.
-              </p>
+
+            {/* FAQ 2 */}
+            <div 
+              onClick={() => setActiveFaq(activeFaq === 1 ? null : 1)}
+              className="bg-white dark:bg-slate-900 border p-5 rounded-2xl shadow-sm cursor-pointer hover:border-primary/45 transition-all text-left space-y-2 select-none"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base text-foreground">How is data security handled?</h3>
+                {activeFaq === 1 ? <ChevronUp className="h-4.5 w-4.5 text-primary shrink-0 animate-fade-in" /> : <ChevronDown className="h-4.5 w-4.5 text-slate-400 shrink-0" />}
+              </div>
+              {activeFaq === 1 && (
+                <p className="text-muted-foreground text-xs leading-relaxed animate-fade-in pr-6">
+                  ConnectHub utilizes production-ready JWT authentication (rotating short-lived access tokens and refresh cookies), bcrypt password hashing, and Helmet headers to protect endpoints from cross-site vulnerabilities.
+                </p>
+              )}
             </div>
-            <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm">
-              <h3 className="font-semibold text-lg">Does the real-time system support desktop notification alerts?</h3>
-              <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                Yes. Active presence indicators, direct message updates, and Kanban task reassignments trigger instant UI socket events and local browser notifications.
-              </p>
+
+            {/* FAQ 3 */}
+            <div 
+              onClick={() => setActiveFaq(activeFaq === 2 ? null : 2)}
+              className="bg-white dark:bg-slate-900 border p-5 rounded-2xl shadow-sm cursor-pointer hover:border-primary/45 transition-all text-left space-y-2 select-none"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base text-foreground">Does the real-time system support desktop notification alerts?</h3>
+                {activeFaq === 2 ? <ChevronUp className="h-4.5 w-4.5 text-primary shrink-0 animate-fade-in" /> : <ChevronDown className="h-4.5 w-4.5 text-slate-400 shrink-0" />}
+              </div>
+              {activeFaq === 2 && (
+                <p className="text-muted-foreground text-xs leading-relaxed animate-fade-in pr-6">
+                  Yes. Active presence indicators, direct message updates, and Kanban task reassignments trigger instant UI socket events and local browser notifications.
+                </p>
+              )}
             </div>
           </div>
         </div>

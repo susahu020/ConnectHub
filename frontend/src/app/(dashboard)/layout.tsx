@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Layers, 
   LayoutDashboard, 
@@ -25,7 +26,11 @@ import {
   Check,
   Clock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  User,
+  Hash,
+  FileText,
+  XCircle
 } from 'lucide-react';
 import { useAuthStore } from '../../lib/store';
 import { api } from '../../services/api';
@@ -59,6 +64,80 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutsideSearch = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutsideSearch);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideSearch);
+    };
+  }, []);
+
+  // Global Platform Search Queries
+  const { data: searchDirUsers } = useQuery({
+    queryKey: ['global-search-users'],
+    queryFn: () => api.getDirectory('limit=100'),
+    enabled: isAuthenticated && searchQuery.trim().length > 0,
+  });
+
+  const { data: searchGroups } = useQuery({
+    queryKey: ['global-search-groups'],
+    queryFn: () => api.getGroups(),
+    enabled: isAuthenticated && searchQuery.trim().length > 0,
+  });
+
+  const { data: searchTasks } = useQuery({
+    queryKey: ['global-search-tasks'],
+    queryFn: () => api.getTasks('limit=100'),
+    enabled: isAuthenticated && searchQuery.trim().length > 0,
+  });
+
+  const { data: searchAnnouncements } = useQuery({
+    queryKey: ['global-search-announcements'],
+    queryFn: () => api.getAnnouncements('limit=100'),
+    enabled: isAuthenticated && searchQuery.trim().length > 0,
+  });
+
+  // Filter matches based on search query
+  const queryClean = searchQuery.toLowerCase().trim();
+  
+  const matchedUsers = queryClean
+    ? (searchDirUsers?.users || []).filter((u: any) =>
+        `${u.firstName} ${u.lastName}`.toLowerCase().includes(queryClean) ||
+        u.email.toLowerCase().includes(queryClean) ||
+        (u.designation || '').toLowerCase().includes(queryClean)
+      ).slice(0, 3)
+    : [];
+
+  const matchedGroups = queryClean
+    ? (searchGroups || []).filter((g: any) =>
+        g.name.toLowerCase().includes(queryClean) ||
+        (g.description || '').toLowerCase().includes(queryClean)
+      ).slice(0, 3)
+    : [];
+
+  const matchedTasks = queryClean
+    ? (searchTasks?.tasks || []).filter((t: any) =>
+        t.title.toLowerCase().includes(queryClean) ||
+        (t.description || '').toLowerCase().includes(queryClean)
+      ).slice(0, 3)
+    : [];
+
+  const matchedAnnouncements = queryClean
+    ? (searchAnnouncements?.announcements || []).filter((a: any) =>
+        a.title.toLowerCase().includes(queryClean) ||
+        (a.content || '').toLowerCase().includes(queryClean)
+      ).slice(0, 3)
+    : [];
+
+  const hasSearchResults = matchedUsers.length > 0 || matchedGroups.length > 0 || matchedTasks.length > 0 || matchedAnnouncements.length > 0;
 
   // Inactivity & Heartbeat states
   const [showWarningModal, setShowWarningModal] = useState(false);
@@ -457,15 +536,137 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="hidden sm:flex items-center space-x-2 bg-slate-50 dark:bg-slate-850 px-3 py-1.5 rounded-xl border max-w-xs text-xs font-medium text-muted-foreground shadow-sm">
-              <Search className="h-3.5 w-3.5" />
-              <input
-                type="text"
-                placeholder="Global platform search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-transparent border-none focus:outline-none w-48 text-foreground"
-              />
+            <div ref={searchRef} className="hidden sm:block relative max-w-xs w-full">
+              <div className="flex items-center space-x-2 bg-slate-50 dark:bg-slate-850 px-3 py-1.5 rounded-xl border text-xs font-medium text-muted-foreground shadow-sm w-full">
+                <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Global platform search..."
+                  value={searchQuery}
+                  onFocus={() => setSearchFocused(true)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-transparent border-none focus:outline-none w-full text-foreground"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full shrink-0">
+                    <XCircle className="h-3.5 w-3.5 text-slate-400" />
+                  </button>
+                )}
+              </div>
+
+              {/* FLOATING GLASS SEARCH RESULTS OVERLAY */}
+              {searchFocused && searchQuery.trim() !== '' && (
+                <div className="absolute top-10 left-0 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-[999] p-3 space-y-4 max-h-[380px] overflow-y-auto animate-slide-up text-left">
+                  
+                  {/* Category: Teammates */}
+                  {matchedUsers.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-1">Teammates</div>
+                      <div className="space-y-1">
+                        {matchedUsers.map((item: any) => (
+                          <Link
+                            key={item.id}
+                            href={`/chat?contactId=${item.id}&name=${encodeURIComponent(item.firstName + ' ' + item.lastName)}&status=${item.status}`}
+                            onClick={() => setSearchFocused(false)}
+                            className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
+                          >
+                            <div className="h-6 w-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black uppercase text-slate-500 shrink-0">
+                              {item.firstName[0]}{item.lastName[0]}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.firstName} {item.lastName}</p>
+                              <p className="text-[8px] text-muted-foreground truncate leading-none">{item.designation || 'Teammate'}</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category: Channels */}
+                  {matchedGroups.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-1">Channels</div>
+                      <div className="space-y-1">
+                        {matchedGroups.map((item: any) => (
+                          <Link
+                            key={item.id}
+                            href="/groups"
+                            onClick={() => setSearchFocused(false)}
+                            className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
+                          >
+                            <div className="h-6 w-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <Hash className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">#{item.name}</p>
+                              <p className="text-[8px] text-muted-foreground truncate leading-none">{item.members?.length || 0} followers</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category: Tasks */}
+                  {matchedTasks.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-1">Tasks</div>
+                      <div className="space-y-1">
+                        {matchedTasks.map((item: any) => (
+                          <Link
+                            key={item.id}
+                            href="/tasks"
+                            onClick={() => setSearchFocused(false)}
+                            className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
+                          >
+                            <div className="h-6 w-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <Trello className="h-3.5 w-3.5 text-emerald-500" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.title}</p>
+                              <p className="text-[8px] text-muted-foreground truncate leading-none">{item.status.replace('_', ' ')} • {item.priority}</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category: Announcements */}
+                  {matchedAnnouncements.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-1">Announcements</div>
+                      <div className="space-y-1">
+                        {matchedAnnouncements.map((item: any) => (
+                          <Link
+                            key={item.id}
+                            href="/announcements"
+                            onClick={() => setSearchFocused(false)}
+                            className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
+                          >
+                            <div className="h-6 w-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <Megaphone className="h-3.5 w-3.5 text-indigo-500" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.title}</p>
+                              <p className="text-[8px] text-muted-foreground truncate leading-none">{new Date(item.createdAt).toLocaleDateString()}</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty Results Fallback */}
+                  {!hasSearchResults && (
+                    <div className="text-center py-6 space-y-2">
+                      <Search className="h-6 w-6 text-slate-350 dark:text-slate-500 mx-auto" />
+                      <p className="text-xs font-bold text-slate-400">No results found for "{searchQuery}"</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -541,7 +742,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Main Content Workspace */}
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-3 sm:p-6 overflow-y-auto">
           {children}
         </main>
       </div>

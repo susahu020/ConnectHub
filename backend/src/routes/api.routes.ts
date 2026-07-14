@@ -298,9 +298,9 @@ router.post('/tasks/:id/dependencies', authenticate as any, addTaskDependency as
 router.delete('/tasks/:id/dependencies/:dependsOnTaskId', authenticate as any, removeTaskDependency as any);
 
 router.get('/projects', authenticate as any, getProjects as any);
-router.post('/projects', authenticate as any, createProject as any);
-router.put('/projects/:id', authenticate as any, updateProject as any);
-router.delete('/projects/:id', authenticate as any, deleteProject as any);
+router.post('/projects', authenticate as any, checkPermission('Tasks', 'Create'), createProject as any);
+router.put('/projects/:id', authenticate as any, checkPermission('Tasks', 'Update'), updateProject as any);
+router.delete('/projects/:id', authenticate as any, checkPermission('Tasks', 'Delete'), deleteProject as any);
 
 // ==========================================
 // ANNOUNCEMENTS
