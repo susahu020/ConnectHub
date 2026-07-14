@@ -32,11 +32,13 @@ import {
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 export default function TasksPage() {
   const { user } = useAuthStore();
   const isWritePermitted = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [viewMode, setViewMode] = useState<'KANBAN' | 'LIST' | 'CALENDAR' | 'GANTT'>('KANBAN');
 
@@ -222,9 +224,14 @@ export default function TasksPage() {
     });
   };
 
-  const handleProjectDelete = () => {
+  const handleProjectDelete = async () => {
     if (!selectedProject) return;
-    if (confirm(`Are you absolutely sure you want to delete the project "${selectedProject.name}"? This will delete all its tasks forever.`)) {
+    if (await confirm({
+      title: 'Delete Project',
+      message: `Are you absolutely sure you want to delete the project "${selectedProject.name}"? This will delete all its tasks forever.`,
+      confirmText: 'Delete Project',
+      type: 'danger'
+    })) {
       deleteProjectMutation.mutate(selectedProject.id);
     }
   };

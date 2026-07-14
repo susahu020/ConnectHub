@@ -91,9 +91,9 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response, ne
         birthday: birthday ? new Date(birthday) : (birthday === null ? null : undefined),
         timezone: timezone !== undefined ? timezone : undefined,
         workingHours: workingHours !== undefined ? workingHours : undefined,
-        managerId: managerId !== undefined ? managerId : undefined,
+        managerId: managerId !== undefined ? (managerId === 'null' || managerId === '' ? null : managerId) : undefined,
         socialLinks: socialLinks !== undefined ? socialLinks : undefined,
-        departmentId: departmentId !== undefined ? (departmentId || null) : undefined,
+        departmentId: departmentId !== undefined ? (departmentId === 'null' || departmentId === '' ? null : departmentId) : undefined,
       },
       include: {
         department: true,
@@ -935,9 +935,9 @@ export const updateProfileById = async (req: AuthenticatedRequest, res: Response
         birthday: birthday ? new Date(birthday) : (birthday === null ? null : undefined),
         timezone: timezone !== undefined ? timezone : undefined,
         workingHours: workingHours !== undefined ? workingHours : undefined,
-        managerId: managerId !== undefined ? managerId : undefined,
+        managerId: managerId !== undefined ? (managerId === 'null' || managerId === '' ? null : managerId) : undefined,
         socialLinks: socialLinks !== undefined ? socialLinks : undefined,
-        departmentId: departmentId !== undefined ? (departmentId || null) : undefined,
+        departmentId: departmentId !== undefined ? (departmentId === 'null' || departmentId === '' ? null : departmentId) : undefined,
       },
     });
 

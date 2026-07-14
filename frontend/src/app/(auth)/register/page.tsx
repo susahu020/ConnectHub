@@ -179,10 +179,11 @@ function RegisterForm() {
               type="email"
               placeholder="name@company.com"
               readOnly={tokenVerified}
+              tabIndex={tokenVerified ? -1 : 0}
               {...register('email')}
               className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
                 errors.email ? 'border-red-500' : ''
-              } ${tokenVerified ? 'opacity-70 bg-slate-100 dark:bg-slate-900/60 cursor-not-allowed' : ''}`}
+              } ${tokenVerified ? 'opacity-70 bg-slate-100 dark:bg-slate-900/60 cursor-not-allowed pointer-events-none select-none' : ''}`}
             />
             {errors.email && <p className="text-xs font-medium text-red-500">{errors.email.message}</p>}
           </div>
@@ -208,22 +209,18 @@ function RegisterForm() {
               <label className="text-xs font-semibold text-muted-foreground uppercase" htmlFor="role">
                 Assigned Role
               </label>
-              {tokenVerified ? (
-                <div className="w-full px-4 py-2.5 rounded-xl border bg-slate-100 dark:bg-slate-900/60 opacity-80 text-sm font-bold text-slate-700 dark:text-slate-350 select-none">
-                  {invitedRole === 'ADMIN' ? 'Administrator' : invitedRole === 'MANAGER' ? 'Manager' : 'Employee'} (Authorized)
-                  <input type="hidden" value={invitedRole} {...register('role')} />
-                </div>
-              ) : (
-                <select
-                  id="role"
-                  {...register('role')}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
-                >
-                  <option value="EMPLOYEE">Employee</option>
-                  <option value="MANAGER">Manager</option>
-                  <option value="ADMIN">Administrator</option>
-                </select>
-              )}
+              <select
+                id="role"
+                {...register('role')}
+                className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
+                  tokenVerified ? 'opacity-70 bg-slate-100 dark:bg-slate-900/60 cursor-not-allowed pointer-events-none select-none' : ''
+                }`}
+                tabIndex={tokenVerified ? -1 : 0}
+              >
+                <option value="EMPLOYEE">Employee</option>
+                <option value="MANAGER">Manager</option>
+                <option value="ADMIN">Administrator</option>
+              </select>
             </div>
           </div>
 

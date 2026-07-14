@@ -28,10 +28,12 @@ import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
 import { resolveFileUrl } from '../../../lib/utils';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 export default function FilesPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -196,7 +198,12 @@ export default function FilesPage() {
 
   // Soft Deletes
   const handleDeleteFile = async (id: string) => {
-    if (!confirm('Move this file to Recycle Bin?')) return;
+    if (!await confirm({
+      title: 'Move File to Recycle Bin',
+      message: 'Are you sure you want to move this file to the Recycle Bin?',
+      confirmText: 'Move to Bin',
+      type: 'warning'
+    })) return;
     try {
       await api.deleteFile(id);
       queryClient.invalidateQueries({ queryKey: ['files'] });
@@ -207,7 +214,12 @@ export default function FilesPage() {
   };
 
   const handleDeleteFolder = async (id: string) => {
-    if (!confirm('Move this folder and all of its contents to Recycle Bin?')) return;
+    if (!await confirm({
+      title: 'Move Folder to Recycle Bin',
+      message: 'Are you sure you want to move this folder and all of its contents to the Recycle Bin?',
+      confirmText: 'Move to Bin',
+      type: 'warning'
+    })) return;
     try {
       await api.deleteFolder(id);
       queryClient.invalidateQueries({ queryKey: ['files'] });
@@ -230,7 +242,12 @@ export default function FilesPage() {
   };
 
   const handlePermanentDelete = async (id: string, type: 'FILE' | 'FOLDER') => {
-    if (!confirm('Permanently delete this item? This action is IRREVERSIBLE.')) return;
+    if (!await confirm({
+      title: 'Permanently Delete Item',
+      message: 'Permanently delete this item? This action is IRREVERSIBLE.',
+      confirmText: 'Delete Permanently',
+      type: 'danger'
+    })) return;
     try {
       await api.deletePermanently(id, type);
       refetchRecycleBin();

@@ -23,6 +23,7 @@ import {
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 const MODULES = ['Dashboard', 'Users', 'Groups', 'Announcements', 'Tasks', 'Files', 'Messages', 'Notifications', 'Reports', 'Admin', 'Analytics', 'Settings'];
 const ACTIONS = ['Create', 'Read', 'Update', 'Delete', 'Export', 'Import', 'Approve', 'Assign', 'Archive', 'Publish'];
@@ -31,6 +32,7 @@ export default function AdminPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'roles' | 'logs' | 'system'>('users');
 
@@ -276,13 +278,23 @@ export default function AdminPage() {
     toggleVerifyMutation.mutate({ id: userId, isVerified: !currentStatus });
   };
 
-  const handleDeleteDept = (id: string) => {
-    if (!confirm('Are you sure you want to delete this department? This will affect attached members.')) return;
+  const handleDeleteDept = async (id: string) => {
+    if (!await confirm({
+      title: 'Delete Department',
+      message: 'Are you sure you want to delete this department? This will affect attached members.',
+      confirmText: 'Delete Department',
+      type: 'danger'
+    })) return;
     deleteDeptMutation.mutate(id);
   };
 
-  const handleDeleteRole = (id: string) => {
-    if (!confirm('Delete this custom role? This action cannot be undone.')) return;
+  const handleDeleteRole = async (id: string) => {
+    if (!await confirm({
+      title: 'Delete Custom Role',
+      message: 'Delete this custom role? This action cannot be undone.',
+      confirmText: 'Delete Custom Role',
+      type: 'danger'
+    })) return;
     deleteRoleMutation.mutate(id);
   };
 
@@ -353,7 +365,12 @@ export default function AdminPage() {
       toast.error('You cannot delete your own account.');
       return;
     }
-    if (!confirm(`Are you sure you want to delete user ${email}? This action is permanent.`)) {
+    if (!await confirm({
+      title: 'Delete User Account',
+      message: `Are you sure you want to delete user ${email}? This action is permanent.`,
+      confirmText: 'Delete User',
+      type: 'danger'
+    })) {
       return;
     }
     try {

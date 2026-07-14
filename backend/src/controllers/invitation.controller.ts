@@ -27,18 +27,6 @@ export const inviteUser = async (req: AuthenticatedRequest, res: Response, next:
       return;
     }
 
-    // Check if an unused invitation already exists for this email
-    const existingInvite = await prisma.invitation.findUnique({
-      where: { email },
-    });
-    if (existingInvite && !existingInvite.isUsed && existingInvite.expiresAt > new Date()) {
-      res.status(400).json({ 
-        message: 'An active invitation already exists for this email.',
-        inviteLink: `http://localhost:3000/register?token=${existingInvite.token}`
-      });
-      return;
-    }
-
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days expiration
 

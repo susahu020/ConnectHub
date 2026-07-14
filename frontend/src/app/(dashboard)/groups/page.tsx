@@ -41,11 +41,13 @@ import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { useSocket } from '../../../hooks/useSocket';
 import { toast } from 'react-hot-toast';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 export default function GroupsPage() {
   const { user } = useAuthStore();
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   // Fetch groups
   const { data: groups, isLoading: loadingGroups, refetch: refetchGroups } = useQuery({
@@ -279,7 +281,12 @@ export default function GroupsPage() {
 
   const handleClearChatHistory = async () => {
     if (!activeGroup) return;
-    if (!confirm('Are you sure you want to clear chat history? This will delete all messages for you, but keep the channel open.')) return;
+    if (!await confirm({
+      title: 'Clear Chat History',
+      message: 'Are you sure you want to clear chat history? This will delete all messages for you, but keep the channel open.',
+      confirmText: 'Clear History',
+      type: 'danger'
+    })) return;
     try {
       await api.clearChat({ groupId: activeGroup.id });
       setMessages([]);
@@ -293,7 +300,12 @@ export default function GroupsPage() {
 
   const handleDeleteGroup = async () => {
     if (!activeGroup) return;
-    if (!confirm('Are you sure you want to delete this channel completely for everyone? This action is permanent and cannot be undone.')) return;
+    if (!await confirm({
+      title: 'Delete Channel',
+      message: 'Are you sure you want to delete this channel completely for everyone? This action is permanent and cannot be undone.',
+      confirmText: 'Delete Channel',
+      type: 'danger'
+    })) return;
     try {
       await api.deleteGroup(activeGroup.id);
       toast.success('Channel deleted successfully.');
@@ -769,7 +781,12 @@ export default function GroupsPage() {
 
   const handleLeaveGroup = async () => {
     if (!activeGroup) return;
-    if (!confirm('Are you sure you want to leave this channel?')) return;
+    if (!await confirm({
+      title: 'Leave Channel',
+      message: 'Are you sure you want to leave this channel?',
+      confirmText: 'Leave Channel',
+      type: 'danger'
+    })) return;
     try {
       await api.leaveGroup(activeGroup.id);
       toast.success('Left channel.');

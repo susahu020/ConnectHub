@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { SocketProvider, useSocket } from '../hooks/useSocket';
 import { Toaster } from 'react-hot-toast';
+import { ConfirmProvider } from '../context/ConfirmContext';
 
 export { useSocket };
 
@@ -25,10 +26,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <SocketProvider>
-          {children}
-          <Toaster position="top-right" reverseOrder={false} />
-        </SocketProvider>
+        <ConfirmProvider>
+          <SocketProvider>
+            {children}
+            <Toaster position="top-right" reverseOrder={false} />
+          </SocketProvider>
+        </ConfirmProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

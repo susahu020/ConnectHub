@@ -20,10 +20,12 @@ import { api } from '../../../services/api';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuthStore();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const { setTheme: setActiveTheme } = useTheme();
 
   // Password edit state
@@ -147,7 +149,12 @@ export default function SettingsPage() {
   };
 
   const handleRevokeSession = async (id: string) => {
-    if (!confirm('Revoke this session? This will force-logout the device.')) return;
+    if (!await confirm({
+      title: 'Revoke Session',
+      message: 'Revoke this session? This will force-logout the device.',
+      confirmText: 'Revoke Session',
+      type: 'danger'
+    })) return;
     try {
       await api.deleteSession(id);
       refetchSessions();
@@ -158,7 +165,12 @@ export default function SettingsPage() {
   };
 
   const handleLogoutOtherDevices = async () => {
-    if (!confirm('Are you sure you want to log out all other active devices?')) return;
+    if (!await confirm({
+      title: 'Log Out Other Devices',
+      message: 'Are you sure you want to log out all other active devices?',
+      confirmText: 'Log Out Others',
+      type: 'danger'
+    })) return;
     try {
       await api.logoutAll();
       refetchSessions();
@@ -169,7 +181,12 @@ export default function SettingsPage() {
   };
 
   const handleLogoutAllDevices = async () => {
-    if (!confirm('Log out of all sessions (including the current one)?')) return;
+    if (!await confirm({
+      title: 'Log Out All Devices',
+      message: 'Log out of all sessions (including the current one)?',
+      confirmText: 'Log Out All',
+      type: 'danger'
+    })) return;
     try {
       await api.logout();
       useAuthStore.getState().logout();

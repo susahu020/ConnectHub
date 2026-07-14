@@ -48,11 +48,13 @@ import { useAuthStore } from '../../../lib/store';
 import { useSocket } from '../../../components/providers';
 import { toast } from 'react-hot-toast';
 import { resolveFileUrl } from '../../../lib/utils';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 export default function ChatPage() {
   const { user } = useAuthStore();
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [activeContact, setActiveContact] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -545,7 +547,12 @@ export default function ChatPage() {
 
   const handleClearChatHistory = async () => {
     if (!activeContact) return;
-    if (!confirm('Are you sure you want to clear chat history? This will delete all messages for you, but keep the chat open.')) return;
+    if (!await confirm({
+      title: 'Clear Chat History',
+      message: 'Are you sure you want to clear chat history? This will delete all messages for you, but keep the chat open.',
+      confirmText: 'Clear Chat',
+      type: 'danger'
+    })) return;
     try {
       const payload = activeContact.type === 'GROUP' 
         ? { groupId: activeContact.id } 
@@ -562,7 +569,12 @@ export default function ChatPage() {
 
   const handleDeleteConversation = async () => {
     if (!activeContact) return;
-    if (!confirm('Are you sure you want to delete this conversation? This will clear all messages and close the chat.')) return;
+    if (!await confirm({
+      title: 'Delete Conversation',
+      message: 'Are you sure you want to delete this conversation? This will clear all messages and close the chat.',
+      confirmText: 'Delete Conversation',
+      type: 'danger'
+    })) return;
     try {
       const payload = activeContact.type === 'GROUP' 
         ? { groupId: activeContact.id, isDelete: true } 

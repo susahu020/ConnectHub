@@ -287,7 +287,20 @@ export const adminDeleteUser = async (req: AuthenticatedRequest, res: Response, 
       return;
     }
 
-    await prisma.user.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete invitation records associated with user's email
+      await tx.invitation.deleteMany({
+        where: { email: userToDelete.email }
+      });
+
+      // 2. Delete any groups created by this user (due to restrict delete constraint on creator)
+      await tx.group.deleteMany({
+        where: { createdById: id }
+      });
+
+      // 3. Delete the user
+      await tx.user.delete({ where: { id } });
+    });
 
     await prisma.auditLog.create({
       data: {

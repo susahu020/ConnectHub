@@ -18,10 +18,12 @@ import {
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 export default function AnnouncementsPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [activeAnn, setActiveAnn] = useState<any>(null);
   const [commentText, setCommentText] = useState('');
@@ -45,7 +47,12 @@ export default function AnnouncementsPage() {
   });
 
   const handleDeleteAnnouncement = async (id: string) => {
-    if (!confirm('Are you absolutely sure you want to delete this bulletin notice? This action cannot be undone.')) return;
+    if (!await confirm({
+      title: 'Delete Bulletin Notice',
+      message: 'Are you absolutely sure you want to delete this bulletin notice? This action cannot be undone.',
+      confirmText: 'Delete Notice',
+      type: 'danger'
+    })) return;
     try {
       await api.deleteAnnouncement(id);
       queryClient.invalidateQueries({ queryKey: ['announcements'] });
@@ -148,7 +155,12 @@ export default function AnnouncementsPage() {
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    if (!confirm('Delete this comment?')) return;
+    if (!await confirm({
+      title: 'Delete Comment',
+      message: 'Are you sure you want to delete this comment?',
+      confirmText: 'Delete Comment',
+      type: 'danger'
+    })) return;
     try {
       await api.deleteAnnouncementComment(activeAnn.id, commentId);
       setActiveAnn((prev: any) => ({
