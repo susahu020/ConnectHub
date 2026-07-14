@@ -145,6 +145,9 @@ export const api = {
   logout: () => request('/auth/logout', 'POST'),
   logoutAll: () => request('/auth/logout-all', 'POST'),
   extendSession: () => request('/auth/extend-session', 'POST'),
+  inviteUser: (body: { email: string; role: string }) => request('/auth/invite', 'POST', body),
+  verifyInvitation: (token: string) => request(`/auth/invite/verify?token=${token}`),
+  completeOnboarding: (body: any) => request('/auth/invite/complete', 'POST', body),
   
   // Users & Profile
   getProfile: () => request('/users/profile'),
@@ -280,6 +283,9 @@ export const api = {
   updateUserRole: (userId: string, role: string) => request(`/admin/users/${userId}/role`, 'PUT', { role }),
   toggleUserVerification: (userId: string, isVerified: boolean) => 
     request(`/admin/users/${userId}/verification`, 'PUT', { isVerified }),
+  adminUpdateUser: (id: string, body: any) => request(`/admin/users/${id}`, 'PUT', body),
+  adminDeleteUser: (id: string) => request(`/admin/users/${id}`, 'DELETE'),
+  adminChangeUserPassword: (id: string, password: string) => request(`/admin/users/${id}/password`, 'PUT', { password }),
   getDepartmentStats: () => request('/admin/stats/departments'),
   createDepartment: (body: any) => request('/admin/departments', 'POST', body),
   getDepartments: () => request('/admin/departments'),

@@ -702,3 +702,14 @@ model DeletedConversation {
   @@unique([userId, contactId])
   @@unique([userId, groupId])
 }
+
+model Invitation {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  role        String   @default("EMPLOYEE")
+  token       String   @unique
+  invitedById String
+  isUsed      Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}
