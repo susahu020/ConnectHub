@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { sendEmail } from '../config/mailer';
 
 /**
  * Admin or Manager invites a user.
@@ -63,6 +64,37 @@ export const inviteUser = async (req: AuthenticatedRequest, res: Response, next:
 
     const inviteLink = `http://localhost:3000/register?token=${token}`;
 
+    // Send invitation email
+    const subject = 'You have been invited to join ConnectHub!';
+    const text = `Hello,\n\nYou have been invited to join ConnectHub as a ${role.toLowerCase()}.\n\nClick the link below to complete your workspace onboarding and set up your password:\n\n${inviteLink}\n\nThis invitation link will expire in 7 days.\n\nBest regards,\nConnectHub Workspace Team`;
+    const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background-color: #ffffff;">
+        <div style="text-align: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
+          <h2 style="color: #4f46e5; margin: 0;">ConnectHub Portal</h2>
+        </div>
+        <div style="padding: 20px 0;">
+          <p>Hello,</p>
+          <p>You have been invited to join the ConnectHub collaboration workspace as a <strong>${role.toLowerCase()}</strong>.</p>
+          <p>To finalize your profile requirements (names, designation, and password) and start collaborating with your team, please click the button below:</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${inviteLink}" style="background-color: #4f46e5; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+              Complete Onboarding
+            </a>
+          </div>
+          <p style="color: #64748b; font-size: 11px; margin-top: 24px;">Note: This secure invitation link is personal and will expire in 7 days.</p>
+        </div>
+        <div style="border-top: 1px solid #f1f5f9; padding-top: 16px; font-size: 11px; color: #64748b; text-align: center;">
+          &copy; 2026 ConnectHub Workspace. All rights reserved.
+        </div>
+      </div>
+    `;
+
+    try {
+      await sendEmail(email, subject, text, html);
+    } catch (emailError) {
+      console.error('Failed to send onboarding email:', emailError);
+    }
+
     // Create system log
     await prisma.auditLog.create({
       data: {
@@ -74,7 +106,7 @@ export const inviteUser = async (req: AuthenticatedRequest, res: Response, next:
     });
 
     res.status(201).json({
-      message: 'Invitation generated successfully.',
+      message: 'Invitation generated and email sent successfully.',
       inviteLink,
       invitation,
     });
