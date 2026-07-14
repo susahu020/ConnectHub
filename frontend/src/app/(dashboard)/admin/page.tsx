@@ -391,10 +391,10 @@ export default function AdminPage() {
     }
     try {
       const res = await api.inviteUser({ email: inviteEmail, role: inviteRole });
-      toast.success('Invitation link generated!');
+      toast.success('Onboarding invitation email sent successfully!');
       setGeneratedLink(res.inviteLink);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to generate invitation.');
+      toast.error(err.message || 'Failed to send onboarding invitation.');
     }
   };
 
@@ -1217,7 +1217,7 @@ export default function AdminPage() {
                 <UserPlus className="h-5 w-5 text-primary" />
                 <span>Invite New Teammate</span>
               </h3>
-              <p className="text-xs text-muted-foreground">Generate a secure onboarding invitation token link.</p>
+              <p className="text-xs text-muted-foreground">Send a secure onboarding link directly to their email.</p>
             </div>
 
             <form onSubmit={handleInviteSubmit} className="space-y-4 text-xs font-semibold">
@@ -1253,7 +1253,7 @@ export default function AdminPage() {
                 className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all"
                 id="submit-invite-btn"
               >
-                Generate Onboarding Link
+                Send Onboarding Link
               </button>
             </form>
 
