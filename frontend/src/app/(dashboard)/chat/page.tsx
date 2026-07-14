@@ -28,6 +28,7 @@ import {
   Search,
   BarChart3,
   ChevronDown,
+  ArrowLeft,
   Copy,
   Camera,
   User,
@@ -929,7 +930,7 @@ export default function ChatPage() {
   return (
     <div className="h-[calc(100vh-8rem)] flex bg-white dark:bg-slate-900 border rounded-2xl overflow-hidden shadow-sm">
       {/* Sidebar Contacts List */}
-      <aside className="w-80 border-r flex flex-col shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+      <aside className={`w-full md:w-80 border-r flex flex-col shrink-0 bg-slate-50/50 dark:bg-slate-900/50 ${activeContact ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base">Direct Messages</h3>
@@ -1076,12 +1077,19 @@ export default function ChatPage() {
       </aside>
 
       {/* Messaging Workspace */}
-      <section className="flex-1 flex flex-col min-w-0 bg-white dark:bg-slate-950">
+      <section className={`flex-1 flex flex-col min-w-0 bg-white dark:bg-slate-950 ${activeContact ? 'flex' : 'hidden md:flex'}`}>
         {activeContact ? (
           <>
             {/* Header */}
             <div className="h-16 px-6 border-b flex items-center justify-between shrink-0 glass z-10">
               <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setActiveContact(null)}
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 md:hidden"
+                  aria-label="Back to conversations list"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
                 <div className="relative">
                   <div className="h-9 w-9 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center font-bold text-xs uppercase text-slate-500 overflow-hidden shrink-0">
                     {activeContact.avatarUrl ? (

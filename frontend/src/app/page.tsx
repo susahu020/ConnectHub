@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { useTheme } from 'next-themes';
 import { 
   MessageSquare, 
   Trello, 
@@ -12,12 +13,20 @@ import {
   Users, 
   ArrowRight, 
   CheckCircle2, 
-  Layers 
+  Layers,
+  Sun,
+  Moon,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useAuthStore } from '../lib/store';
 
 export default function LandingPage() {
   const { isAuthenticated } = useAuthStore();
+  const { theme, setTheme } = useTheme();
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [mockupTab, setMockupTab] = useState<'tasks' | 'users' | 'chats'>('tasks');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   const features = [
     {
@@ -89,29 +98,40 @@ export default function LandingPage() {
       {/* Top Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 glass border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2 text-xl font-bold tracking-tight">
+          <Link href="/" id="nav-logo-link" className="flex items-center space-x-2 text-xl font-bold tracking-tight">
             <Layers className="h-6 w-6 text-primary" />
             <span>ConnectHub</span>
           </Link>
 
           <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-muted-foreground">
-            <a href="#features" className="hover:text-foreground transition-all">Features</a>
-            <a href="#pricing" className="hover:text-foreground transition-all">Pricing</a>
-            <a href="#faq" className="hover:text-foreground transition-all">FAQs</a>
+            <a href="#features" id="nav-features-link" className="hover:text-foreground transition-all">Features</a>
+            <a href="#pricing" id="nav-pricing-link" className="hover:text-foreground transition-all">Pricing</a>
+            <a href="#faq" id="nav-faq-link" className="hover:text-foreground transition-all">FAQs</a>
           </nav>
 
           <div className="flex items-center space-x-4">
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              id="theme-toggle-btn"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all shrink-0"
+              title="Toggle theme"
+              type="button"
+            >
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+
             {isAuthenticated ? (
-              <Link href="/dashboard" className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1">
+              <Link href="/dashboard" id="nav-dashboard-btn" className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1">
                 <span>Dashboard</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
             ) : (
               <>
-                <Link href="/login" className="text-sm font-semibold hover:text-primary transition-all">
+                <Link href="/login" id="nav-signin-btn" className="text-sm font-semibold hover:text-primary transition-all">
                   Sign In
                 </Link>
-                <Link href="/register" className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary/95 transition-all shadow-md">
+                <Link href="/register" id="nav-register-btn" className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary/95 transition-all shadow-md">
                   Register
                 </Link>
               </>
@@ -139,11 +159,11 @@ export default function LandingPage() {
               A comprehensive communication platform merging instant messaging, file drives, Kanban workflows, and administrative audits into a single portal.
             </p>
             <div className="flex items-center space-x-4">
-              <Link href="/register" className="px-6 py-3 text-base font-semibold bg-primary text-white rounded-xl hover:bg-primary/95 transition-all shadow-lg flex items-center space-x-2">
+              <Link href="/register" id="hero-register-btn" className="px-6 py-3 text-base font-semibold bg-primary text-white rounded-xl hover:bg-primary/95 transition-all shadow-lg flex items-center space-x-2">
                 <span>Start Collaborating</span>
                 <ArrowRight className="h-5 w-5" />
               </Link>
-              <a href="#features" className="px-6 py-3 text-base font-semibold border rounded-xl hover:bg-muted/30 transition-all">
+              <a href="#features" id="hero-learn-more-btn" className="px-6 py-3 text-base font-semibold border rounded-xl hover:bg-muted/30 transition-all">
                 Learn More
               </a>
             </div>
@@ -167,27 +187,105 @@ export default function LandingPage() {
                   </div>
                   <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded" />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="h-16 bg-primary/5 rounded border border-primary/20 p-2 flex flex-col justify-between">
-                    <span className="text-[10px] text-muted-foreground">Active Tasks</span>
-                    <span className="text-lg font-bold text-primary">12</span>
+                <div className="grid grid-cols-3 gap-2 select-none">
+                  <div 
+                    onClick={() => setMockupTab('tasks')}
+                    className={`h-16 rounded border p-2 flex flex-col justify-between cursor-pointer transition-all ${
+                      mockupTab === 'tasks'
+                        ? 'bg-primary/10 border-primary shadow-sm scale-[1.02]'
+                        : 'bg-primary/5 border-primary/20 hover:bg-primary/10'
+                    }`}
+                  >
+                    <span className="text-[9px] text-muted-foreground font-bold">Active Tasks</span>
+                    <span className="text-base font-black text-primary leading-none">12</span>
                   </div>
-                  <div className="h-16 bg-emerald-500/5 rounded border border-emerald-500/20 p-2 flex flex-col justify-between">
-                    <span className="text-[10px] text-muted-foreground">Online Users</span>
-                    <span className="text-lg font-bold text-emerald-500">148</span>
+                  <div 
+                    onClick={() => setMockupTab('users')}
+                    className={`h-16 rounded border p-2 flex flex-col justify-between cursor-pointer transition-all ${
+                      mockupTab === 'users'
+                        ? 'bg-emerald-500/10 border-emerald-500 shadow-sm scale-[1.02]'
+                        : 'bg-emerald-500/5 border-emerald-500/20 hover:bg-emerald-500/10'
+                    }`}
+                  >
+                    <span className="text-[9px] text-muted-foreground font-bold">Online Users</span>
+                    <span className="text-base font-black text-emerald-500 leading-none">148</span>
                   </div>
-                  <div className="h-16 bg-indigo-500/5 rounded border border-indigo-500/20 p-2 flex flex-col justify-between">
-                    <span className="text-[10px] text-muted-foreground">Open Chats</span>
-                    <span className="text-lg font-bold text-indigo-500">8</span>
+                  <div 
+                    onClick={() => setMockupTab('chats')}
+                    className={`h-16 rounded border p-2 flex flex-col justify-between cursor-pointer transition-all ${
+                      mockupTab === 'chats'
+                        ? 'bg-indigo-500/10 border-indigo-500 shadow-sm scale-[1.02]'
+                        : 'bg-indigo-500/5 border-indigo-500/20 hover:bg-indigo-500/10'
+                    }`}
+                  >
+                    <span className="text-[9px] text-muted-foreground font-bold">Open Chats</span>
+                    <span className="text-base font-black text-indigo-500 leading-none">8</span>
                   </div>
                 </div>
-                <div className="h-24 bg-slate-50 dark:bg-slate-900 border rounded p-2 flex items-center space-x-3">
-                  <div className="h-10 w-10 bg-slate-200 dark:bg-slate-800 rounded-full" />
-                  <div className="space-y-1 flex-1">
-                    <div className="h-3 w-2/3 bg-slate-200 dark:bg-slate-800 rounded" />
-                    <div className="h-3 w-1/2 bg-slate-200 dark:bg-slate-800 rounded" />
+
+                {/* Simulated Content Window */}
+                {mockupTab === 'tasks' && (
+                  <div className="h-28 bg-slate-50 dark:bg-slate-900 border rounded-xl p-3 flex flex-col justify-between text-left text-[10px] space-y-1.5 overflow-hidden animate-fade-in">
+                    <div className="flex items-center justify-between border-b pb-1">
+                      <span className="font-bold text-[11px] text-slate-800 dark:text-slate-100">Live Task Kanban Simulator</span>
+                      <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase">Engineering</span>
+                    </div>
+                    <div className="space-y-1 text-slate-600 dark:text-slate-400">
+                      <div className="flex items-center justify-between">
+                        <span className="truncate">✓ Design ConnectHub DB Schema</span>
+                        <span className="text-[8px] bg-green-500/10 text-green-500 px-1 rounded font-bold shrink-0">COMPLETED</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="truncate">✓ Build Socket.IO presence indicators</span>
+                        <span className="text-[8px] bg-amber-500/10 text-amber-550 px-1 rounded font-bold shrink-0">IN PROGRESS</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="truncate">✓ Finalize global permissions gates</span>
+                        <span className="text-[8px] bg-slate-100 dark:bg-slate-800 px-1 rounded font-bold shrink-0">TO DO</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {mockupTab === 'users' && (
+                  <div className="h-28 bg-slate-50 dark:bg-slate-900 border rounded-xl p-3 flex flex-col justify-between text-left text-[10px] space-y-1.5 overflow-hidden animate-fade-in">
+                    <div className="flex items-center justify-between border-b pb-1">
+                      <span className="font-bold text-[11px] text-slate-800 dark:text-slate-100">Active Presence Directory</span>
+                      <span className="text-[8px] bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded font-bold uppercase">Online Now</span>
+                    </div>
+                    <div className="space-y-1 text-slate-600 dark:text-slate-400">
+                      <div className="flex items-center space-x-2">
+                        <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-[8px] uppercase shrink-0">AS</div>
+                        <span className="truncate flex-1 font-bold text-slate-700 dark:text-slate-300">Alice Smith <span className="font-normal text-[8px] text-muted-foreground">(Admin)</span></span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="h-5 w-5 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-black text-[8px] uppercase shrink-0">BJ</div>
+                        <span className="truncate flex-1 font-bold text-slate-700 dark:text-slate-300">Bob Jones <span className="font-normal text-[8px] text-muted-foreground">(Manager)</span></span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="h-5 w-5 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-black text-[8px] uppercase shrink-0">CB</div>
+                        <span className="truncate flex-1 font-bold text-slate-700 dark:text-slate-300">Charlie Brown <span className="font-normal text-[8px] text-muted-foreground">(Staff)</span></span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {mockupTab === 'chats' && (
+                  <div className="h-28 bg-slate-50 dark:bg-slate-900 border rounded-xl p-3 flex flex-col justify-between text-left text-[10px] space-y-1.5 overflow-hidden animate-fade-in">
+                    <div className="flex items-center justify-between border-b pb-1">
+                      <span className="font-bold text-[11px] text-slate-800 dark:text-slate-100">Live Team Messaging Lounge</span>
+                      <span className="text-[8px] bg-indigo-500/10 text-indigo-500 px-1.5 py-0.5 rounded font-bold uppercase">General Chat</span>
+                    </div>
+                    <div className="space-y-1.5 text-slate-650 dark:text-slate-400 overflow-y-auto">
+                      <p className="leading-tight"><strong className="text-slate-750 dark:text-slate-200">Alice:</strong> Hi team, did you review the project permissions report?</p>
+                      <p className="leading-tight"><strong className="text-slate-750 dark:text-slate-200">Bob:</strong> Yes, looks solid. Charlie is deploying presence check tools.</p>
+                      <p className="leading-tight"><strong className="text-slate-750 dark:text-slate-200">Charlie:</strong> Live clock hooks and sidebar collapses are operational! 👍</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -228,11 +326,30 @@ export default function LandingPage() {
       {/* Pricing Section */}
       <section id="pricing" className="py-20">
         <div className="max-w-7xl mx-auto px-6 space-y-12">
-          <div className="text-center space-y-4 max-w-2xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Flexible Plans For Teams of All Sizes</h2>
-            <p className="text-muted-foreground text-lg">
-              Enjoy all professional grade platforms completely free of charge. No hidden fees or credit cards required.
-            </p>
+          <div className="text-center space-y-6 max-w-2xl mx-auto">
+            <div className="space-y-3">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Flexible Plans For Teams of All Sizes</h2>
+              <p className="text-muted-foreground text-lg">
+                Enjoy all professional grade platforms completely free of charge. No hidden fees or credit cards required.
+              </p>
+            </div>
+
+            {/* BILLING TOGGLE PILL SWITCHER */}
+            <div className="flex items-center justify-center space-x-3 select-none">
+              <span className={`text-xs font-extrabold transition-all ${billingCycle === 'monthly' ? 'text-primary' : 'text-slate-400'}`}>Monthly Billing</span>
+              <button
+                type="button"
+                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
+                className="w-12 h-6 bg-slate-200 dark:bg-slate-800 rounded-full p-1 transition-all flex items-center relative"
+                aria-label="Toggle billing cycle"
+              >
+                <div className={`h-4 w-4 bg-primary rounded-full transition-all shadow-sm ${billingCycle === 'yearly' ? 'translate-x-6' : 'translate-x-0'}`} />
+              </button>
+              <span className={`text-xs font-extrabold transition-all flex items-center space-x-1.5 ${billingCycle === 'yearly' ? 'text-primary' : 'text-slate-400'}`}>
+                <span>Yearly Billing</span>
+                <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[9px] font-black tracking-wide uppercase">Save 20%</span>
+              </span>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -253,9 +370,29 @@ export default function LandingPage() {
                     <h3 className="text-2xl font-bold">{plan.name}</h3>
                     <p className="text-muted-foreground text-sm mt-1">{plan.description}</p>
                   </div>
-                  <div className="flex items-baseline space-x-1">
-                    <span className="text-5xl font-extrabold">{plan.price}</span>
-                    <span className="text-muted-foreground text-sm">/ month</span>
+                  
+                  <div className="flex flex-col items-start space-y-1">
+                    <div className="flex items-baseline space-x-2">
+                      {plan.name === 'Business Pro' && (
+                        <span className="text-lg text-slate-400 line-through font-bold">
+                          {billingCycle === 'monthly' ? '$19' : '$180'}
+                        </span>
+                      )}
+                      {plan.name === 'Starter' && (
+                        <span className="text-lg text-slate-400 line-through font-bold">
+                          {billingCycle === 'monthly' ? '$9' : '$80'}
+                        </span>
+                      )}
+                      <span className="text-5xl font-extrabold">
+                        $0
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        / {billingCycle === 'monthly' ? 'month' : 'year'}
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-emerald-500 font-black tracking-wider uppercase leading-none">
+                      {billingCycle === 'yearly' ? 'Sponsor active • billed annually' : 'Sponsor active • billed monthly'}
+                    </span>
                   </div>
                   <hr />
                   <ul className="space-y-3 text-sm font-medium text-slate-600 dark:text-slate-400">
@@ -270,6 +407,7 @@ export default function LandingPage() {
                 <div className="mt-8">
                   <Link
                     href="/register"
+                    id={`pricing-cta-${plan.name.toLowerCase().replace(' ', '-')}`}
                     className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-all shadow-md ${
                       plan.popular
                         ? 'bg-primary text-white hover:bg-primary/95'
@@ -293,24 +431,56 @@ export default function LandingPage() {
             <p className="text-muted-foreground">Have questions about ConnectHub? We have answers.</p>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm">
-              <h3 className="font-semibold text-lg">Can I deploy this platform on free cloud tiers?</h3>
-              <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                Yes! The entire ConnectHub stack (NextJS, Node API, PostgreSQL, Redis, Cloudinary) is engineered to run seamlessly on the free tiers of Vercel, Render, Supabase, and Upstash.
-              </p>
+          <div className="space-y-4">
+            {/* FAQ 1 */}
+            <div 
+              onClick={() => setActiveFaq(activeFaq === 0 ? null : 0)}
+              id="faq-card-0"
+              className="bg-white dark:bg-slate-900 border p-5 rounded-2xl shadow-sm cursor-pointer hover:border-primary/45 transition-all text-left space-y-2 select-none"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base text-foreground">Can I deploy this platform on free cloud tiers?</h3>
+                {activeFaq === 0 ? <ChevronUp className="h-4.5 w-4.5 text-primary shrink-0 animate-fade-in" /> : <ChevronDown className="h-4.5 w-4.5 text-slate-400 shrink-0" />}
+              </div>
+              {activeFaq === 0 && (
+                <p className="text-muted-foreground text-xs leading-relaxed animate-fade-in pr-6">
+                  Yes! The entire ConnectHub stack (NextJS, Node API, PostgreSQL, Redis, Cloudinary) is engineered to run seamlessly on the free tiers of Vercel, Render, Supabase, and Upstash.
+                </p>
+              )}
             </div>
-            <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm">
-              <h3 className="font-semibold text-lg">How is data security handled?</h3>
-              <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                ConnectHub utilizes production-ready JWT authentication (rotating short-lived access tokens and refresh cookies), bcrypt password hashing, and Helmet headers to protect endpoints from cross-site vulnerabilities.
-              </p>
+
+            {/* FAQ 2 */}
+            <div 
+              onClick={() => setActiveFaq(activeFaq === 1 ? null : 1)}
+              id="faq-card-1"
+              className="bg-white dark:bg-slate-900 border p-5 rounded-2xl shadow-sm cursor-pointer hover:border-primary/45 transition-all text-left space-y-2 select-none"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base text-foreground">How is data security handled?</h3>
+                {activeFaq === 1 ? <ChevronUp className="h-4.5 w-4.5 text-primary shrink-0 animate-fade-in" /> : <ChevronDown className="h-4.5 w-4.5 text-slate-400 shrink-0" />}
+              </div>
+              {activeFaq === 1 && (
+                <p className="text-muted-foreground text-xs leading-relaxed animate-fade-in pr-6">
+                  ConnectHub utilizes production-ready JWT authentication (rotating short-lived access tokens and refresh cookies), bcrypt password hashing, and Helmet headers to protect endpoints from cross-site vulnerabilities.
+                </p>
+              )}
             </div>
-            <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm">
-              <h3 className="font-semibold text-lg">Does the real-time system support desktop notification alerts?</h3>
-              <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-                Yes. Active presence indicators, direct message updates, and Kanban task reassignments trigger instant UI socket events and local browser notifications.
-              </p>
+
+            {/* FAQ 3 */}
+            <div 
+              onClick={() => setActiveFaq(activeFaq === 2 ? null : 2)}
+              id="faq-card-2"
+              className="bg-white dark:bg-slate-900 border p-5 rounded-2xl shadow-sm cursor-pointer hover:border-primary/45 transition-all text-left space-y-2 select-none"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base text-foreground">Does the real-time system support desktop notification alerts?</h3>
+                {activeFaq === 2 ? <ChevronUp className="h-4.5 w-4.5 text-primary shrink-0 animate-fade-in" /> : <ChevronDown className="h-4.5 w-4.5 text-slate-400 shrink-0" />}
+              </div>
+              {activeFaq === 2 && (
+                <p className="text-muted-foreground text-xs leading-relaxed animate-fade-in pr-6">
+                  Yes. Active presence indicators, direct message updates, and Kanban task reassignments trigger instant UI socket events and local browser notifications.
+                </p>
+              )}
             </div>
           </div>
         </div>

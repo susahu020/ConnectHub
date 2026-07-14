@@ -1,4 +1,9 @@
 import { Router } from 'express';
+import {
+  inviteUser,
+  verifyInvitation,
+  completeOnboarding
+} from '../controllers/invitation.controller';
 
 // Middlewares
 import { authenticate } from '../middleware/auth.middleware';
@@ -157,6 +162,9 @@ import {
   getDepartments,
   deleteDepartment,
   getSystemMetrics,
+  adminUpdateUser,
+  adminDeleteUser,
+  adminChangeUserPassword,
 } from '../controllers/admin.controller';
 
 import {
@@ -198,6 +206,9 @@ router.post('/auth/extend-session', authenticate as any, extendSession as any);
 router.post('/auth/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 router.post('/auth/reset-password', validate(resetPasswordSchema), resetPassword);
 router.post('/auth/change-password', authenticate as any, changePassword as any);
+router.post('/auth/invite', authenticate as any, checkPermission('Users', 'Update'), inviteUser as any);
+router.get('/auth/invite/verify', verifyInvitation);
+router.post('/auth/invite/complete', completeOnboarding);
 
 // ==========================================
 // USER & PROFILE
@@ -298,9 +309,9 @@ router.post('/tasks/:id/dependencies', authenticate as any, addTaskDependency as
 router.delete('/tasks/:id/dependencies/:dependsOnTaskId', authenticate as any, removeTaskDependency as any);
 
 router.get('/projects', authenticate as any, getProjects as any);
-router.post('/projects', authenticate as any, createProject as any);
-router.put('/projects/:id', authenticate as any, updateProject as any);
-router.delete('/projects/:id', authenticate as any, deleteProject as any);
+router.post('/projects', authenticate as any, checkPermission('Tasks', 'Create'), createProject as any);
+router.put('/projects/:id', authenticate as any, checkPermission('Tasks', 'Update'), updateProject as any);
+router.delete('/projects/:id', authenticate as any, checkPermission('Tasks', 'Delete'), deleteProject as any);
 
 // ==========================================
 // ANNOUNCEMENTS
@@ -345,6 +356,9 @@ router.get('/admin/users', authenticate as any, authorize(['ADMIN']), getSystemU
 router.get('/admin/system/metrics', authenticate as any, authorize(['ADMIN']), getSystemMetrics as any);
 router.put('/admin/users/:userId/role', authenticate as any, checkPermission('Users', 'Update'), updateUserRole as any);
 router.put('/admin/users/:userId/verification', authenticate as any, authorize(['ADMIN']), toggleUserVerification as any);
+router.put('/admin/users/:id', authenticate as any, authorize(['ADMIN']), adminUpdateUser as any);
+router.delete('/admin/users/:id', authenticate as any, authorize(['ADMIN']), adminDeleteUser as any);
+router.put('/admin/users/:id/password', authenticate as any, authorize(['ADMIN']), adminChangeUserPassword as any);
 router.get('/admin/stats/departments', authenticate as any, checkPermission('Reports', 'Export'), getDepartmentStats as any);
 router.post('/admin/departments', authenticate as any, authorize(['ADMIN']), createDepartment as any);
 router.post('/admin/logout-user', authenticate as any, authorize(['ADMIN']), adminLogoutUser as any);

@@ -17,7 +17,8 @@ import {
   X,
   Copy,
   Save,
-  Activity
+  Activity,
+  UserPlus
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
@@ -38,6 +39,12 @@ export default function AdminPage() {
   const [logSearch, setLogSearch] = useState('');
   const [logActionFilter, setLogActionFilter] = useState('ALL');
 
+  // Invitation system state
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('EMPLOYEE');
+  const [generatedLink, setGeneratedLink] = useState('');
+
   // Department creation state
   const [createDeptOpen, setCreateDeptOpen] = useState(false);
   const [deptName, setDeptName] = useState('');
@@ -57,6 +64,21 @@ export default function AdminPage() {
   const [dupTargetRole, setDupTargetRole] = useState<any>(null);
   const [dupNewName, setDupNewName] = useState('');
   const [dupDesc, setDupDesc] = useState('');
+
+  // Admin User controls state
+  const [editUserOpen, setEditUserOpen] = useState(false);
+  const [selectedEditUser, setSelectedEditUser] = useState<any>(null);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editDesignation, setEditDesignation] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editSystemRole, setEditSystemRole] = useState<'ADMIN' | 'MANAGER' | 'EMPLOYEE'>('EMPLOYEE');
+  const [editCustomRole, setEditCustomRole] = useState('');
+
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [selectedPasswordUser, setSelectedPasswordUser] = useState<any>(null);
+  const [adminNewPassword, setAdminNewPassword] = useState('');
 
   // Security Auth check: Redirect instantly if user role is not ADMIN
   useEffect(() => {
@@ -304,6 +326,78 @@ export default function AdminPage() {
     });
   };
 
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEditUser) return;
+    try {
+      await api.adminUpdateUser(selectedEditUser.id, {
+        firstName: editFirstName,
+        lastName: editLastName,
+        email: editEmail,
+        designation: editDesignation,
+        location: editLocation,
+        role: editSystemRole,
+        customRoleId: editCustomRole || null
+      });
+      toast.success('User details updated successfully.');
+      setEditUserOpen(false);
+      setSelectedEditUser(null);
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update user.');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, email: string) => {
+    if (userId === user?.id) {
+      toast.error('You cannot delete your own account.');
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete user ${email}? This action is permanent.`)) {
+      return;
+    }
+    try {
+      await api.adminDeleteUser(userId);
+      toast.success('User deleted successfully.');
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete user.');
+    }
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPasswordUser) return;
+    if (adminNewPassword.length < 6) {
+      toast.error('Password must be at least 6 characters.');
+      return;
+    }
+    try {
+      await api.adminChangeUserPassword(selectedPasswordUser.id, adminNewPassword);
+      toast.success('User password changed successfully.');
+      setChangePasswordOpen(false);
+      setSelectedPasswordUser(null);
+      setAdminNewPassword('');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to change user password.');
+    }
+  };
+
+  const handleInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail) {
+      toast.error('Email is required.');
+      return;
+    }
+    try {
+      const res = await api.inviteUser({ email: inviteEmail, role: inviteRole });
+      toast.success('Invitation link generated!');
+      setGeneratedLink(res.inviteLink);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate invitation.');
+    }
+  };
+
   if (!user || user.role !== 'ADMIN') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -338,6 +432,20 @@ export default function AdminPage() {
           >
             <Plus className="h-4 w-4" />
             <span>Create Custom Role</span>
+          </button>
+        )}
+
+        {activeTab === 'users' && (
+          <button
+            onClick={() => {
+              setGeneratedLink('');
+              setInviteEmail('');
+              setInviteModalOpen(true);
+            }}
+            className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Invite Teammate</span>
           </button>
         )}
       </div>
@@ -465,17 +573,64 @@ export default function AdminPage() {
                           {u.isVerified ? 'Verified' : 'Suspended'}
                         </span>
                       </td>
-                      <td className="py-3.5 text-right">
+                      <td className="py-3.5 text-right space-x-1.5">
+                        {/* Edit User Button */}
+                        <button
+                          onClick={() => {
+                            setSelectedEditUser(u);
+                            setEditFirstName(u.firstName);
+                            setEditLastName(u.lastName);
+                            setEditEmail(u.email);
+                            setEditDesignation(u.designation || '');
+                            setEditLocation(u.location || '');
+                            setEditSystemRole(u.role);
+                            setEditCustomRole(u.customRoleId || '');
+                            setEditUserOpen(true);
+                          }}
+                          className="text-[10px] font-bold px-2.5 py-1 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-650 dark:text-slate-300"
+                          id={`edit-user-btn-${u.id}`}
+                        >
+                          Edit
+                        </button>
+
+                        {/* Reset Password Button */}
+                        <button
+                          onClick={() => {
+                            setSelectedPasswordUser(u);
+                            setAdminNewPassword('');
+                            setChangePasswordOpen(true);
+                          }}
+                          className="text-[10px] font-bold px-2.5 py-1 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-650 dark:text-slate-300"
+                          id={`password-user-btn-${u.id}`}
+                        >
+                          Password
+                        </button>
+
+                        {/* Suspend/Activate Button */}
                         <button
                           onClick={() => handleVerificationToggle(u.id, u.isVerified)}
                           className={`text-[10px] font-bold px-2.5 py-1 border rounded-lg transition-all ${
                             u.isVerified 
-                              ? 'text-red-500 border-red-200 dark:border-red-955 hover:bg-red-50 dark:hover:bg-red-955/20' 
+                              ? 'text-amber-500 border-amber-200 dark:border-amber-955 hover:bg-amber-50 dark:hover:bg-amber-955/20' 
                               : 'text-green-500 border-green-200 dark:border-green-955 hover:bg-green-55/20'
                           }`}
+                          id={`verify-user-btn-${u.id}`}
                         >
-                          {u.isVerified ? 'Suspend User' : 'Activate User'}
+                          {u.isVerified ? 'Suspend' : 'Activate'}
                         </button>
+
+                        {/* Delete User Button */}
+                        {u.id !== user?.id && (
+                          <button
+                            onClick={() => handleDeleteUser(u.id, u.email)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-1.5 rounded-lg border border-transparent hover:border-red-200 dark:hover:border-red-955 inline-flex items-center justify-center align-middle"
+                            title="Delete User Account"
+                            type="button"
+                            id={`delete-user-btn-${u.id}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -1040,6 +1195,250 @@ export default function AdminPage() {
 
               <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
                 Clone Role
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Teammate Onboarding Modal */}
+      {inviteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button 
+              onClick={() => { setInviteModalOpen(false); setGeneratedLink(''); }} 
+              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              id="close-invite-modal-btn"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base flex items-center space-x-1.5 text-slate-900 dark:text-slate-100">
+                <UserPlus className="h-5 w-5 text-primary" />
+                <span>Invite New Teammate</span>
+              </h3>
+              <p className="text-xs text-muted-foreground">Generate a secure onboarding invitation token link.</p>
+            </div>
+
+            <form onSubmit={handleInviteSubmit} className="space-y-4 text-xs font-semibold">
+              <div className="space-y-1.5">
+                <label className="text-slate-400 uppercase text-[10px]">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="name@company.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  id="invite-email-input"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-400 uppercase text-[10px]">Assign System Role</label>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  id="invite-role-select"
+                >
+                  <option value="EMPLOYEE">Employee (Base Teammate)</option>
+                  <option value="MANAGER">Manager (Department Lead)</option>
+                  <option value="ADMIN">Admin (Executive Console)</option>
+                </select>
+              </div>
+
+              <button 
+                type="submit" 
+                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all"
+                id="submit-invite-btn"
+              >
+                Generate Onboarding Link
+              </button>
+            </form>
+
+            {generatedLink && (
+              <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 border rounded-xl space-y-2 text-xs">
+                <span className="font-bold text-slate-700 dark:text-slate-300">Teammate Onboarding Link:</span>
+                <div className="flex items-center justify-between space-x-2 bg-white dark:bg-slate-900 border rounded-lg p-2 overflow-hidden">
+                  <span className="truncate select-all text-slate-650 dark:text-slate-350 pr-2 select-all font-mono text-[10px] flex-1">
+                    {generatedLink}
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedLink);
+                      toast.success('Link copied to clipboard!');
+                    }}
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 shrink-0"
+                    title="Copy onboarding link"
+                    type="button"
+                    id="copy-invite-link-btn"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-snug">Share this registration URL with the invitee. This link will bypass the public registry gates and initialize their allocated roles.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Details Modal */}
+      {editUserOpen && selectedEditUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button 
+              onClick={() => { setEditUserOpen(false); setSelectedEditUser(null); }} 
+              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              id="close-edit-user-modal-btn"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Edit Teammate Profile</h3>
+              <p className="text-xs text-muted-foreground">Modify details for {selectedEditUser.email}</p>
+            </div>
+
+            <form onSubmit={handleEditUserSubmit} className="space-y-3.5 text-xs font-semibold">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[10px]">First Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    id="edit-firstname-input"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[10px]">Last Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    id="edit-lastname-input"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-400 uppercase text-[10px]">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  id="edit-email-input"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[10px]">Designation</label>
+                  <input
+                    type="text"
+                    value={editDesignation}
+                    onChange={(e) => setEditDesignation(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    id="edit-designation-input"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[10px]">Office Location</label>
+                  <input
+                    type="text"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    id="edit-location-input"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[10px]">System Access Role</label>
+                  <select
+                    value={editSystemRole}
+                    onChange={(e) => setEditSystemRole(e.target.value as any)}
+                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                    id="edit-system-role-select"
+                  >
+                    <option value="EMPLOYEE">Employee</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="ADMIN">Administrator</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[10px]">Custom RBAC Role</label>
+                  <select
+                    value={editCustomRole}
+                    onChange={(e) => setEditCustomRole(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                    id="edit-custom-role-select"
+                  >
+                    <option value="">-- No custom role --</option>
+                    {roles?.map((r: any) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button 
+                type="submit" 
+                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all mt-2"
+                id="submit-edit-user-btn"
+              >
+                Save Changes
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Force Change Password Modal */}
+      {changePasswordOpen && selectedPasswordUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
+            <button 
+              onClick={() => { setChangePasswordOpen(false); setSelectedPasswordUser(null); }} 
+              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              id="close-password-modal-btn"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Reset User Password</h3>
+              <p className="text-xs text-muted-foreground">Force update password credentials for {selectedPasswordUser.firstName} {selectedPasswordUser.lastName}</p>
+            </div>
+
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-4 text-xs font-semibold">
+              <div className="space-y-1.5">
+                <label className="text-slate-400 uppercase text-[10px]">New Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="At least 6 characters"
+                  value={adminNewPassword}
+                  onChange={(e) => setAdminNewPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  id="admin-new-password-input"
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all"
+                id="submit-password-btn"
+              >
+                Confirm Reset Password
               </button>
             </form>
           </div>
