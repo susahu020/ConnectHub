@@ -307,6 +307,44 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response, next:
       }
     }
 
+    // Spawn recurring task copy if completed
+    if (updatedTask.status === 'COMPLETED' && updatedTask.isRecurring && existingTask.status !== 'COMPLETED') {
+      try {
+        const nextDueDate = new Date(updatedTask.dueDate || new Date());
+        const interval = updatedTask.recurrenceInterval || 'daily';
+        if (interval === 'daily') {
+          nextDueDate.setDate(nextDueDate.getDate() + 1);
+        } else if (interval === 'weekly') {
+          nextDueDate.setDate(nextDueDate.getDate() + 7);
+        } else if (interval === 'monthly') {
+          nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+        }
+
+        await prisma.task.create({
+          data: {
+            title: updatedTask.title,
+            description: updatedTask.description,
+            priority: updatedTask.priority,
+            status: 'TODO',
+            dueDate: nextDueDate,
+            assigneeId: updatedTask.assigneeId,
+            creatorId: updatedTask.creatorId,
+            departmentId: updatedTask.departmentId,
+            projectId: updatedTask.projectId,
+            estimatedHours: updatedTask.estimatedHours,
+            labels: updatedTask.labels,
+            watcherIds: updatedTask.watcherIds,
+            sprintName: updatedTask.sprintName,
+            milestoneName: updatedTask.milestoneName,
+            isRecurring: true,
+            recurrenceInterval: updatedTask.recurrenceInterval,
+          }
+        });
+      } catch (err) {
+        console.error('Failed to spawn recurring task:', err);
+      }
+    }
+
     res.status(200).json(updatedTask);
   } catch (error) {
     next(error);

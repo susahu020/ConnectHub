@@ -282,6 +282,9 @@ export const api = {
   markAllNotificationsRead: () => request('/notifications/read-all', 'PUT'),
   deleteNotification: (id: string) => request(`/notifications/${id}`, 'DELETE'),
 
+  // Global Search
+  globalSearch: (q: string) => request(`/search?q=${encodeURIComponent(q)}`),
+
   // Admin Panel
   getAuditLogs: () => request('/admin/audit-logs'),
   getAdminUsers: () => request('/admin/users'),

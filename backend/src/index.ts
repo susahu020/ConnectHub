@@ -12,6 +12,7 @@ import apiRoutes from './routes/api.routes';
 import { initSocket } from './services/socket.service';
 import { errorHandler } from './middleware/error.middleware';
 import { securityHeaders } from './middleware/securityHeaders';
+import { createNotification } from './services/notification.service';
 
 const app = express();
 const server = http.createServer(app);
@@ -156,6 +157,59 @@ setInterval(async () => {
     console.error('Error in scheduled messages worker:', err);
   }
 }, 10000); // Check every 10 seconds
+
+// Due Date Reminders Background Scanner (Runs every 10 minutes)
+setInterval(async () => {
+  try {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const tasksDueSoon = await prisma.task.findMany({
+      where: {
+        dueDate: {
+          gte: new Date(),
+          lte: tomorrow,
+        },
+        status: { not: 'COMPLETED' },
+      },
+      include: {
+        assignee: true,
+      },
+    });
+
+    const io = app.get('io');
+
+    for (const task of tasksDueSoon) {
+      // Find if we already sent a reminder today
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const existingNotif = await prisma.notification.findFirst({
+        where: {
+          userId: task.assigneeId,
+          relatedId: task.id,
+          type: 'REMINDER',
+          createdAt: {
+            gte: todayStart,
+          },
+        },
+      });
+
+      if (!existingNotif) {
+        await createNotification({
+          userId: task.assigneeId,
+          title: 'Task Due Soon Reminder',
+          message: `Reminder: Task "${task.title}" is due by ${task.dueDate?.toLocaleDateString() || 'tomorrow'}.`,
+          type: 'REMINDER',
+          relatedId: task.id,
+          io,
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Failed to run due date reminders scan:', err);
+  }
+}, 10 * 60 * 1000); // Check every 10 minutes
 
 // Listen on all network interfaces
 server.listen(PORT, () => {

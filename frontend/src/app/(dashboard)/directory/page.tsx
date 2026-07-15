@@ -174,7 +174,13 @@ export default function DirectoryPage() {
                       )}
                     </div>
                     <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${
-                      colleague.status === 'ONLINE' ? 'bg-green-500' : colleague.status === 'AWAY' ? 'bg-yellow-500' : 'bg-slate-400'
+                      colleague.status === 'ONLINE' ? 'bg-green-500' :
+                      colleague.status === 'AWAY' ? 'bg-amber-500' :
+                      colleague.status === 'BUSY' ? 'bg-red-500' :
+                      colleague.status === 'DND' ? 'bg-rose-600' :
+                      colleague.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                      colleague.status === 'ON_LEAVE' ? 'bg-sky-500' :
+                      'bg-slate-400'
                     }`} />
                   </div>
                   <div className="min-w-0 text-left">
@@ -273,12 +279,26 @@ export default function DirectoryPage() {
                         ? 'bg-green-50 border-green-200 text-green-600 dark:bg-green-950/20 dark:border-green-900/30' 
                         : colleague.status === 'AWAY'
                         ? 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-950/20 dark:border-amber-900/30'
-                        : 'bg-slate-50 border-slate-200 text-slate-505 dark:bg-slate-900 dark:border-slate-800'
+                        : colleague.status === 'BUSY'
+                        ? 'bg-red-50 border-red-200 text-red-600 dark:bg-red-950/20 dark:border-red-900/30'
+                        : colleague.status === 'DND'
+                        ? 'bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/20 dark:border-rose-900/30'
+                        : colleague.status === 'IN_MEETING'
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-950/20 dark:border-indigo-900/30'
+                        : colleague.status === 'ON_LEAVE'
+                        ? 'bg-sky-50 border-sky-200 text-sky-600 dark:bg-sky-950/20 dark:border-sky-900/30'
+                        : 'bg-slate-50 border-slate-200 text-slate-500 dark:bg-slate-900 dark:border-slate-800'
                     }`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${
-                        colleague.status === 'ONLINE' ? 'bg-green-550' : colleague.status === 'AWAY' ? 'bg-amber-550' : 'bg-slate-450'
+                        colleague.status === 'ONLINE' ? 'bg-green-550' :
+                        colleague.status === 'AWAY' ? 'bg-amber-550' :
+                        colleague.status === 'BUSY' ? 'bg-red-500' :
+                        colleague.status === 'DND' ? 'bg-rose-600' :
+                        colleague.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                        colleague.status === 'ON_LEAVE' ? 'bg-sky-500' :
+                        'bg-slate-450'
                       }`} />
-                      <span>{colleague.status?.toLowerCase()}</span>
+                      <span>{colleague.status === 'IN_MEETING' ? 'in meeting' : colleague.status === 'ON_LEAVE' ? 'on leave' : colleague.status?.toLowerCase()}</span>
                     </span>
                   </td>
                   <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -325,7 +345,13 @@ export default function DirectoryPage() {
                   )}
                 </div>
                 <span className={`absolute bottom-0 right-0 h-4.5 w-4.5 rounded-full border-2 border-white dark:border-slate-900 ${
-                  selectedUser.status === 'ONLINE' ? 'bg-green-500' : 'bg-slate-400'
+                  selectedUser.status === 'ONLINE' ? 'bg-green-500' :
+                  selectedUser.status === 'AWAY' ? 'bg-amber-500' :
+                  selectedUser.status === 'BUSY' ? 'bg-red-500' :
+                  selectedUser.status === 'DND' ? 'bg-rose-600' :
+                  selectedUser.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                  selectedUser.status === 'ON_LEAVE' ? 'bg-sky-500' :
+                  'bg-slate-400'
                 }`} />
               </div>
 

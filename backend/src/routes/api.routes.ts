@@ -12,6 +12,8 @@ import {
   endMeeting,
 } from '../controllers/meeting.controller';
 
+import { globalSearch } from '../controllers/search.controller';
+
 // Middlewares
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
@@ -364,6 +366,11 @@ router.get('/notifications', authenticate as any, getNotifications as any);
 router.put('/notifications/:id/read', authenticate as any, markNotificationAsRead as any);
 router.put('/notifications/read-all', authenticate as any, markAllNotificationsAsRead as any);
 router.delete('/notifications/:id', authenticate as any, deleteNotification as any);
+
+// ==========================================
+// SEARCH
+// ==========================================
+router.get('/search', authenticate as any, globalSearch as any);
 
 // ==========================================
 // ADMIN PANEL

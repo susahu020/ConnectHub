@@ -139,7 +139,7 @@ export const initSocket = (server: HttpServer) => {
     // PRESENCE UPDATE EVENT
     // ----------------------------------------------------
     socket.on('update_presence', async ({ status }) => {
-      const validStatuses = ['ONLINE', 'AWAY', 'BUSY', 'DND', 'OFFLINE', 'INVISIBLE'];
+      const validStatuses = ['ONLINE', 'AWAY', 'BUSY', 'DND', 'OFFLINE', 'INVISIBLE', 'IN_MEETING', 'ON_LEAVE'];
       if (!validStatuses.includes(status)) return;
 
       await prisma.user.update({
@@ -346,6 +346,19 @@ export const initSocket = (server: HttpServer) => {
       // Broadcast entry to other participants
       socket.to(`meeting_room:${meetingId}`).emit('participant_joined', newParticipant);
       console.log(`Participant ${user.firstName} joined meeting room: ${meetingId}`);
+
+      // Automatically update user presence to IN_MEETING
+      prisma.user.update({
+        where: { id: userId },
+        data: { status: 'IN_MEETING' },
+      }).then(() => {
+        io.emit('presence', {
+          userId,
+          status: 'IN_MEETING',
+          devices: activeConnections.has(userId) ? (activeDevices.get(userId)?.map(d => d.device) || []) : [],
+          lastSeen: new Date()
+        });
+      }).catch(err => console.error('Failed to auto-update presence to IN_MEETING:', err));
     });
 
     socket.on('leave_meeting_room', ({ meetingId }) => {
@@ -366,6 +379,19 @@ export const initSocket = (server: HttpServer) => {
 
       socket.to(`meeting_room:${meetingId}`).emit('participant_left', { id: userId, socketId: socket.id });
       console.log(`Participant ${user.firstName} left meeting room: ${meetingId}`);
+
+      // Automatically restore user presence to ONLINE
+      prisma.user.update({
+        where: { id: userId },
+        data: { status: 'ONLINE' },
+      }).then(() => {
+        io.emit('presence', {
+          userId,
+          status: 'ONLINE',
+          devices: activeConnections.has(userId) ? (activeDevices.get(userId)?.map(d => d.device) || []) : [],
+          lastSeen: new Date()
+        });
+      }).catch(err => console.error('Failed to restore presence to ONLINE:', err));
     });
 
     socket.on('send_meeting_message', ({ meetingId, content }) => {
@@ -478,10 +504,13 @@ export const initSocket = (server: HttpServer) => {
     socket.on('disconnect', async () => {
       console.log(`Socket Disconnected: Socket ID ${socket.id} (User: ${userId})`);
 
+      let leftMeeting = false;
+
       // Cleanup user from all meeting rooms
       meetingParticipants.forEach((list, meetingId) => {
         const index = list.findIndex(p => p.socketId === socket.id);
         if (index !== -1) {
+          leftMeeting = true;
           list.splice(index, 1);
           if (list.length === 0) {
             meetingParticipants.delete(meetingId);
@@ -505,6 +534,19 @@ export const initSocket = (server: HttpServer) => {
       if (updatedSockets.length > 0) {
         activeConnections.set(userId, updatedSockets);
         activeDevices.set(userId, updatedDevices);
+
+        if (leftMeeting) {
+          await prisma.user.update({
+            where: { id: userId },
+            data: { status: 'ONLINE' },
+          });
+          io.emit('presence', {
+            userId,
+            status: 'ONLINE',
+            devices: updatedDevices.map(d => d.device),
+            lastSeen: new Date()
+          });
+        }
       } else {
         // No active connections left for user, mark offline
         activeConnections.delete(userId);

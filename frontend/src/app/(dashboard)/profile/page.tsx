@@ -515,7 +515,13 @@ export default function ProfilePage() {
                   {profile?.firstName} {profile?.lastName}
                 </h1>
                 <span className={`h-2.5 w-2.5 rounded-full ring-4 ring-white dark:ring-slate-900 ${
-                  profile?.status === 'ONLINE' ? 'bg-green-500' : profile?.status === 'AWAY' ? 'bg-yellow-500' : 'bg-slate-400'
+                  profile?.status === 'ONLINE' ? 'bg-green-500' :
+                  profile?.status === 'AWAY' ? 'bg-amber-500' :
+                  profile?.status === 'BUSY' ? 'bg-red-500' :
+                  profile?.status === 'DND' ? 'bg-rose-600' :
+                  profile?.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                  profile?.status === 'ON_LEAVE' ? 'bg-sky-500' :
+                  'bg-slate-400'
                 }`} />
               </div>
               <p className="text-sm font-extrabold text-primary uppercase tracking-wider">{profile?.designation || 'Specialist'}</p>
@@ -1351,6 +1357,8 @@ export default function ProfilePage() {
                     <option value="AWAY">AWAY</option>
                     <option value="BUSY">BUSY</option>
                     <option value="DND">DO NOT DISTURB</option>
+                    <option value="IN_MEETING">IN MEETING</option>
+                    <option value="ON_LEAVE">ON LEAVE</option>
                     <option value="OFFLINE">OFFLINE (Invisible)</option>
                   </select>
                 </div>

@@ -82,64 +82,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
   }, []);
 
-  // Global Platform Search Queries
-  const { data: searchDirUsers } = useQuery({
-    queryKey: ['global-search-users'],
-    queryFn: () => api.getDirectory('limit=100'),
+  // Global Platform Search Query
+  const { data: globalSearchResults } = useQuery({
+    queryKey: ['global-search', searchQuery],
+    queryFn: () => api.globalSearch(searchQuery),
     enabled: isAuthenticated && searchQuery.trim().length > 0,
   });
 
-  const { data: searchGroups } = useQuery({
-    queryKey: ['global-search-groups'],
-    queryFn: () => api.getGroups(),
-    enabled: isAuthenticated && searchQuery.trim().length > 0,
-  });
+  const matchedUsers = globalSearchResults?.users || [];
+  const matchedGroups = globalSearchResults?.groups || []; // Groups represent Channels
+  const matchedTeams = globalSearchResults?.teams || []; // Teams represent Teams
+  const matchedTasks = globalSearchResults?.tasks || [];
+  const matchedAnnouncements = globalSearchResults?.announcements || [];
+  const matchedMessages = globalSearchResults?.messages || [];
+  const matchedFiles = globalSearchResults?.files || [];
+  const matchedDepartments = globalSearchResults?.departments || [];
 
-  const { data: searchTasks } = useQuery({
-    queryKey: ['global-search-tasks'],
-    queryFn: () => api.getTasks('limit=100'),
-    enabled: isAuthenticated && searchQuery.trim().length > 0,
-  });
-
-  const { data: searchAnnouncements } = useQuery({
-    queryKey: ['global-search-announcements'],
-    queryFn: () => api.getAnnouncements('limit=100'),
-    enabled: isAuthenticated && searchQuery.trim().length > 0,
-  });
-
-  // Filter matches based on search query
-  const queryClean = searchQuery.toLowerCase().trim();
-  
-  const matchedUsers = queryClean
-    ? (searchDirUsers?.users || []).filter((u: any) =>
-        `${u.firstName} ${u.lastName}`.toLowerCase().includes(queryClean) ||
-        u.email.toLowerCase().includes(queryClean) ||
-        (u.designation || '').toLowerCase().includes(queryClean)
-      ).slice(0, 3)
-    : [];
-
-  const matchedGroups = queryClean
-    ? (searchGroups || []).filter((g: any) =>
-        g.name.toLowerCase().includes(queryClean) ||
-        (g.description || '').toLowerCase().includes(queryClean)
-      ).slice(0, 3)
-    : [];
-
-  const matchedTasks = queryClean
-    ? (searchTasks?.tasks || []).filter((t: any) =>
-        t.title.toLowerCase().includes(queryClean) ||
-        (t.description || '').toLowerCase().includes(queryClean)
-      ).slice(0, 3)
-    : [];
-
-  const matchedAnnouncements = queryClean
-    ? (searchAnnouncements?.announcements || []).filter((a: any) =>
-        a.title.toLowerCase().includes(queryClean) ||
-        (a.content || '').toLowerCase().includes(queryClean)
-      ).slice(0, 3)
-    : [];
-
-  const hasSearchResults = matchedUsers.length > 0 || matchedGroups.length > 0 || matchedTasks.length > 0 || matchedAnnouncements.length > 0;
+  const hasSearchResults = 
+    matchedUsers.length > 0 || 
+    matchedGroups.length > 0 || 
+    matchedTeams.length > 0 ||
+    matchedTasks.length > 0 || 
+    matchedAnnouncements.length > 0 ||
+    matchedMessages.length > 0 ||
+    matchedFiles.length > 0 ||
+    matchedDepartments.length > 0;
 
   // Inactivity & Heartbeat states
   const [showWarningModal, setShowWarningModal] = useState(false);
@@ -495,6 +462,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 user.status === 'AWAY' ? 'bg-amber-500' : 
                 user.status === 'BUSY' ? 'bg-red-500' : 
                 user.status === 'DND' ? 'bg-rose-600' : 
+                user.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                user.status === 'ON_LEAVE' ? 'bg-sky-500' :
                 user.status === 'INVISIBLE' ? 'bg-slate-400' :
                 'bg-slate-400'
               }`} />
@@ -504,12 +473,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Link href="/profile" className="block cursor-pointer">
                   <p className="text-xs font-bold truncate leading-none mb-1 hover:underline">{user.firstName} {user.lastName}</p>
                   <p className="text-[9px] text-muted-foreground uppercase tracking-wider truncate font-semibold leading-none">
-                    {user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()} • {user.status.toLowerCase()}
+                    {user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()} • {user.status === 'IN_MEETING' ? 'in meeting' : user.status === 'ON_LEAVE' ? 'on leave' : user.status.toLowerCase()}
                   </p>
                 </Link>
               </div>
             )}
-
+ 
             {statusMenuOpen && (
               <div className={`absolute bottom-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2 rounded-2xl shadow-xl w-44 z-50 space-y-1 animate-slide-up ${
                 sidebarCollapsed ? 'left-14' : 'left-2'
@@ -520,6 +489,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   { key: 'AWAY', label: 'Away', color: 'bg-amber-500' },
                   { key: 'BUSY', label: 'Busy', color: 'bg-red-500' },
                   { key: 'DND', label: 'Do Not Disturb', color: 'bg-rose-600' },
+                  { key: 'IN_MEETING', label: 'In Meeting', color: 'bg-indigo-500' },
+                  { key: 'ON_LEAVE', label: 'On Leave', color: 'bg-sky-500' },
                   { key: 'INVISIBLE', label: 'Invisible', color: 'bg-slate-400' }
                 ].map((st) => (
                   <button
@@ -639,6 +610,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                   )}
 
+                  {/* Category: Teams */}
+                  {matchedTeams.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-1">Teams</div>
+                      <div className="space-y-1">
+                        {matchedTeams.map((item: any) => (
+                          <Link
+                            key={item.id}
+                            href="/directory"
+                            onClick={() => setSearchFocused(false)}
+                            className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
+                          >
+                            <div className="h-6 w-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <Users className="h-3.5 w-3.5 text-indigo-500" />
+                            </div>
+                            <div className="min-w-0 flex-1 text-left">
+                              <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.name}</p>
+                              <p className="text-[8px] text-muted-foreground truncate leading-none">{item.description || 'Organization Team'}</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Category: Tasks */}
                   {matchedTasks.length > 0 && (
                     <div className="space-y-1.5">
@@ -682,6 +678,81 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <div className="min-w-0 flex-1">
                               <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.title}</p>
                               <p className="text-[8px] text-muted-foreground truncate leading-none">{new Date(item.createdAt).toLocaleDateString()}</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category: Messages */}
+                  {matchedMessages.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-1">Chat Messages</div>
+                      <div className="space-y-1">
+                        {matchedMessages.map((item: any) => (
+                          <Link
+                            key={item.id}
+                            href="/chat"
+                            onClick={() => setSearchFocused(false)}
+                            className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
+                          >
+                            <div className="h-6 w-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+                            </div>
+                            <div className="min-w-0 flex-1 text-left">
+                              <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.sender?.firstName} {item.sender?.lastName}</p>
+                              <p className="text-[8px] text-muted-foreground truncate leading-none">"{item.content}"</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category: Files & Documents */}
+                  {matchedFiles.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-1">Files & Documents</div>
+                      <div className="space-y-1">
+                        {matchedFiles.map((item: any) => (
+                          <Link
+                            key={item.id}
+                            href="/files"
+                            onClick={() => setSearchFocused(false)}
+                            className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
+                          >
+                            <div className="h-6 w-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <FileText className="h-3.5 w-3.5 text-amber-500" />
+                            </div>
+                            <div className="min-w-0 flex-1 text-left">
+                              <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.name}</p>
+                              <p className="text-[8px] text-muted-foreground truncate leading-none">{(item.size / 1024).toFixed(1)} KB • {item.fileType?.toUpperCase()}</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category: Departments */}
+                  {matchedDepartments.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-1">Departments</div>
+                      <div className="space-y-1">
+                        {matchedDepartments.map((item: any) => (
+                          <Link
+                            key={item.id}
+                            href="/directory"
+                            onClick={() => setSearchFocused(false)}
+                            className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
+                          >
+                            <div className="h-6 w-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <Layers className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                            <div className="min-w-0 flex-1 text-left">
+                              <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.name}</p>
+                              <p className="text-[8px] text-muted-foreground truncate leading-none">Code: {item.code}</p>
                             </div>
                           </Link>
                         ))}

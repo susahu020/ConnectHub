@@ -1126,6 +1126,8 @@ export default function ChatPage() {
                         chat.status === 'AWAY' ? 'bg-amber-500' :
                         chat.status === 'BUSY' ? 'bg-red-500' :
                         chat.status === 'DND' ? 'bg-rose-600' :
+                        chat.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                        chat.status === 'ON_LEAVE' ? 'bg-sky-500' :
                         'bg-slate-400'
                       }`} />
                     </div>
@@ -1196,6 +1198,8 @@ export default function ChatPage() {
                            colleague.status === 'AWAY' ? 'bg-amber-500' :
                            colleague.status === 'BUSY' ? 'bg-red-500' :
                            colleague.status === 'DND' ? 'bg-rose-600' :
+                           colleague.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                           colleague.status === 'ON_LEAVE' ? 'bg-sky-500' :
                            'bg-slate-400'
                          }`} />
                       </div>
@@ -1239,6 +1243,8 @@ export default function ChatPage() {
                      activeContact.status === 'AWAY' ? 'bg-amber-500' :
                      activeContact.status === 'BUSY' ? 'bg-red-500' :
                      activeContact.status === 'DND' ? 'bg-rose-600' :
+                     activeContact.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                     activeContact.status === 'ON_LEAVE' ? 'bg-sky-500' :
                      'bg-slate-400'
                    }`} />
                  </div>
@@ -2252,8 +2258,16 @@ export default function ChatPage() {
                     <p className="text-xs text-slate-550 dark:text-slate-400 font-semibold">{contactProfile?.phone || '+91 81279 91402'}</p>
                   )}
                   <div className="pt-1.5">
-                    <span className="text-[9px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 uppercase tracking-wide">
-                      {activeContact.status === 'ONLINE' ? 'Online' : 'Offline'}
+                    <span className={`text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wide border ${
+                      activeContact.status === 'ONLINE' ? 'bg-green-500/10 text-green-500 border-green-200/30' :
+                      activeContact.status === 'AWAY' ? 'bg-amber-500/10 text-amber-500 border-amber-200/30' :
+                      activeContact.status === 'BUSY' ? 'bg-red-500/10 text-red-500 border-red-200/30' :
+                      activeContact.status === 'DND' ? 'bg-rose-500/10 text-rose-500 border-rose-200/30' :
+                      activeContact.status === 'IN_MEETING' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-200/30' :
+                      activeContact.status === 'ON_LEAVE' ? 'bg-sky-500/10 text-sky-500 border-sky-200/30' :
+                      'bg-slate-500/10 text-slate-500 border-slate-200/30'
+                    }`}>
+                      {activeContact.status === 'IN_MEETING' ? 'In Meeting' : activeContact.status === 'ON_LEAVE' ? 'On Leave' : activeContact.status.toLowerCase()}
                     </span>
                   </div>
                 </div>
