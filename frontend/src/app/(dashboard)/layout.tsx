@@ -356,7 +356,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
     { name: 'Direct Chat', href: '/chat', icon: <MessageSquare className="h-4 w-4" /> },
     { name: 'Channels', href: '/groups', icon: <Users className="h-4 w-4" /> },
-    { name: 'Video Meetings', href: '/meetings', icon: <Video className="h-4 w-4" /> },
+    { name: 'Meetings', href: '/meetings', icon: <Video className="h-4 w-4" /> },
     { name: 'Kanban Tasks', href: '/tasks', icon: <Trello className="h-4 w-4" /> },
     { name: 'Announcements', href: '/announcements', icon: <Megaphone className="h-4 w-4" /> },
     { name: 'File Storage', href: '/files', icon: <FolderHeart className="h-4 w-4" /> },

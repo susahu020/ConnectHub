@@ -40,6 +40,13 @@ enum NotificationType {
   MENTION
   REMINDER
   SYSTEM
+  MEETING
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  LIVE
+  ENDED
 }
 
 enum GroupType {
@@ -127,6 +134,7 @@ model User {
   loginAttempts    Int @default(0)
   lockoutUntil     DateTime?
   deletedConversations DeletedConversation[]
+  hostedMeetings   Meeting[]
 }
 
 model Department {
@@ -435,6 +443,23 @@ model Notification {
   relatedId String?
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
+}
+
+// A meeting is created (SCHEDULED) the instant the host clicks "New meeting".
+// This is the single source of truth for whether a code is real and whether
+// it's currently live — the guest lobby screen checks this over REST *before*
+// falling back to the socket for real-time "host just started" pushes, so a
+// mistyped/expired code fails fast instead of spinning forever.
+model Meeting {
+  id        String        @id @default(uuid())
+  code      String        @unique
+  title     String?
+  hostId    String
+  host      User          @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  status    MeetingStatus @default(SCHEDULED)
+  createdAt DateTime      @default(now())
+  startedAt DateTime?
+  endedAt   DateTime?
 }
 
 model Session {

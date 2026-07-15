@@ -5,6 +5,13 @@ import {
   completeOnboarding
 } from '../controllers/invitation.controller';
 
+import {
+  createMeeting,
+  getMeetingByCode,
+  startMeeting,
+  endMeeting,
+} from '../controllers/meeting.controller';
+
 // Middlewares
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
@@ -260,6 +267,14 @@ router.post('/rbac/roles/:id/permissions', authenticate as any, authorize(['ADMI
 router.post('/rbac/roles/:id/duplicate', authenticate as any, authorize(['ADMIN']), duplicateRole as any);
 router.delete('/rbac/roles/:id', authenticate as any, authorize(['ADMIN']), deleteRole as any);
 router.post('/rbac/users/:userId/role', authenticate as any, authorize(['ADMIN']), assignRole as any);
+
+// ==========================================
+// MEETINGS (persisted source of truth backing the live socket signaling)
+// ==========================================
+router.post('/meetings', authenticate as any, createMeeting as any);
+router.get('/meetings/:code', authenticate as any, getMeetingByCode as any);
+router.post('/meetings/:code/start', authenticate as any, startMeeting as any);
+router.post('/meetings/:code/end', authenticate as any, endMeeting as any);
 
 // ==========================================
 // CHAT & MESSAGING

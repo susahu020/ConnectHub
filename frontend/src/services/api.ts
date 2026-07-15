@@ -196,6 +196,12 @@ export const api = {
   deleteRole: (id: string) => request(`/rbac/roles/${id}`, 'DELETE'),
   assignUserRole: (userId: string, roleId: string) => request(`/rbac/users/${userId}/role`, 'POST', { roleId }),
 
+  // Meetings (REST source of truth backing the live socket signaling)
+  createMeeting: (body?: { title?: string }) => request('/meetings', 'POST', body || {}),
+  getMeetingByCode: (code: string) => request(`/meetings/${encodeURIComponent(code)}`),
+  startMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/start`, 'POST'),
+  endMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/end`, 'POST'),
+
   // Chats
   getRecentChats: () => request('/chats/recent'),
   getDirectMessages: (contactId: string, cursor?: string) => 
