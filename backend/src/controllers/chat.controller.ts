@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { createNotification, createManyNotifications } from '../services/notification.service';
 
 export const getDirectMessages = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -154,15 +155,15 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response, next
         },
       });
 
-      // Notification
-      await prisma.notification.create({
-        data: {
-          userId: receiverId,
-          title: `New message from ${req.user?.firstName}`,
-          message: content ? (content.length > 50 ? `${content.substring(0, 50)}...` : content) : (voiceNoteUrl ? 'Sent a voice note' : 'Sent an attachment'),
-          type: 'MESSAGE',
-          relatedId: message.id,
-        },
+      // Notification (Real-time and Email preferences integrated)
+      const io = req.app.get('io');
+      await createNotification({
+        userId: receiverId,
+        title: `New message from ${req.user?.firstName}`,
+        message: content ? (content.length > 50 ? `${content.substring(0, 50)}...` : content) : (voiceNoteUrl ? 'Sent a voice note' : 'Sent an attachment'),
+        type: 'MESSAGE',
+        relatedId: message.id,
+        io,
       });
     } else if (groupId) {
       // Create delivered status for all members in the group except sender
@@ -199,9 +200,11 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response, next
         };
       });
 
-      // Notifications for group members
-      await prisma.notification.createMany({
-        data: notificationsData,
+      // Notifications for group members (Real-time and Email preferences integrated)
+      const io = req.app.get('io');
+      await createManyNotifications({
+        notifications: notificationsData,
+        io,
       });
     }
 

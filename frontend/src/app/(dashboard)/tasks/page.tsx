@@ -121,7 +121,7 @@ export default function TasksPage() {
       return;
     }
     const headers = ['Task Title', 'Assignee', 'Priority', 'Status', 'Due Date', 'Progress (%)', 'Description'];
-    const rows = filteredTasks.map(t => [
+    const rows = filteredTasks.map((t: any) => [
       `"${t.title.replace(/"/g, '""')}"`,
       `"${t.assignee ? `${t.assignee.firstName} ${t.assignee.lastName}`.replace(/"/g, '""') : 'Unassigned'}"`,
       `"${t.priority}"`,
@@ -131,7 +131,7 @@ export default function TasksPage() {
       `"${(t.description || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`
     ]);
     
-    const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const csvContent = [headers.join(','), ...rows.map((e: any) => e.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -715,7 +715,7 @@ export default function TasksPage() {
           { label: 'Total Tasks', value: filteredTasks.length, icon: '📋', color: 'bg-blue-50/50 dark:bg-blue-950/15 text-blue-600 border-blue-100 dark:border-blue-900/30' },
           { label: 'In Progress', value: filteredTasks.filter((t: any) => t.status === 'IN_PROGRESS').length, icon: '⚡', color: 'bg-primary/5 text-primary border-primary/10' },
           { label: 'Overdue Tasks', value: filteredTasks.filter((t: any) => t.status !== 'COMPLETED' && t.dueDate && new Date(t.dueDate) < new Date()).length, icon: '⚠️', color: 'bg-red-50/50 dark:bg-red-950/15 text-red-500 border-red-100 dark:border-red-900/30' },
-          { label: 'Logged Hours', value: `${(filteredTasks.reduce((sum, t) => sum + (t.timeLogs?.reduce((s: number, l: any) => s + l.minutes, 0) || 0), 0) / 60).toFixed(1)} hrs`, icon: '⏱️', color: 'bg-emerald-50/50 dark:bg-emerald-950/15 text-emerald-500 border-emerald-100 dark:border-emerald-900/30' }
+          { label: 'Logged Hours', value: `${(filteredTasks.reduce((sum: number, t: any) => sum + (t.timeLogs?.reduce((s: number, l: any) => s + l.minutes, 0) || 0), 0) / 60).toFixed(1)} hrs`, icon: '⏱️', color: 'bg-emerald-50/50 dark:bg-emerald-950/15 text-emerald-500 border-emerald-100 dark:border-emerald-900/30' }
         ].map((card, idx) => (
           <div key={idx} className={`p-4 border rounded-2xl flex items-center justify-between shadow-2xs ${card.color}`}>
             <div className="space-y-0.5">

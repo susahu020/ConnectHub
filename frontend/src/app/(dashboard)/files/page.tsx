@@ -54,7 +54,9 @@ export default function FilesPage() {
   // Share Modal state
   const [sharingFile, setSharingFile] = useState<any>(null);
   const [expireHours, setExpireHours] = useState<number>(24);
-  const [generatedLink, setGeneratedLink] = useState<string>('');
+  const [generatedLink, setGeneratedLink] = useState<string>( '');
+  const [directoryUsers, setDirectoryUsers] = useState<any[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   // Drag and Drop Upload state
   const [dragOverZone, setDragOverZone] = useState(false);
@@ -176,13 +178,31 @@ export default function FilesPage() {
     }
   };
 
+  // Load users when sharingFile is selected
+  useEffect(() => {
+    if (sharingFile) {
+      const loadUsers = async () => {
+        try {
+          const data = await api.getDirectory('limit=100');
+          if (data && data.users) {
+            setDirectoryUsers(data.users);
+          }
+        } catch (err) {
+          console.error('Failed to load users for sharing:', err);
+        }
+      };
+      loadUsers();
+      setSelectedUserIds([]);
+    }
+  }, [sharingFile]);
+
   // Expiring links share
   const handleGenerateShareLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sharingFile) return;
 
     try {
-      const response = await api.createShareLink(sharingFile.id, expireHours);
+      const response = await api.createShareLink(sharingFile.id, expireHours, selectedUserIds);
       setGeneratedLink(response.shareLink);
       toast.success('Shared link generated.');
     } catch (err) {
@@ -760,6 +780,38 @@ export default function FilesPage() {
                     <option value={168}>168 Hours (1 Week)</option>
                   </select>
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-slate-400 uppercase text-[10px]">Notify Team Members Directly (Optional)</label>
+                  <div className="max-h-28 overflow-y-auto border rounded-xl p-2 bg-slate-50 dark:bg-slate-800 space-y-1.5 scrollbar-thin">
+                    {directoryUsers.length === 0 ? (
+                      <p className="text-[10px] text-slate-400 italic p-1">No other team members found.</p>
+                    ) : (
+                      directoryUsers
+                        .filter(u => u.id !== user?.id)
+                        .map((u) => (
+                          <label key={u.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-750 p-1 rounded transition-all">
+                            <input
+                              type="checkbox"
+                              checked={selectedUserIds.includes(u.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUserIds(prev => [...prev, u.id]);
+                                } else {
+                                  setSelectedUserIds(prev => prev.filter(id => id !== u.id));
+                                }
+                              }}
+                              className="rounded border-slate-350 dark:border-slate-700 text-primary focus:ring-primary h-3.5 w-3.5"
+                            />
+                            <span className="text-[10px] font-semibold text-slate-705 dark:text-slate-200">
+                              {u.firstName} {u.lastName} ({u.email})
+                            </span>
+                          </label>
+                        ))
+                    )}
+                  </div>
+                </div>
+
                 <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
                   Generate Share Link
                 </button>

@@ -4,6 +4,7 @@ import path from 'path';
 import prisma from '../config/db';
 import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cloudinary';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { createNotification } from '../services/notification.service';
 
 export const uploadFile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -374,7 +375,7 @@ export const moveItem = async (req: AuthenticatedRequest, res: Response, next: N
 export const createShareLink = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id: fileId } = req.params;
-    const { expiresHours } = req.body;
+    const { expiresHours, sharedWithUserIds } = req.body;
     const sharedById = req.user?.id!;
 
     const accessKey = require('crypto').randomBytes(16).toString('hex');
@@ -384,14 +385,34 @@ export const createShareLink = async (req: AuthenticatedRequest, res: Response, 
       expiresAt.setHours(expiresAt.getHours() + expiresHours);
     }
 
-    await prisma.fileShare.create({
+    const fileShare = await prisma.fileShare.create({
       data: {
         fileId,
         sharedById,
         accessKey,
         expiresAt,
       },
+      include: {
+        file: true,
+      },
     });
+
+    // Notify targeted users if document was shared directly
+    if (sharedWithUserIds && Array.isArray(sharedWithUserIds)) {
+      const io = req.app.get('io');
+      await Promise.all(
+        sharedWithUserIds.map((targetUserId) =>
+          createNotification({
+            userId: targetUserId,
+            title: 'Document Shared',
+            message: `${req.user?.firstName} shared a document with you: "${fileShare.file.name}"`,
+            type: 'SYSTEM',
+            relatedId: fileId,
+            io,
+          })
+        )
+      );
+    }
 
     const serverUrl = `${req.protocol}://${req.get('host')}`;
     const shareLink = `${serverUrl}/api/v1/files/shared/${accessKey}`;

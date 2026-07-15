@@ -123,7 +123,7 @@ export default function SettingsPage() {
     try {
       const response = await api.activate2FA(twoFactorToken);
       setBackupCodes(response.backupCodes);
-      updateUser({ twoFactorEnabled: true });
+      updateUser({ twoFactorEnabled: true } as any);
       toast.success('2FA successfully enabled!');
     } catch (err: any) {
       toast.error(err.message || 'Verification failed. Incorrect TOTP token.');
@@ -138,7 +138,7 @@ export default function SettingsPage() {
     setDisabling(true);
     try {
       await api.disable2FA(disableToken);
-      updateUser({ twoFactorEnabled: false });
+      updateUser({ twoFactorEnabled: false } as any);
       setDisableToken('');
       toast.success('2FA successfully disabled.');
     } catch (err: any) {
@@ -227,9 +227,9 @@ export default function SettingsPage() {
                 <span className="px-2 py-0.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[9px] font-black uppercase tracking-wider">
                   Role: {user.role}
                 </span>
-                {user.department && (
+                {(user as any).department && (
                   <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/20 text-blue-600 border border-blue-100 dark:border-blue-900/30 rounded-full text-[9px] font-black uppercase tracking-wider">
-                    {user.department.name}
+                    {(user as any).department.name}
                   </span>
                 )}
               </div>
@@ -385,11 +385,11 @@ export default function SettingsPage() {
                 <h3 className="font-bold text-sm">Two-Factor Authentication (2FA)</h3>
               </div>
               <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase border ${
-                user?.twoFactorEnabled 
+                (user as any)?.twoFactorEnabled 
                   ? 'text-emerald-500 bg-emerald-50 border-emerald-200' 
                   : 'text-slate-400 bg-slate-50 border-slate-200'
               }`}>
-                {user?.twoFactorEnabled ? 'Active' : 'Inactive'}
+                {(user as any)?.twoFactorEnabled ? 'Active' : 'Inactive'}
               </span>
             </div>
 
@@ -398,7 +398,7 @@ export default function SettingsPage() {
                 Enhance your account safety by requesting a temporary code from an authenticator app (like Authy or Google Authenticator) every time you login.
               </p>
 
-              {user?.twoFactorEnabled ? (
+              {(user as any)?.twoFactorEnabled ? (
                 /* 2FA Enabled view: Allow disabling */
                 <form onSubmit={handleDisable2FA} className="pt-3 border-t space-y-3">
                   <div className="space-y-1">

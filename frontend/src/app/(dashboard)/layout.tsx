@@ -49,6 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState('light');
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [showUnreadOnly, setShowUnreadOnly] = useState(true);
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
@@ -269,6 +270,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Handle incoming real-time notifications
   useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (!socket) return;
 
     const handleNewNotification = (notification: any) => {
@@ -279,6 +288,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span>{notification.message}</span>
         </span>
       ));
+
+      // Browser Push Notification (respects user settings & browser permissions)
+      const pushEnabled = user?.settings?.pushEnabled ?? true;
+      const desktopEnabled = user?.settings?.desktopEnabled ?? true;
+      if (
+        pushEnabled &&
+        desktopEnabled &&
+        typeof window !== 'undefined' &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        try {
+          new Notification(notification.title, {
+            body: notification.message,
+            icon: '/favicon.ico',
+          });
+        } catch (e) {
+          console.warn('Browser Notification construction failed:', e);
+        }
+      }
     };
 
     socket.on('notification_received', handleNewNotification);
@@ -701,22 +730,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 border rounded-2xl shadow-xl z-50 p-4 space-y-3">
                     <div className="flex items-center justify-between border-b pb-2">
                       <h4 className="font-bold text-sm">Notifications Center</h4>
-                      {unreadNotifCount > 0 && (
-                        <button
-                          onClick={markAllNotifRead}
-                          className="text-[10px] text-primary font-semibold hover:underline"
-                        >
-                          Mark all as read
-                        </button>
-                      )}
+                      <div className="flex items-center space-x-2.5">
+                        <label className="flex items-center space-x-1 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={showUnreadOnly}
+                            onChange={(e) => setShowUnreadOnly(e.target.checked)}
+                            className="rounded border-slate-350 dark:border-slate-700 text-primary focus:ring-primary h-3 w-3"
+                          />
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Unread Only</span>
+                        </label>
+                        {unreadNotifCount > 0 && (
+                          <button
+                            onClick={markAllNotifRead}
+                            className="text-[9px] text-primary font-bold hover:underline uppercase tracking-wider"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="max-h-64 overflow-y-auto space-y-2">
-                      {notifications.length === 0 ? (
+                      {(showUnreadOnly ? notifications.filter((n) => !n.isRead) : notifications).length === 0 ? (
                         <div className="text-center text-xs text-muted-foreground py-6">
-                          No notifications yet.
+                          No {showUnreadOnly ? 'unread' : ''} notifications yet.
                         </div>
                       ) : (
-                        notifications.map((notif) => (
+                        (showUnreadOnly ? notifications.filter((n) => !n.isRead) : notifications).map((notif) => (
                           <div
                             key={notif.id}
                             onClick={() => markNotifRead(notif.id)}

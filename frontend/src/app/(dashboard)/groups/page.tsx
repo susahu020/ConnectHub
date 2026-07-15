@@ -1048,7 +1048,7 @@ export default function GroupsPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              addMemberMutation.mutate({ groupId: group.id, userId: user?.id });
+                              addMemberMutation.mutate({ groupId: group.id, userId: user?.id || '' });
                             }}
                             className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold rounded-full transition-all shrink-0 ml-2"
                           >
@@ -1808,7 +1808,7 @@ export default function GroupsPage() {
               </p>
             </div>
             <button
-              onClick={() => addMemberMutation.mutate({ groupId: activeGroup.id, userId: user?.id })}
+              onClick={() => addMemberMutation.mutate({ groupId: activeGroup.id, userId: user?.id || '' })}
               disabled={addMemberMutation.isPending}
               className="px-6 py-2.5 bg-primary text-white text-xs font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all flex items-center space-x-1.5 disabled:opacity-50"
               title="Join Channel"
@@ -1945,7 +1945,7 @@ export default function GroupsPage() {
                         if (isMember) {
                           handleLeaveGroup();
                         } else {
-                          addMemberMutation.mutate({ groupId: activeGroup.id, userId: user?.id });
+                          addMemberMutation.mutate({ groupId: activeGroup.id, userId: user?.id || '' });
                         }
                       }}
                       className="flex flex-col items-center space-y-1.5 focus:outline-none"
@@ -2182,9 +2182,9 @@ export default function GroupsPage() {
               </div>
 
               <div className="flex flex-col items-center space-y-2 pb-2">
-                <div 
+                <button 
                   onClick={() => newGroupAvatarRef.current?.click()}
-                  className="h-16 w-16 rounded-full border dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden group shadow-sm"
+                  className="h-16 w-16 rounded-full border dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden group shadow-sm text-left"
                   type="button"
                 >
                   {newGroupAvatar ? (
@@ -2195,7 +2195,7 @@ export default function GroupsPage() {
                   <div className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-[8px] font-black uppercase">
                     Upload
                   </div>
-                </div>
+                </button>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Channel Profile Avatar</span>
                 <input
                   type="file"
@@ -2423,9 +2423,9 @@ export default function GroupsPage() {
               </div>
 
               <div className="flex flex-col items-center space-y-2 pb-2">
-                <div 
+                <button 
                   onClick={() => editGroupAvatarRef.current?.click()}
-                  className="h-16 w-16 rounded-full border dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden group shadow-sm"
+                  className="h-16 w-16 rounded-full border dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden group shadow-sm text-left"
                   type="button"
                 >
                   {editGroupAvatar ? (
@@ -2436,7 +2436,7 @@ export default function GroupsPage() {
                   <div className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-[8px] font-black uppercase">
                     Upload
                   </div>
-                </div>
+                </button>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Update Channel Avatar</span>
                 <input
                   type="file"

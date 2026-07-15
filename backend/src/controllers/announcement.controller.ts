@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { createManyNotifications } from '../services/notification.service';
 
 export const createAnnouncement = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -30,7 +31,7 @@ export const createAnnouncement = async (req: AuthenticatedRequest, res: Respons
       },
     });
 
-    // Notify users
+    // Notify users (Real-time and Email preferences integrated)
     const employees = await prisma.user.findMany({
       where: {
         departmentId: departmentId || undefined,
@@ -39,14 +40,16 @@ export const createAnnouncement = async (req: AuthenticatedRequest, res: Respons
       select: { id: true },
     });
 
-    await prisma.notification.createMany({
-      data: employees.map((emp) => ({
+    const io = req.app.get('io');
+    await createManyNotifications({
+      notifications: employees.map((emp) => ({
         userId: emp.id,
         title: `Announcement: ${title}`,
         message: `${req.user?.firstName} posted a new announcement: "${title}"`,
         type: 'ANNOUNCEMENT',
         relatedId: announcement.id,
       })),
+      io,
     });
 
     // Log Activity

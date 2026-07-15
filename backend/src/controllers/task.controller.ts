@@ -1,11 +1,30 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { createNotification } from '../services/notification.service';
 
 export const createTask = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const { 
+      title, 
+      description, 
+      priority, 
+      status, 
+      dueDate, 
+      assigneeId, 
+      departmentId, 
+      projectId, 
+      fileIds,
+      estimatedHours,
+      labels,
+      watcherIds,
+      sprintName,
+      milestoneName,
+      isRecurring,
+      recurrenceInterval
+    } = req.body;
+
     const creatorId = req.user?.id!;
-    const { title, description, priority, status, dueDate, assigneeId, departmentId, projectId, fileIds } = req.body;
 
     const task = await prisma.task.create({
       data: {
@@ -18,6 +37,13 @@ export const createTask = async (req: AuthenticatedRequest, res: Response, next:
         creatorId,
         departmentId: departmentId || req.user?.departmentId || null,
         projectId: projectId || null,
+        estimatedHours: estimatedHours !== undefined && estimatedHours !== null ? parseFloat(estimatedHours) : null,
+        labels: labels || [],
+        watcherIds: watcherIds || [],
+        sprintName: sprintName || null,
+        milestoneName: milestoneName || null,
+        isRecurring: isRecurring || false,
+        recurrenceInterval: recurrenceInterval || null,
         attachments: fileIds && fileIds.length > 0 ? {
           create: fileIds.map((fileId: string) => ({ fileId }))
         } : undefined,
@@ -38,15 +64,15 @@ export const createTask = async (req: AuthenticatedRequest, res: Response, next:
       },
     });
 
-    // Send Notification
-    await prisma.notification.create({
-      data: {
-        userId: assigneeId,
-        title: 'New Task Assigned',
-        message: `Task: "${title}" has been assigned to you by ${req.user?.firstName}.`,
-        type: 'TASK_ASSIGNED',
-        relatedId: task.id,
-      },
+    // Send Notification (Real-time and Email preferences integrated)
+    const io = req.app.get('io');
+    await createNotification({
+      userId: assigneeId,
+      title: 'New Task Assigned',
+      message: `Task: "${title}" has been assigned to you by ${req.user?.firstName}.`,
+      type: 'TASK_ASSIGNED',
+      relatedId: task.id,
+      io,
     });
 
     res.status(201).json(task);
@@ -142,7 +168,23 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response, next:
   try {
     const { id } = req.params;
     const userId = req.user?.id!;
-    const { title, description, priority, status, dueDate, assigneeId, projectId, progress } = req.body;
+    const { 
+      title, 
+      description, 
+      priority, 
+      status, 
+      dueDate, 
+      assigneeId, 
+      projectId, 
+      progress,
+      estimatedHours,
+      labels,
+      watcherIds,
+      sprintName,
+      milestoneName,
+      isRecurring,
+      recurrenceInterval
+    } = req.body;
 
     const existingTask = await prisma.task.findUnique({ where: { id } });
     if (!existingTask) {
@@ -198,6 +240,34 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response, next:
       updates.projectId = projectId || null;
       historyActions.push('updated project allocation');
     }
+    if (estimatedHours !== undefined && estimatedHours !== existingTask.estimatedHours) {
+      updates.estimatedHours = estimatedHours !== null ? parseFloat(estimatedHours) : null;
+      historyActions.push(`updated estimated hours to ${estimatedHours}`);
+    }
+    if (labels !== undefined) {
+      updates.labels = labels;
+      historyActions.push('updated task labels');
+    }
+    if (watcherIds !== undefined) {
+      updates.watcherIds = watcherIds;
+      historyActions.push('updated task watchers');
+    }
+    if (sprintName !== undefined && sprintName !== existingTask.sprintName) {
+      updates.sprintName = sprintName || null;
+      historyActions.push(`moved task to sprint "${sprintName}"`);
+    }
+    if (milestoneName !== undefined && milestoneName !== existingTask.milestoneName) {
+      updates.milestoneName = milestoneName || null;
+      historyActions.push(`updated milestone to "${milestoneName}"`);
+    }
+    if (isRecurring !== undefined && isRecurring !== existingTask.isRecurring) {
+      updates.isRecurring = isRecurring;
+      historyActions.push(`changed recurrence state to ${isRecurring}`);
+    }
+    if (recurrenceInterval !== undefined && recurrenceInterval !== existingTask.recurrenceInterval) {
+      updates.recurrenceInterval = recurrenceInterval || null;
+      historyActions.push(`changed recurrence interval to ${recurrenceInterval}`);
+    }
 
     if (Object.keys(updates).length === 0) {
       res.status(200).json(existingTask);
@@ -225,14 +295,14 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response, next:
 
       // Send update alert to assignee if changed by someone else
       if (userId !== updatedTask.assigneeId) {
-        await prisma.notification.create({
-          data: {
-            userId: updatedTask.assigneeId,
-            title: 'Task Updated',
-            message: `Task: "${updatedTask.title}" has been updated by ${req.user?.firstName}.`,
-            type: 'SYSTEM',
-            relatedId: id,
-          },
+        const io = req.app.get('io');
+        await createNotification({
+          userId: updatedTask.assigneeId,
+          title: 'Task Updated',
+          message: `Task: "${updatedTask.title}" has been updated by ${req.user?.firstName}.`,
+          type: 'SYSTEM',
+          relatedId: id,
+          io,
         });
       }
     }

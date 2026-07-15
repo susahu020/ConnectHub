@@ -274,7 +274,7 @@ export const api = {
   deletePermanently: (id: string, type: 'FILE' | 'FOLDER') => request(`/files/${id}/permanent`, 'DELETE', { type }),
   moveItem: (id: string, targetFolderId: string | null, type: 'FILE' | 'FOLDER') => 
     request(`/files/${id}/move`, 'POST', { targetFolderId, type }),
-  createShareLink: (id: string, expiresHours?: number) => request(`/files/${id}/share`, 'POST', { expiresHours }),
+  createShareLink: (id: string, expiresHours?: number, sharedWithUserIds?: string[]) => request(`/files/${id}/share`, 'POST', { expiresHours, sharedWithUserIds }),
 
   // Notifications
   getNotifications: () => request('/notifications'),
