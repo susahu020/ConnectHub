@@ -198,6 +198,7 @@ export const api = {
 
   // Meetings (REST source of truth backing the live socket signaling)
   createMeeting: (body?: { title?: string }) => request('/meetings', 'POST', body || {}),
+  getMeetings: () => request('/meetings'),
   getMeetingByCode: (code: string) => request(`/meetings/${encodeURIComponent(code)}`),
   startMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/start`, 'POST'),
   endMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/end`, 'POST'),
@@ -284,6 +285,25 @@ export const api = {
 
   // Global Search
   globalSearch: (q: string) => request(`/search?q=${encodeURIComponent(q)}`),
+
+  // Wiki
+  getWikiPages: (search?: string, category?: string) => 
+    request(`/wiki?${search ? `search=${encodeURIComponent(search)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`),
+  getWikiPage: (id: string) => request(`/wiki/${id}`),
+  createWikiPage: (body: { title: string; content: string; category?: string; isPublished?: boolean }) => 
+    request('/wiki', 'POST', body),
+  updateWikiPage: (id: string, body: { title?: string; content?: string; category?: string; isPublished?: boolean }) => 
+    request(`/wiki/${id}`, 'PUT', body),
+  deleteWikiPage: (id: string) => request(`/wiki/${id}`, 'DELETE'),
+  rollbackWikiPage: (id: string, versionId: string) => request(`/wiki/${id}/rollback/${versionId}`, 'POST'),
+
+  // Workflows
+  getWorkflows: () => request('/workflows'),
+  createWorkflow: (body: { name: string; trigger: string; action: string; isActive?: boolean }) => 
+    request('/workflows', 'POST', body),
+  updateWorkflow: (id: string, body: { name?: string; trigger?: string; action?: string; isActive?: boolean }) => 
+    request(`/workflows/${id}`, 'PUT', body),
+  deleteWorkflow: (id: string) => request(`/workflows/${id}`, 'DELETE'),
 
   // Admin Panel
   getAuditLogs: () => request('/admin/audit-logs'),

@@ -282,6 +282,16 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response, next:
       },
     });
 
+    // Trigger workflow automation engine on task completion
+    if (updates.status === 'COMPLETED' && existingTask.status !== 'COMPLETED') {
+      const { AutomationService } = require('../services/automation.service');
+      AutomationService.trigger('TASK_COMPLETED', {
+        taskId: updatedTask.id,
+        taskTitle: updatedTask.title,
+        assigneeId: updatedTask.assigneeId,
+      }).catch((err: any) => console.error('[Automation] TASK_COMPLETED trigger failed:', err));
+    }
+
     // Write histories
     if (historyActions.length > 0) {
       await prisma.taskHistory.create({

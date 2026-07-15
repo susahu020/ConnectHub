@@ -10,9 +10,26 @@ import {
   getMeetingByCode,
   startMeeting,
   endMeeting,
+  getMeetings,
 } from '../controllers/meeting.controller';
 
 import { globalSearch } from '../controllers/search.controller';
+
+import {
+  getWikiPages,
+  getWikiPage,
+  createWikiPage,
+  updateWikiPage,
+  deleteWikiPage,
+  rollbackWikiPage,
+} from '../controllers/wiki.controller';
+
+import {
+  getWorkflows,
+  createWorkflow,
+  updateWorkflow,
+  deleteWorkflow,
+} from '../controllers/workflow.controller';
 
 // Middlewares
 import { authenticate } from '../middleware/auth.middleware';
@@ -273,6 +290,7 @@ router.post('/rbac/users/:userId/role', authenticate as any, authorize(['ADMIN']
 // ==========================================
 // MEETINGS (persisted source of truth backing the live socket signaling)
 // ==========================================
+router.get('/meetings', authenticate as any, getMeetings as any);
 router.post('/meetings', authenticate as any, createMeeting as any);
 router.get('/meetings/:code', authenticate as any, getMeetingByCode as any);
 router.post('/meetings/:code/start', authenticate as any, startMeeting as any);
@@ -389,5 +407,24 @@ router.post('/admin/logout-user', authenticate as any, authorize(['ADMIN']), adm
 router.post('/admin/logout-all', authenticate as any, authorize(['ADMIN']), adminLogoutAll as any);
 router.get('/admin/departments', authenticate as any, getDepartments as any);
 router.delete('/admin/departments/:id', authenticate as any, authorize(['ADMIN']), deleteDepartment as any);
+
+// ==========================================
+// COMPANY WIKI
+// ==========================================
+router.get('/wiki', authenticate as any, getWikiPages as any);
+router.get('/wiki/:id', authenticate as any, getWikiPage as any);
+router.post('/wiki', authenticate as any, createWikiPage as any);
+router.put('/wiki/:id', authenticate as any, updateWikiPage as any);
+router.delete('/wiki/:id', authenticate as any, deleteWikiPage as any);
+router.post('/wiki/:id/rollback/:versionId', authenticate as any, rollbackWikiPage as any);
+
+// ==========================================
+// WORKFLOW AUTOMATION
+// ==========================================
+router.get('/workflows', authenticate as any, getWorkflows as any);
+router.post('/workflows', authenticate as any, createWorkflow as any);
+router.put('/workflows/:id', authenticate as any, updateWorkflow as any);
+router.delete('/workflows/:id', authenticate as any, deleteWorkflow as any);
+
 
 export default router;

@@ -218,6 +218,15 @@ export const completeOnboarding = async (req: Request, res: Response, next: Next
       },
     });
 
+    // Trigger workflow automation engine on employee onboarding signup
+    const { AutomationService } = require('../services/automation.service');
+    AutomationService.trigger('EMPLOYEE_JOINED', {
+      userId: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+    }).catch((err: any) => console.error('[Automation] EMPLOYEE_JOINED trigger failed:', err));
+
     res.status(201).json({
       message: 'Onboarding completed successfully. You can now log in.',
       user: {

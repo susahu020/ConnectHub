@@ -106,6 +106,8 @@ model User {
   messageReactions MessageReaction[]
   uploadedFiles    File[]
   createdGroups    Group[]              @relation("GroupCreator")
+  wikiPages        WikiPage[]           @relation("WikiAuthor")
+  wikiChanges      WikiVersion[]        @relation("WikiChangeAuthor")
   announcements    Announcement[]       @relation("AnnouncementCreator")
   comments         AnnouncementComment[]
   likes            AnnouncementLike[]
@@ -747,4 +749,39 @@ model Invitation {
   isUsed      Boolean  @default(false)
   expiresAt   DateTime
   createdAt   DateTime @default(now())
+}
+
+model WikiPage {
+  id          String        @id @default(uuid())
+  title       String
+  content     String
+  category    String        @default("General")
+  authorId    String
+  author      User          @relation("WikiAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  isPublished Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  versions    WikiVersion[] @relation("WikiPageVersions")
+}
+
+model WikiVersion {
+  id          String   @id @default(uuid())
+  pageId      String
+  page        WikiPage @relation("WikiPageVersions", fields: [pageId], references: [id], onDelete: Cascade)
+  version     Int
+  title       String
+  content     String
+  changedById String
+  changedBy   User     @relation("WikiChangeAuthor", fields: [changedById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  name        String
+  trigger     String   // e.g. "TASK_COMPLETED", "EMPLOYEE_JOINED", "DOCUMENT_UPLOADED"
+  action      String   // e.g. "NOTIFY_MANAGER", "ASSIGN_ONBOARDING_TASKS", "NOTIFY_TEAM"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

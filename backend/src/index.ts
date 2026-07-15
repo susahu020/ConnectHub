@@ -34,6 +34,36 @@ prisma.user.updateMany({
   .then((res) => {
     console.log(`Reset ${res.count} active user presence statuses to OFFLINE on startup.`);
     
+    // Seed default automation workflows if none exist
+    prisma.workflow.count().then(count => {
+      if (count === 0) {
+        prisma.workflow.createMany({
+          data: [
+            {
+              name: 'Notify Manager on Task Completion',
+              trigger: 'TASK_COMPLETED',
+              action: 'NOTIFY_MANAGER',
+              isActive: true,
+            },
+            {
+              name: 'Assign Onboarding Checklist on New Employee Sign Up',
+              trigger: 'EMPLOYEE_JOINED',
+              action: 'ASSIGN_ONBOARDING_TASKS',
+              isActive: true,
+            },
+            {
+              name: 'Notify Teammates on Document Upload',
+              trigger: 'DOCUMENT_UPLOADED',
+              action: 'NOTIFY_TEAM',
+              isActive: true,
+            },
+          ]
+        }).then((resSeed) => {
+          console.log(`Seeded ${resSeed.count} default workflow automations.`);
+        }).catch(err => console.error('Failed to seed workflows:', err));
+      }
+    }).catch(err => console.error('Failed counting workflows:', err));
+
     // Ensure Employee role has Groups:Create permission
     prisma.customRole.findFirst({ where: { name: 'Employee' } })
       .then((empRole) => {

@@ -62,6 +62,14 @@ export const uploadFile = async (req: AuthenticatedRequest, res: Response, next:
       },
     });
 
+    // Trigger workflow automation engine on document uploaded
+    const { AutomationService } = require('../services/automation.service');
+    AutomationService.trigger('DOCUMENT_UPLOADED', {
+      fileId: dbFile.id,
+      fileName: dbFile.name,
+      uploaderId: dbFile.uploaderId,
+    }).catch((err: any) => console.error('[Automation] DOCUMENT_UPLOADED trigger failed:', err));
+
     res.status(201).json(dbFile);
   } catch (error) {
     next(error);

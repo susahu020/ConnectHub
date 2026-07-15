@@ -31,7 +31,10 @@ import {
   User,
   Hash,
   FileText,
-  XCircle
+  XCircle,
+  Calendar,
+  BookOpen,
+  Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '../../lib/store';
 import { api } from '../../services/api';
@@ -354,7 +357,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Channels', href: '/groups', icon: <Users className="h-4 w-4" /> },
     { name: 'Meetings', href: '/meetings', icon: <Video className="h-4 w-4" /> },
     { name: 'Kanban Tasks', href: '/tasks', icon: <Trello className="h-4 w-4" /> },
+    { name: 'Calendar', href: '/calendar', icon: <Calendar className="h-4 w-4" /> },
     { name: 'Announcements', href: '/announcements', icon: <Megaphone className="h-4 w-4" /> },
+    { name: 'Company Wiki', href: '/wiki', icon: <BookOpen className="h-4 w-4" /> },
+    { name: 'Automations', href: '/workflows', icon: <Sparkles className="h-4 w-4" /> },
     { name: 'File Storage', href: '/files', icon: <FolderHeart className="h-4 w-4" /> },
     { name: 'Directory', href: '/directory', icon: <Contact className="h-4 w-4" /> },
     { name: 'Analytics', href: '/analytics', icon: <BarChart3 className="h-4 w-4" /> },

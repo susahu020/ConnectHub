@@ -112,3 +112,18 @@ export const endMeeting = async (req: AuthenticatedRequest, res: Response, next:
     next(error);
   }
 };
+
+// GET /api/meetings — list all meetings
+export const getMeetings = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const meetings = await prisma.meeting.findMany({
+      include: {
+        host: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(meetings);
+  } catch (error) {
+    next(error);
+  }
+};
