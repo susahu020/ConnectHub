@@ -51,6 +51,9 @@ export const register = async (req: Request, res: Response, next: NextFunction):
   try {
     const { email, password, firstName, lastName, phone, designation } = req.body;
 
+    const adminExists = await prisma.user.count({ where: { role: 'ADMIN' } });
+    const role = adminExists === 0 ? 'ADMIN' : 'EMPLOYEE';
+
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       res.status(400).json({ message: 'Email address already registered.' });
@@ -69,6 +72,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         lastName,
         phone,
         designation,
+        role,
         settings: {
           create: {}, // Initialize default settings
         },

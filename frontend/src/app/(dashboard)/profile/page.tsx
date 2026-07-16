@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import ImageCropperModal from '../../../components/ImageCropperModal';
 import { 
   User, 
   MapPin, 
@@ -52,6 +53,9 @@ export default function ProfilePage() {
   
   const { user: currentUser, updateUser: syncCurrentUserStore } = useAuthStore();
   const isOwnProfile = !targetUserId || targetUserId === currentUser?.id;
+
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperImageSrc, setCropperImageSrc] = useState('');
   
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -281,9 +285,19 @@ export default function ProfilePage() {
       return;
     }
 
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropperImageSrc(reader.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCroppedAvatar = async (croppedFile: File) => {
+    setCropperOpen(false);
     setUploadingImage(true);
     const formData = new FormData();
-    formData.append('avatar', file);
+    formData.append('avatar', croppedFile);
     
     try {
       const res = await api.uploadAvatar(formData);
@@ -1780,6 +1794,13 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      <ImageCropperModal
+        isOpen={cropperOpen}
+        imageSrc={cropperImageSrc}
+        onClose={() => setCropperOpen(false)}
+        onCrop={handleCroppedAvatar}
+      />
 
     </div>
   );

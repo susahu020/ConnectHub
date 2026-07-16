@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import ImageCropperModal from '../../../components/ImageCropperModal';
 import { 
   MessageSquare, 
   Users, 
@@ -129,6 +130,9 @@ export default function ChatPage() {
   const [editPhone, setEditPhone] = useState('');
   const [editBio, setEditBio] = useState('');
   const [updatingProfile, setUpdatingProfile] = useState(false);
+
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperImageSrc, setCropperImageSrc] = useState('');
 
   const contactAvatarRef = useRef<HTMLInputElement>(null);
 
@@ -809,8 +813,19 @@ export default function ChatPage() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const file = files[0];
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropperImageSrc(reader.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCroppedContactAvatar = async (croppedFile: File) => {
+    setCropperOpen(false);
     const formData = new FormData();
-    formData.append('avatar', file);
+    formData.append('avatar', croppedFile);
 
     const uploadToast = toast.loading('Uploading avatar image...');
     try {
@@ -2929,6 +2944,13 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+      <ImageCropperModal
+        isOpen={cropperOpen}
+        imageSrc={cropperImageSrc}
+        onClose={() => setCropperOpen(false)}
+        onCrop={handleCroppedContactAvatar}
+      />
+
     </div>
   );
 }

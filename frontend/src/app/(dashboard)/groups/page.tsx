@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import ImageCropperModal from '../../../components/ImageCropperModal';
 import { 
   Send, 
   Paperclip, 
@@ -106,6 +107,10 @@ export default function GroupsPage() {
   const editCoverRef = useRef<HTMLInputElement>(null);
   const rightAvatarInputRef = useRef<HTMLInputElement>(null);
   const rightCoverInputRef = useRef<HTMLInputElement>(null);
+
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperImageSrc, setCropperImageSrc] = useState('');
+  const [cropperTarget, setCropperTarget] = useState<'rightAvatar' | 'newGroupAvatar' | 'editGroupAvatar' | null>(null);
 
   const isGroupAdmin = activeGroup?.members?.some(
     (m: any) => m.userId === user?.id && m.role === 'ADMIN'
@@ -593,27 +598,49 @@ export default function GroupsPage() {
   const handleRightAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !activeGroup) return;
-
-    setUploading(true);
     const file = files[0];
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropperImageSrc(reader.result as string);
+      setCropperTarget('rightAvatar');
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCroppedGroupAvatar = async (croppedFile: File) => {
+    setCropperOpen(false);
+    setUploading(true);
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', croppedFile);
 
     try {
-      const response = await api.uploadFile(formData);
-      updateGroupMutation.mutate({
-        groupId: activeGroup.id,
-        body: {
-          name: activeGroup.name,
-          description: activeGroup.description,
-          avatarUrl: response.url
-        }
-      });
-      toast.success('Channel avatar updated successfully!');
+      if (cropperTarget === 'rightAvatar' && activeGroup) {
+        const response = await api.uploadFile(formData);
+        updateGroupMutation.mutate({
+          groupId: activeGroup.id,
+          body: {
+            name: activeGroup.name,
+            description: activeGroup.description,
+            avatarUrl: response.url
+          }
+        });
+        toast.success('Channel avatar updated successfully!');
+      } else if (cropperTarget === 'newGroupAvatar') {
+        const response = await api.uploadFile(formData);
+        setNewGroupAvatar(response.url);
+        toast.success('Channel icon uploaded successfully!');
+      } else if (cropperTarget === 'editGroupAvatar') {
+        const response = await api.uploadFile(formData);
+        setEditGroupAvatar(response.url);
+        toast.success('Channel icon uploaded successfully!');
+      }
     } catch (err: any) {
-      toast.error('Failed to upload avatar.');
+      toast.error('Failed to upload channel icon.');
     } finally {
       setUploading(false);
+      setCropperTarget(null);
     }
   };
 
@@ -2200,22 +2227,17 @@ export default function GroupsPage() {
                 <input
                   type="file"
                   ref={newGroupAvatarRef}
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     const files = e.target.files;
                     if (!files || files.length === 0) return;
-                    setUploading(true);
                     const file = files[0];
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    try {
-                      const response = await api.uploadFile(formData);
-                      setNewGroupAvatar(response.url);
-                      toast.success('Channel icon uploaded successfully!');
-                    } catch (err: any) {
-                      toast.error('Failed to upload channel icon.');
-                    } finally {
-                      setUploading(false);
-                    }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setCropperImageSrc(reader.result as string);
+                      setCropperTarget('newGroupAvatar');
+                      setCropperOpen(true);
+                    };
+                    reader.readAsDataURL(file);
                   }}
                   className="hidden"
                   accept="image/*"
@@ -2441,22 +2463,17 @@ export default function GroupsPage() {
                 <input
                   type="file"
                   ref={editGroupAvatarRef}
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     const files = e.target.files;
                     if (!files || files.length === 0) return;
-                    setUploading(true);
                     const file = files[0];
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    try {
-                      const response = await api.uploadFile(formData);
-                      setEditGroupAvatar(response.url);
-                      toast.success('Channel icon uploaded successfully!');
-                    } catch (err: any) {
-                      toast.error('Failed to upload channel icon.');
-                    } finally {
-                      setUploading(false);
-                    }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setCropperImageSrc(reader.result as string);
+                      setCropperTarget('editGroupAvatar');
+                      setCropperOpen(true);
+                    };
+                    reader.readAsDataURL(file);
                   }}
                   className="hidden"
                   accept="image/*"
@@ -2899,6 +2916,12 @@ export default function GroupsPage() {
           </div>
         </div>
       )}
+      <ImageCropperModal
+        isOpen={cropperOpen}
+        imageSrc={cropperImageSrc}
+        onClose={() => setCropperOpen(false)}
+        onCrop={handleCroppedGroupAvatar}
+      />
     </div>
   );
 }

@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
 
 const fileFilter = (req: any, file: any, cb: any) => {
   const allowedExtensions = [
-    '.png', '.jpeg', '.jpg', '.gif',
+    '.png', '.jpeg', '.jpg', '.gif', '.heic',
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
     '.txt', '.zip', '.rar',
     '.mp3', '.wav',
