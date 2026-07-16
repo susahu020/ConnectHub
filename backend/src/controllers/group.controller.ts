@@ -294,7 +294,7 @@ export const updateGroup = async (req: AuthenticatedRequest, res: Response, next
   try {
     const { id } = req.params;
     const userId = req.user?.id!;
-    const { name, description, avatarUrl } = req.body;
+    const { name, description, avatarUrl, isBroadcast } = req.body;
 
     const group = await prisma.group.findUnique({ where: { id } });
     if (!group) {
@@ -302,9 +302,20 @@ export const updateGroup = async (req: AuthenticatedRequest, res: Response, next
       return;
     }
 
-    if (group.createdById !== userId && req.user?.role !== 'ADMIN') {
-      res.status(403).json({ message: 'Forbidden. Only the channel creator can edit settings.' });
-      return;
+    // If the group is a broadcast channel, then only an administrator can change or update the profile
+    if (group.isBroadcast) {
+      if (req.user?.role !== 'ADMIN') {
+        res.status(403).json({ message: 'Forbidden. Only an administrator can update the profile of a broadcast channel.' });
+        return;
+      }
+    }
+
+    // Only the channel creator or an administrator can toggle the broadcast channels option
+    if (isBroadcast !== undefined && isBroadcast !== group.isBroadcast) {
+      if (group.createdById !== userId && req.user?.role !== 'ADMIN') {
+        res.status(403).json({ message: 'Forbidden. Only the channel creator or an administrator can change broadcast status.' });
+        return;
+      }
     }
 
     const updated = await prisma.group.update({
@@ -313,6 +324,7 @@ export const updateGroup = async (req: AuthenticatedRequest, res: Response, next
         name: name || undefined,
         description: description || undefined,
         avatarUrl: avatarUrl !== undefined ? avatarUrl : undefined,
+        isBroadcast: isBroadcast !== undefined ? !!isBroadcast : undefined,
       },
       include: {
         members: {

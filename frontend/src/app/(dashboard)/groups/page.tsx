@@ -1834,7 +1834,7 @@ export default function GroupsPage() {
 
       {/* Right Conversation Info sidebar panel */}
       {showInfoPanel && activeGroup && (
-        <aside className="w-80 border-l flex flex-col shrink-0 bg-slate-50/50 dark:bg-slate-900/50 p-4 space-y-6 overflow-y-auto animate-in slide-in-from-right-5 duration-200 text-xs">
+        <aside className="fixed md:relative inset-y-0 right-0 w-full md:w-80 border-l flex flex-col shrink-0 bg-white dark:bg-slate-900 p-4 space-y-6 overflow-y-auto animate-in slide-in-from-right-5 duration-200 text-xs z-50 md:z-20 shadow-2xl md:shadow-none">
           {/* Title bar */}
           <div className="flex items-center space-x-3 pb-3 border-b dark:border-slate-800 shrink-0">
             <button onClick={() => setShowInfoPanel(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500" title="Close info">

@@ -892,6 +892,12 @@ export const getUserActivityLogs = async (req: AuthenticatedRequest, res: Respon
 export const updateProfileById = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId } = req.params;
+
+    // Enforce that only the user themselves can change or update their profile
+    if (req.user?.id !== userId) {
+      res.status(403).json({ message: 'Forbidden. Only the user themselves can update their profile.' });
+      return;
+    }
     const {
       firstName,
       lastName,

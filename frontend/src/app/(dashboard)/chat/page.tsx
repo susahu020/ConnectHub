@@ -2081,14 +2081,14 @@ export default function ChatPage() {
                   placeholder={isBlocked ? "You blocked this contact. Click to unblock." : "Type a message..."}
                   value={isBlocked ? "" : inputValue}
                   onChange={handleInputChange}
-                  className={`flex-1 px-4 py-3 rounded-xl border transition-all text-xs ${
+                  className={`flex-1 min-w-0 px-4 py-3 rounded-xl border transition-all text-xs ${
                     isBlocked 
                       ? 'bg-red-50 dark:bg-red-950/20 text-red-550 border-red-200 dark:border-red-900 cursor-pointer font-bold text-center' 
                       : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary'
                   }`}
                 />
 
-                <div className="flex items-center space-x-1 shrink-0">
+                <div className="hidden sm:flex items-center space-x-1 shrink-0">
                   {['👍', '❤️', '👏'].map((emoji) => (
                     <button
                       key={emoji}
@@ -2138,7 +2138,7 @@ export default function ChatPage() {
           .filter(Boolean);
 
         return (
-          <aside className="w-80 border-l flex flex-col shrink-0 bg-slate-50/50 dark:bg-slate-900/50 p-4 space-y-5 overflow-y-auto z-20">
+          <aside className="fixed md:relative inset-y-0 right-0 w-full md:w-80 border-l flex flex-col shrink-0 bg-white dark:bg-slate-900 p-4 space-y-5 overflow-y-auto z-50 md:z-20 shadow-2xl md:shadow-none animate-in slide-in-from-right-5 duration-250">
             {/* Hidden avatar input */}
             <input
               type="file"

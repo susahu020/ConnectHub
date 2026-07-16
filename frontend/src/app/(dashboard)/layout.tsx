@@ -398,7 +398,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className={`h-16 border-b flex items-center transition-all duration-300 ${
           sidebarCollapsed ? 'px-2 justify-center' : 'px-6 justify-between'
         }`}>
-          <Link href="/dashboard" className="flex items-center space-x-2 font-bold text-lg tracking-tight shrink-0">
+          <Link href="/dashboard" onClick={() => setSidebarOpen(false)} className="flex items-center space-x-2 font-bold text-lg tracking-tight shrink-0">
             <Layers className="h-5 w-5 text-primary shrink-0" />
             {!sidebarCollapsed && <span>ConnectHub</span>}
           </Link>
@@ -427,6 +427,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={link.name}
                 href={link.href}
+                onClick={() => setSidebarOpen(false)}
                 title={sidebarCollapsed ? link.name : undefined}
                 className={`flex items-center rounded-xl text-sm font-semibold transition-all duration-200 ${
                   sidebarCollapsed ? 'justify-center p-2.5' : 'space-x-3 px-4 py-2.5'
@@ -476,7 +477,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
-                <Link href="/profile" className="block cursor-pointer">
+                <Link href="/profile" onClick={() => setSidebarOpen(false)} className="block cursor-pointer">
                   <p className="text-xs font-bold truncate leading-none mb-1 hover:underline">{user.firstName} {user.lastName}</p>
                   <p className="text-[9px] text-muted-foreground uppercase tracking-wider truncate font-semibold leading-none">
                     {user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()} • {user.status === 'IN_MEETING' ? 'in meeting' : user.status === 'ON_LEAVE' ? 'on leave' : user.status.toLowerCase()}
