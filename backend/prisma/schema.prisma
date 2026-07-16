@@ -137,6 +137,21 @@ model User {
   lockoutUntil     DateTime?
   deletedConversations DeletedConversation[]
   hostedMeetings   Meeting[]
+
+  leaveRequests        LeaveRequest[]
+  leaveApprovals       LeaveRequest[]        @relation("LeaveApprover")
+  leaveBalances        LeaveBalance[]
+  attendances          Attendance[]
+  expenseClaims        ExpenseClaim[]
+  expenseApprovals     ExpenseClaim[]        @relation("ExpenseApprover")
+  payslips             Payslip[]
+  generatedPayslips    Payslip[]             @relation("PayslipGenerator")
+  shiftAssignments     ShiftAssignment[]
+  swapRequestsSent     ShiftSwapRequest[]    @relation("Requester")
+  swapRequestsReceived ShiftSwapRequest[]    @relation("Assignee")
+  swapRequestsApproved ShiftSwapRequest[]    @relation("SwapApprover")
+  recognitionsSent     Recognition[]         @relation("Sender")
+  recognitionsReceived Recognition[]         @relation("Receiver")
 }
 
 model Department {
@@ -784,4 +799,191 @@ model Workflow {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PayslipStatus {
+  DRAFT
+  PAID
+  UNPAID
+}
+
+enum SwapStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveRequest {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType     String       // e.g., ANNUAL, SICK, CASUAL, UNPAID
+  startDate     DateTime
+  endDate       DateTime
+  reason        String
+  status        LeaveStatus  @default(PENDING)
+  approvedById  String?
+  approvedBy    User?        @relation("LeaveApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  managerNotes  String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model LeaveBalance {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType     String       // e.g., ANNUAL, SICK, CASUAL, UNPAID
+  total         Float
+  used          Float        @default(0)
+  year          Int
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([userId, leaveType, year])
+}
+
+model Attendance {
+  id            String             @id @default(uuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date          DateTime           // Normalized to local date (00:00:00)
+  clockIn       DateTime
+  clockOut      DateTime?
+  status        AttendanceStatus   @default(PRESENT)
+  ipAddress     String?
+  location      String?
+  notes         String?
+  breaks        AttendanceBreak[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model AttendanceBreak {
+  id            String       @id @default(uuid())
+  attendanceId  String
+  attendance    Attendance   @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  startTime     DateTime
+  endTime       DateTime?
+}
+
+model Holiday {
+  id            String       @id @default(uuid())
+  name          String
+  date          DateTime     @unique
+  description   String?
+  isMandatory   Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model ExpenseClaim {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  category      String       // e.g., TRAVEL, MEALS, EQUIPMENT, UTILITIES, OTHERS
+  amount        Float
+  currency      String       @default("USD")
+  description   String?
+  receiptUrl    String?
+  status        ExpenseStatus @default(PENDING)
+  approvedById  String?
+  approvedBy    User?        @relation("ExpenseApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  managerNotes  String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Payslip {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month         Int
+  year          Int
+  basicSalary   Float
+  allowances    Float        @default(0)
+  deductions    Float        @default(0)
+  netSalary     Float
+  status        PayslipStatus @default(UNPAID)
+  generatedById String
+  generatedBy   User         @relation("PayslipGenerator", fields: [generatedById], references: [id], onDelete: Cascade)
+  fileUrl       String?
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Shift {
+  id            String             @id @default(uuid())
+  name          String
+  startTime     String             // e.g. "09:00"
+  endTime       String             // e.g. "17:00"
+  color         String?            // CSS or hex code color
+  description   String?
+  assignments   ShiftAssignment[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+model ShiftAssignment {
+  id                  String             @id @default(uuid())
+  userId              String
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shiftId             String
+  shift               Shift              @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  startDate           DateTime
+  endDate             DateTime
+  requesterSwapRequests ShiftSwapRequest[] @relation("RequesterAssignment")
+  assigneeSwapRequests ShiftSwapRequest[]  @relation("AssigneeAssignment")
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model ShiftSwapRequest {
+  id                    String           @id @default(uuid())
+  requesterId           String
+  requester             User             @relation("Requester", fields: [requesterId], references: [id], onDelete: Cascade)
+  assigneeId            String
+  assignee              User             @relation("Assignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  requesterAssignmentId String
+  requesterAssignment   ShiftAssignment  @relation("RequesterAssignment", fields: [requesterAssignmentId], references: [id], onDelete: Cascade)
+  assigneeAssignmentId  String
+  assigneeAssignment    ShiftAssignment  @relation("AssigneeAssignment", fields: [assigneeAssignmentId], references: [id], onDelete: Cascade)
+  status                SwapStatus       @default(PENDING)
+  approvedById          String?
+  approvedBy            User?            @relation("SwapApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+}
+
+model Recognition {
+  id            String       @id @default(uuid())
+  senderId      String
+  sender        User         @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId    String
+  receiver      User         @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  badge         String       // e.g., TEAM_PLAYER, INNOVATOR, CUSTOMER_CHAMPION, ROCKSTAR
+  message       String
+  createdAt     DateTime     @default(now())
 }

@@ -328,4 +328,65 @@ export const api = {
   updateProject: (id: string, body: any) => request(`/projects/${id}`, 'PUT', body),
   deleteProject: (id: string) => request(`/projects/${id}`, 'DELETE'),
   sendContactMessage: (body: { name: string; email: string; message: string }) => request('/auth/contact', 'POST', body),
+
+  // HR Module
+  getLeaves: () => request('/hr/leaves'),
+  requestLeave: (body: { leaveType: string; startDate: string; endDate: string; reason: string }) => 
+    request('/hr/leaves', 'POST', body),
+  getLeaveBalances: () => request('/hr/leaves/balances'),
+  updateLeaveStatus: (id: string, body: { status: 'APPROVED' | 'REJECTED'; managerNotes?: string }) => 
+    request(`/hr/leaves/${id}/status`, 'PUT', body),
+
+  getTodayAttendance: () => request('/hr/attendance/today'),
+  clockIn: (body?: { location?: string; notes?: string }) => request('/hr/attendance/clock-in', 'POST', body || {}),
+  clockOut: (body?: { notes?: string }) => request('/hr/attendance/clock-out', 'POST', body || {}),
+  startBreak: () => request('/hr/attendance/break-start', 'POST'),
+  endBreak: () => request('/hr/attendance/break-end', 'POST'),
+  getAttendanceLogs: (params?: string) => request(`/hr/attendance/logs${params ? `?${params}` : ''}`),
+
+  getHolidays: () => request('/hr/holidays'),
+  createHoliday: (body: { name: string; date: string; description?: string; isMandatory?: boolean }) => 
+    request('/hr/holidays', 'POST', body),
+  deleteHoliday: (id: string) => request(`/hr/holidays/${id}`, 'DELETE'),
+
+  getExpenseClaims: () => request('/hr/expenses'),
+  createExpenseClaim: (body: { title: string; category: string; amount: number; currency?: string; description?: string; receiptUrl?: string }) => 
+    request('/hr/expenses', 'POST', body),
+  updateExpenseStatus: (id: string, body: { status: 'APPROVED' | 'REJECTED'; managerNotes?: string }) => 
+    request(`/hr/expenses/${id}/status`, 'PUT', body),
+
+  getPayslips: () => request('/hr/payslips'),
+  generatePayslip: (body: { employeeId: string; month: number; year: number; basicSalary: number; allowances?: number; deductions?: number; notes?: string; fileUrl?: string }) => 
+    request('/hr/payslips', 'POST', body),
+  updatePayslipStatus: (id: string, status: 'PAID' | 'UNPAID' | 'DRAFT') => 
+    request(`/hr/payslips/${id}/status`, 'PUT', { status }),
+
+  getShifts: () => request('/hr/shifts'),
+  createShift: (body: { name: string; startTime: string; endTime: string; color?: string; description?: string }) => 
+    request('/hr/shifts', 'POST', body),
+  getShiftAssignments: () => request('/hr/shifts/assignments'),
+  assignShift: (body: { employeeId: string; shiftId: string; startDate: string; endDate: string }) => 
+    request('/hr/shifts/assign', 'POST', body),
+  createShiftSwapRequest: (body: { requesterAssignmentId: string; assigneeId: string; assigneeAssignmentId: string }) => 
+    request('/hr/shifts/swap', 'POST', body),
+  getShiftSwapRequests: () => request('/hr/shifts/swaps'),
+  updateShiftSwapStatus: (id: string, status: 'APPROVED' | 'REJECTED') => 
+    request(`/hr/shifts/swaps/${id}/status`, 'PUT', { status }),
+
+  getRecognitions: () => request('/hr/recognitions'),
+  createRecognition: (body: { receiverId: string; badge: string; message: string }) => 
+    request('/hr/recognitions', 'POST', body),
+
+  // Admin HR Control CRUD
+  deleteLeaveRequest: (id: string) => request(`/hr/leaves/${id}`, 'DELETE'),
+  updateLeaveBalance: (id: string, body: { total?: number; used?: number }) => 
+    request(`/hr/leaves/balances/${id}`, 'PUT', body),
+  updateAttendanceLog: (id: string, body: { clockIn?: string; clockOut?: string; status?: string; notes?: string }) => 
+    request(`/hr/attendance/logs/${id}`, 'PUT', body),
+  deleteAttendanceLog: (id: string) => request(`/hr/attendance/logs/${id}`, 'DELETE'),
+  deleteExpenseClaim: (id: string) => request(`/hr/expenses/${id}`, 'DELETE'),
+  deletePayslip: (id: string) => request(`/hr/payslips/${id}`, 'DELETE'),
+  deleteShiftAssignment: (id: string) => request(`/hr/shifts/assignments/${id}`, 'DELETE'),
+  deleteShift: (id: string) => request(`/hr/shifts/${id}`, 'DELETE'),
+  deleteRecognition: (id: string) => request(`/hr/recognitions/${id}`, 'DELETE'),
 };
