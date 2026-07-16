@@ -78,6 +78,7 @@ import {
   getProfile,
   updateProfile,
   getDirectory,
+  getOrgChart,
   getDashboardStats,
   updateSettings,
   getSessions,
@@ -255,6 +256,8 @@ import {
   deleteRecognition
 } from '../controllers/hr.controller';
 
+import { getAnalyticsStats } from '../controllers/analytics.controller';
+
 const router = Router();
 
 // Apply global rate limiting to all API endpoints
@@ -312,6 +315,7 @@ router.delete('/users/certifications/:id', authenticate as any, deleteCertificat
 router.get('/users/activity', authenticate as any, getUserActivityLogs as any);
 
 router.get('/users/directory', authenticate as any, getDirectory as any);
+router.get('/users/org-chart', authenticate as any, getOrgChart as any);
 router.get('/users/dashboard-stats', authenticate as any, getDashboardStats as any);
 router.put('/users/settings', authenticate as any, updateSettings as any);
 router.get('/users/sessions', authenticate as any, getSessions as any);
@@ -527,6 +531,9 @@ router.delete('/hr/shifts/:id', authenticate as any, authorize(['ADMIN']), delet
 router.get('/hr/recognitions', authenticate as any, getRecognitions as any);
 router.post('/hr/recognitions', authenticate as any, createRecognition as any);
 router.delete('/hr/recognitions/:id', authenticate as any, authorize(['ADMIN']), deleteRecognition as any);
+
+// Analytics Dashboard
+router.get('/analytics', authenticate as any, authorize(['ADMIN', 'MANAGER']), getAnalyticsStats as any);
 
 
 export default router;

@@ -1,299 +1,497 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  Legend,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { api } from '../../../services/api';
-import { useAuthStore } from '../../../lib/store';
-import { 
+  BarChart3, 
+  Users, 
+  MessageSquare, 
+  Folder, 
+  CheckCircle, 
   TrendingUp, 
   Activity, 
-  Users, 
-  Trello, 
-  CheckCircle2, 
-  BarChart4,
-  Cpu,
+  ArrowUpRight, 
+  FileText, 
   Database,
-  Server,
-  Lock,
-  ShieldCheck,
-  Briefcase
+  PieChart,
+  Calendar,
+  Layers,
+  ShieldAlert,
+  Coffee,
+  X
 } from 'lucide-react';
+import { api } from '../../../services/api';
+import { useAuthStore } from '../../../lib/store';
+import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export default function AnalyticsPage() {
+type SubTabType = 'overview' | 'users' | 'chat' | 'departments' | 'tasks' | 'files';
+
+export default function AnalyticsDashboard() {
   const { user } = useAuthStore();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<SubTabType>('overview');
 
-  const { data: deptStats, isLoading: loadingDepts } = useQuery({
-    queryKey: ['admin-dept-stats'],
-    queryFn: () => api.getDepartmentStats(),
+  // Role Gate: restrict access to ADMIN and MANAGER
+  useEffect(() => {
+    if (user && user.role !== 'ADMIN' && user.role !== 'MANAGER') {
+      router.replace('/dashboard');
+      toast.error('Access denied. Analytics dashboard is restricted to managers and administrators.');
+    }
+  }, [user, router]);
+
+  const { data: stats, isLoading, error } = useQuery({
+    queryKey: ['analytics-stats'],
+    queryFn: () => api.getAnalytics(),
+    enabled: !!user && (user.role === 'ADMIN' || user.role === 'MANAGER'),
+    refetchInterval: 10000, // auto-refresh stats every 10 seconds
   });
 
-  const { data: sysMetrics, isLoading: loadingMetrics } = useQuery({
-    queryKey: ['admin-sys-metrics'],
-    queryFn: () => api.getSystemMetrics(),
-    enabled: user?.role === 'ADMIN',
-  });
-
-  // Mocked time series data for Daily Messaging Volume (Slack style heatmap metric)
-  const messageVolumeData = [
-    { name: 'Mon', Messages: 120, Tasks: 5 },
-    { name: 'Tue', Messages: 180, Tasks: 8 },
-    { name: 'Wed', Messages: 240, Tasks: 12 },
-    { name: 'Thu', Messages: 210, Tasks: 15 },
-    { name: 'Fri', Messages: 300, Tasks: 9 },
-    { name: 'Sat', Messages: 80, Tasks: 2 },
-    { name: 'Sun', Messages: 95, Tasks: 3 },
-  ];
-
-  // Pie chart task distributions
-  const taskDistribution = [
-    { name: 'To Do', value: 12, color: '#94a3b8' },
-    { name: 'In Progress', value: 18, color: '#3b82f6' },
-    { name: 'Under Review', value: 8, color: '#f59e0b' },
-    { name: 'Completed', value: 25, color: '#22c55e' },
-  ];
-
-  if (loadingDepts || (user?.role === 'ADMIN' && loadingMetrics)) {
+  if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-10 w-48 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-lg" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="h-80 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-2xl border" />
-          <div className="h-80 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-2xl border" />
-        </div>
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 dark:bg-slate-950">
+        <Activity className="h-8 w-8 animate-spin text-primary mb-3" />
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Aggregating workspace analytics...</p>
       </div>
     );
   }
 
+  if (error || !stats) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 dark:bg-slate-950 text-center">
+        <ShieldAlert className="h-8 w-8 text-rose-500 mb-3" />
+        <p className="text-sm font-bold text-slate-800 dark:text-white">Failed to load analytics</p>
+        <p className="text-xs text-slate-500 mt-1">Please ensure your user role has administrative permissions.</p>
+      </div>
+    );
+  }
+
+  // Format Bytes helper
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const { activeUsers, chatAnalytics, departmentProductivity, taskCompletion, fileUsage } = stats;
+
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Collaboration Analytics</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Track messaging velocities, department task completion rates, and platform engagement indices.</p>
+    <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50 dark:bg-slate-950">
+      
+      {/* HEADER SECTION */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            <BarChart3 className="h-8 w-8 text-primary" />
+            Workspace Analytics
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Real-time telemetry and aggregated system performance audits.
+          </p>
+        </div>
+        <div className="mt-4 md:mt-0 flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-1.5 shadow-sm">
+          <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Live Telemetry Hooked</span>
+        </div>
       </div>
 
-      {/* Analytics Summary Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
-        {user?.role === 'ADMIN' ? [
-          { label: 'Total Platform Users', value: sysMetrics?.database?.totalUsers || 0, icon: <Users className="h-5 w-5 text-blue-500" />, color: 'border-blue-100 dark:border-blue-900/30' },
-          { label: 'Total Allocated Tasks', value: sysMetrics?.database?.totalTasks || 0, icon: <Trello className="h-5 w-5 text-emerald-500" />, color: 'border-emerald-100 dark:border-emerald-900/30' },
-          { label: 'Security Audit Logs', value: sysMetrics?.queue?.totalAuditLogs || 0, icon: <ShieldCheck className="h-5 w-5 text-purple-500" />, color: 'border-purple-100 dark:border-purple-900/30' },
-          { label: 'Active Cache Keys', value: sysMetrics?.redis?.keysCount || 0, icon: <Activity className="h-5 w-5 text-amber-500" />, color: 'border-amber-100 dark:border-amber-900/30' }
-        ].map((card, idx) => (
-          <div key={idx} className={`p-4 border rounded-2xl flex items-center justify-between shadow-2xs bg-white dark:bg-slate-900 ${card.color}`}>
-            <div className="space-y-0.5">
-              <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-450">{card.label}</span>
-              <p className="text-lg font-black tracking-tight leading-none text-slate-800 dark:text-slate-205">{card.value}</p>
-            </div>
-            <span className="leading-none">{card.icon}</span>
-          </div>
-        )) : [
-          { label: 'Active Departments', value: deptStats?.length || 0, icon: <Briefcase className="h-5 w-5 text-blue-500" />, color: 'border-blue-100 dark:border-blue-900/30' },
-          { label: 'Department Members', value: deptStats?.reduce((acc: number, d: any) => acc + d.totalEmployees, 0) || 0, icon: <Users className="h-5 w-5 text-emerald-500" />, color: 'border-emerald-100 dark:border-emerald-900/30' },
-          { label: 'Total Department Tasks', value: deptStats?.reduce((acc: number, d: any) => acc + (d.completedTasks + d.openTasks), 0) || 0, icon: <Trello className="h-5 w-5 text-purple-500" />, color: 'border-purple-100 dark:border-purple-900/30' },
-          { label: 'Task Completion Rate', value: `${((deptStats?.reduce((acc: number, d: any) => acc + d.completedTasks, 0) || 0) / (deptStats?.reduce((acc: number, d: any) => acc + (d.completedTasks + d.openTasks), 0) || 1) * 100).toFixed(0)}%`, icon: <CheckCircle2 className="h-5 w-5 text-amber-500" />, color: 'border-amber-100 dark:border-amber-900/30' }
-        ].map((card, idx) => (
-          <div key={idx} className={`p-4 border rounded-2xl flex items-center justify-between shadow-2xs bg-white dark:bg-slate-900 ${card.color}`}>
-            <div className="space-y-0.5">
-              <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-450">{card.label}</span>
-              <p className="text-lg font-black tracking-tight leading-none text-slate-800 dark:text-slate-205">{card.value}</p>
-            </div>
-            <span className="leading-none">{card.icon}</span>
-          </div>
+      {/* DASHBOARD TAB CONTROLS */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto scrollbar-none gap-2">
+        {[
+          { id: 'overview', label: 'Overview', icon: <Layers className="h-4 w-4" /> },
+          { id: 'users', label: 'Active Users', icon: <Users className="h-4 w-4" /> },
+          { id: 'chat', label: 'Chat Activity', icon: <MessageSquare className="h-4 w-4" /> },
+          { id: 'departments', label: 'Department Output', icon: <TrendingUp className="h-4 w-4" /> },
+          { id: 'tasks', label: 'Tasks Metric', icon: <CheckCircle className="h-4 w-4" /> },
+          { id: 'files', label: 'File Storage', icon: <Folder className="h-4 w-4" /> }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as SubTabType)}
+            className={`flex items-center gap-2 px-5 py-3 border-b-2 text-sm font-bold whitespace-nowrap transition-all duration-200 leading-none ${
+              activeTab === tab.id
+                ? 'border-primary text-primary'
+                : 'border-transparent text-slate-400 hover:text-slate-650 hover:border-slate-200 dark:hover:border-slate-800'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
         ))}
       </div>
 
-      {/* Analytics Cards Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Daily Messages Volume Area Chart */}
-        <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm space-y-4 lg:col-span-2">
-          <div className="border-b pb-3 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              <h3 className="font-bold text-sm">Weekly Activity Trends</h3>
-            </div>
-            <span className="text-[10px] text-emerald-500 bg-emerald-500/10 font-bold px-2 py-0.5 rounded-full">+12% vs last week</span>
-          </div>
-          <div className="h-72 w-full text-xs font-semibold">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={messageVolumeData}>
-                <defs>
-                  <linearGradient id="colorMsgs" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Area type="monotone" dataKey="Messages" stroke="#3b82f6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorMsgs)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      {/* RENDER DETAILED SECTION */}
+      <div className="min-h-[450px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            
+            {/* OVERVIEW TAB */}
+            {activeTab === 'overview' && (
+              <div className="space-y-8">
+                
+                {/* Metrics Highlight Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  
+                  {/* Card 1: Active Users */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-all">
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Members</span>
+                      <Users className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-black text-slate-900 dark:text-white leading-none">
+                        {activeUsers.activeSocketUsers} <span className="text-xs text-slate-400 font-bold">/ {activeUsers.totalUsers} online</span>
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">Live active socket connections: {activeUsers.activeSocketConnections}</p>
+                    </div>
+                  </div>
 
-        {/* Task Distribution Pie Chart */}
-        <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm space-y-4">
-          <div className="border-b pb-3 flex items-center space-x-2">
-            <Trello className="h-5 w-5 text-emerald-500" />
-            <h3 className="font-bold text-sm">Task Allocations</h3>
-          </div>
-          <div className="h-56 w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={taskDistribution}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {taskDistribution.map((entry, idx) => (
-                    <Cell key={idx} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-500 leading-none">
-            {taskDistribution.map((t) => (
-              <div key={t.name} className="flex items-center space-x-1.5 p-1">
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                <span>{t.name} ({t.value})</span>
+                  {/* Card 2: Chat Output */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-all">
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chat Throughput</span>
+                      <MessageSquare className="h-4 w-4 text-emerald-500" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-black text-slate-900 dark:text-white leading-none">
+                        {chatAnalytics.totalMessages.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">Total messages sent across {chatAnalytics.totalChannels} channels</p>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Task Health */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-all">
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Task Completion</span>
+                      <CheckCircle className="h-4 w-4 text-indigo-500" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-black text-slate-900 dark:text-white leading-none">
+                        {taskCompletion.completionRate}%
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        {taskCompletion.statusCounts.COMPLETED} completed of {taskCompletion.totalTasks} tasks
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Storage usage */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-32 hover:shadow-md transition-all">
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Storage Consumption</span>
+                      <Database className="h-4 w-4 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-black text-slate-900 dark:text-white leading-none">
+                        {formatBytes(fileUsage.totalStorageBytes)}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-1">Allocated across {fileUsage.totalFiles} files</p>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Sub panels grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  
+                  {/* Department Productivity rank */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+                    <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-4 flex items-center justify-between">
+                      Department Productivity Ranking
+                      <TrendingUp className="h-4 w-4 text-slate-400" />
+                    </h4>
+                    <div className="space-y-4">
+                      {departmentProductivity.length === 0 ? (
+                        <p className="text-xs text-slate-400 py-6 text-center">No department metrics available.</p>
+                      ) : (
+                        departmentProductivity.map((dept: any, idx: number) => (
+                          <div key={dept.id} className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                              <span>#{idx + 1} {dept.name} ({dept.totalMembers} staff)</span>
+                              <span>{dept.completionRate}%</span>
+                            </div>
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-primary h-full rounded-full" 
+                                style={{ width: `${dept.completionRate}%` }} 
+                              />
+                            </div>
+                            <p className="text-[9px] text-slate-400">{dept.completedTasks} completed / {dept.totalTasks} total tasks</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Task priority breakdown chart */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+                    <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-4 flex items-center justify-between">
+                      Task Priority Distribution
+                      <PieChart className="h-4 w-4 text-slate-400" />
+                    </h4>
+                    <div className="space-y-4">
+                      {['LOW', 'NORMAL', 'HIGH', 'URGENT'].map((priority) => {
+                        const count = taskCompletion.priorityCounts[priority] || 0;
+                        const pct = taskCompletion.totalTasks > 0 ? ((count / taskCompletion.totalTasks) * 100).toFixed(0) : '0';
+                        const colorMap: Record<string, string> = {
+                          LOW: 'bg-slate-400',
+                          NORMAL: 'bg-blue-500',
+                          HIGH: 'bg-amber-500',
+                          URGENT: 'bg-rose-500'
+                        };
+                        return (
+                          <div key={priority} className="flex items-center gap-4">
+                            <span className="w-16 text-right text-xs font-bold text-slate-400">{priority}</span>
+                            <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-4 rounded-lg overflow-hidden flex items-center relative">
+                              <div 
+                                className={`${colorMap[priority]} h-full`} 
+                                style={{ width: `${pct}%` }} 
+                              />
+                              <span className="absolute left-2 text-[10px] font-black text-slate-800 dark:text-white leading-none">
+                                {count} tasks ({pct}%)
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+
               </div>
-            ))}
-          </div>
-        </div>
+            )}
 
-        {/* Department Velocities Bar Chart */}
-        <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm space-y-4 lg:col-span-3">
-          <div className="border-b pb-3 flex items-center space-x-2">
-            <BarChart4 className="h-5 w-5 text-indigo-500" />
-            <h3 className="font-bold text-sm">Department Performance Index</h3>
-          </div>
-          <div className="h-80 w-full text-xs font-semibold">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={deptStats}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="completedTasks" name="Completed Tasks" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="openTasks" name="Open Tasks" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="totalEmployees" name="Total Members" fill="#a855f7" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+            {/* ACTIVE USERS TAB */}
+            {activeTab === 'users' && (
+              <div className="space-y-6">
+                
+                {/* Active user cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'ONLINE', count: activeUsers.statusCounts.ONLINE, color: 'bg-green-500' },
+                    { label: 'AWAY', count: activeUsers.statusCounts.AWAY, color: 'bg-amber-500' },
+                    { label: 'BUSY / DND', count: activeUsers.statusCounts.BUSY + activeUsers.statusCounts.DND, color: 'bg-rose-500' },
+                    { label: 'OFFLINE', count: activeUsers.statusCounts.OFFLINE, color: 'bg-slate-350 dark:bg-slate-650' }
+                  ].map((stat, idx) => (
+                    <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm flex items-center gap-3">
+                      <span className={`h-3 w-3 rounded-full shrink-0 ${stat.color}`} />
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{stat.label}</p>
+                        <p className="text-xl font-black text-slate-800 dark:text-white leading-none mt-0.5">{stat.count}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Sockets Details */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+                  <h4 className="text-sm font-black text-slate-850 dark:text-white mb-4">WebSocket Session Details</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-700 dark:text-slate-300">
+                    <div className="space-y-2 border-b md:border-b-0 md:border-r pb-4 md:pb-0 md:pr-6">
+                      <div className="flex justify-between py-1">
+                        <span>Unique Connected Users</span>
+                        <span className="font-bold text-slate-850 dark:text-white">{activeUsers.activeSocketUsers}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span>Total Open WebSockets</span>
+                        <span className="font-bold text-slate-850 dark:text-white">{activeUsers.activeSocketConnections}</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span>Average Sockets per User</span>
+                        <span className="font-bold text-slate-850 dark:text-white">
+                          {activeUsers.activeSocketUsers > 0 ? (activeUsers.activeSocketConnections / activeUsers.activeSocketUsers).toFixed(1) : 0}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between py-1">
+                        <span>Total Office Roster</span>
+                        <span className="font-bold text-slate-850 dark:text-white">{activeUsers.totalUsers} Members</span>
+                      </div>
+                      <div className="flex justify-between py-1">
+                        <span>Connection Ratio</span>
+                        <span className="font-bold text-slate-850 dark:text-white">
+                          {activeUsers.totalUsers > 0 ? ((activeUsers.activeSocketUsers / activeUsers.totalUsers) * 100).toFixed(0) : 0}% Active
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* CHAT ANALYTICS TAB */}
+            {activeTab === 'chat' && (
+              <div className="space-y-6">
+                
+                {/* SVG Line Graph for Chat history */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+                  <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-6">Message History (Last 7 Days)</h4>
+                  
+                  {chatAnalytics.chatHistory.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-12 text-center">No chat logs recorded.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* SVG Chart */}
+                      <div className="w-full h-48 border-b border-l flex items-end justify-between px-4 pb-1 relative">
+                        {(() => {
+                          const counts = chatAnalytics.chatHistory.map((d: any) => d.count);
+                          const maxCount = Math.max(...counts, 5);
+                          return chatAnalytics.chatHistory.map((day: any, idx: number) => {
+                            const heightPct = (day.count / maxCount) * 100;
+                            return (
+                              <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end px-2">
+                                {/* Tooltip */}
+                                <div className="absolute bottom-full mb-2 bg-slate-950 text-white text-[9px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
+                                  {day.count} messages
+                                </div>
+                                {/* Bar */}
+                                <div 
+                                  className="w-8 bg-primary rounded-t-lg transition-all group-hover:bg-primary-dark"
+                                  style={{ height: `${Math.max(4, heightPct)}%` }} 
+                                />
+                                <span className="text-[8px] font-bold text-slate-400 mt-2 truncate w-full text-center">
+                                  {day.date.slice(5)}
+                                </span>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+            {/* DEPARTMENT TAB */}
+            {activeTab === 'departments' && (
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-850">
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Department Performance Logs</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-400 tracking-wider border-b">
+                          <th className="px-5 py-3">Department Name</th>
+                          <th className="px-5 py-3">Total Members</th>
+                          <th className="px-5 py-3">Active Tasks</th>
+                          <th className="px-5 py-3">Completed Tasks</th>
+                          <th className="px-5 py-3">Task Completion Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y text-xs">
+                        {departmentProductivity.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="text-center py-8 text-slate-400">No departments configured.</td>
+                          </tr>
+                        ) : (
+                          departmentProductivity.map((dept: any) => (
+                            <tr key={dept.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                              <td className="px-5 py-4 font-bold text-slate-800 dark:text-slate-200">{dept.name}</td>
+                              <td className="px-5 py-4 text-slate-500 font-semibold">{dept.totalMembers} Members</td>
+                              <td className="px-5 py-4 text-amber-500 font-bold">{dept.pendingTasks} Pending</td>
+                              <td className="px-5 py-4 text-green-500 font-bold">{dept.completedTasks} Completed</td>
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-800 dark:text-white">{dept.completionRate}%</span>
+                                  <div className="w-24 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                    <div className="bg-primary h-full" style={{ width: `${dept.completionRate}%` }} />
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TASK COMPLETION TAB */}
+            {activeTab === 'tasks' && (
+              <div className="space-y-6">
+                
+                {/* Task status counts grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'TODO', count: taskCompletion.statusCounts.TODO, color: 'border-slate-200 bg-slate-500/10 text-slate-650' },
+                    { label: 'IN PROGRESS', count: taskCompletion.statusCounts.IN_PROGRESS, color: 'border-blue-200 bg-blue-500/10 text-blue-600' },
+                    { label: 'REVIEW', count: taskCompletion.statusCounts.REVIEW, color: 'border-amber-200 bg-amber-500/10 text-amber-600' },
+                    { label: 'COMPLETED', count: taskCompletion.statusCounts.COMPLETED, color: 'border-green-200 bg-green-500/10 text-green-600' }
+                  ].map((stat, idx) => (
+                    <div key={idx} className={`border rounded-xl p-4 shadow-sm ${stat.color} flex flex-col justify-between h-20`}>
+                      <span className="text-[10px] font-black uppercase tracking-wider">{stat.label}</span>
+                      <span className="text-2xl font-black leading-none">{stat.count}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Overall status progress */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Overall Completion Meter</span>
+                  <p className="text-5xl font-black text-slate-900 dark:text-white">{taskCompletion.completionRate}%</p>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Of the {taskCompletion.totalTasks} total tasks assigned in the system, {taskCompletion.statusCounts.COMPLETED} have been successfully verified and completed.
+                  </p>
+                  <div className="w-full max-w-md bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden mt-6">
+                    <div className="bg-primary h-full" style={{ width: `${taskCompletion.completionRate}%` }} />
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* FILE USAGE TAB */}
+            {activeTab === 'files' && (
+              <div className="space-y-6">
+                
+                {/* File size distribution progress */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+                  <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-6">File Type Capacity Distribution</h4>
+                  
+                  <div className="space-y-4">
+                    {fileUsage.fileTypeDistribution.map((group: any) => {
+                      const countPct = fileUsage.totalFiles > 0 ? ((group.count / fileUsage.totalFiles) * 100).toFixed(0) : '0';
+                      return (
+                        <div key={group.category} className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-350">
+                            <span>{group.category} ({group.count} files)</span>
+                            <span>{formatBytes(group.totalSize)} ({countPct}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-100 dark:bg-slate-850 h-2.5 rounded-full overflow-hidden flex">
+                            <div className="bg-primary h-full rounded-full" style={{ width: `${countPct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {/* System & Server Monitor (Only visible to ADMINs) */}
-      {user?.role === 'ADMIN' && sysMetrics && (
-        <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm space-y-5 text-left animate-fade-in">
-          <div className="border-b pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center space-x-2">
-              <Server className="h-5 w-5 text-purple-500" />
-              <h3 className="font-bold text-sm">System & Server Infrastructure Status</h3>
-            </div>
-            <span className="text-[9px] text-green-500 bg-green-500/10 font-black px-2 py-0.5 rounded border border-green-200 dark:border-green-900 uppercase tracking-wider flex items-center space-x-1 w-max">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse-slow" />
-              <span>Real-time Monitor Online</span>
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* CPU & RAM Usage */}
-            <div className="space-y-4 border p-4 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
-              <h4 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
-                <Cpu className="h-4 w-4 text-slate-400" />
-                <span>CPU & Memory Indices</span>
-              </h4>
-              <div className="space-y-3 text-xs font-semibold text-slate-600 dark:text-slate-350">
-                <div className="space-y-1">
-                  <div className="flex justify-between">
-                    <span>CPU Core Usage</span>
-                    <span>{sysMetrics.system?.cpuUsage || '0.00'}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div className="bg-purple-500 h-full transition-all duration-500" style={{ width: `${Math.min(parseFloat(sysMetrics.system?.cpuUsage || '0') * 10, 100)}%` }} />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between">
-                    <span>Process RSS Memory</span>
-                    <span>{sysMetrics.system?.processMemory || '0'} MB</span>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div className="bg-blue-500 h-full transition-all duration-500" style={{ width: `${Math.min((parseFloat(sysMetrics.system?.processMemory || '0') / 1024) * 100, 100)}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Postgres Connection Pool */}
-            <div className="space-y-4 border p-4 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
-              <h4 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
-                <Database className="h-4 w-4 text-slate-400" />
-                <span>Prisma SQL Connection Pool</span>
-              </h4>
-              <div className="space-y-3 text-xs font-semibold text-slate-600 dark:text-slate-350">
-                <div className="flex items-center justify-between">
-                  <span>Pool Status</span>
-                  <span className="text-[10px] bg-green-50 text-green-600 dark:bg-green-950/20 px-2 py-0.5 rounded font-black border border-green-200 dark:border-green-900">HEALTHY</span>
-                </div>
-                <div className="flex items-center justify-between pt-1">
-                  <span>Active SQL Pools</span>
-                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">{sysMetrics.database?.activeConnections || 1} connection(s)</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Redis Cache Status */}
-            <div className="space-y-4 border p-4 rounded-xl bg-slate-50/50 dark:bg-slate-900/50">
-              <h4 className="font-bold text-[10px] text-slate-400 uppercase tracking-wider flex items-center space-x-1.5">
-                <Activity className="h-4 w-4 text-slate-400" />
-                <span>Redis Key-Value Cache</span>
-              </h4>
-              <div className="space-y-3 text-xs font-semibold text-slate-650 dark:text-slate-350">
-                <div className="flex items-center justify-between">
-                  <span>Cache Service Status</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-black border uppercase ${
-                    sysMetrics.redis?.status === 'Healthy' 
-                      ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-950/20 dark:border-green-900' 
-                      : 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/20 dark:border-red-900'
-                  }`}>{sysMetrics.redis?.status || 'Offline'}</span>
-                </div>
-                <div className="flex items-center justify-between pt-1">
-                  <span>Total Cached Key entries</span>
-                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">{sysMetrics.redis?.keysCount || 0} keys cached</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

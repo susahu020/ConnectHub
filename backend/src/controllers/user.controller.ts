@@ -147,11 +147,13 @@ export const getDirectory = async (req: AuthenticatedRequest, res: Response, nex
     const whereClause: any = {};
 
     if (search) {
+      const searchStr = search as string;
       whereClause.OR = [
-        { firstName: { contains: search as string, mode: 'insensitive' } },
-        { lastName: { contains: search as string, mode: 'insensitive' } },
-        { email: { contains: search as string, mode: 'insensitive' } },
-        { designation: { contains: search as string, mode: 'insensitive' } },
+        { firstName: { contains: searchStr, mode: 'insensitive' } },
+        { lastName: { contains: searchStr, mode: 'insensitive' } },
+        { email: { contains: searchStr, mode: 'insensitive' } },
+        { designation: { contains: searchStr, mode: 'insensitive' } },
+        { skills: { hasSome: [searchStr, searchStr.toLowerCase(), searchStr.toUpperCase()] } }
       ];
     }
 
@@ -187,6 +189,10 @@ export const getDirectory = async (req: AuthenticatedRequest, res: Response, nex
           role: true,
           status: true,
           location: true,
+          officeLocation: true,
+          timezone: true,
+          workingHours: true,
+          managerId: true,
           department: {
             select: { id: true, name: true },
           },
@@ -988,6 +994,37 @@ export const uploadAvatarById = async (req: AuthenticatedRequest, res: Response,
     });
 
     res.status(200).json({ message: 'Avatar uploaded successfully.', avatarUrl: fileUrl, user: updatedUser });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getOrgChart = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const [users, departments] = await prisma.$transaction([
+      prisma.user.findMany({
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          designation: true,
+          avatarUrl: true,
+          role: true,
+          status: true,
+          managerId: true,
+          departmentId: true,
+        },
+      }),
+      prisma.department.findMany({
+        select: {
+          id: true,
+          name: true,
+          managerId: true,
+        },
+      }),
+    ]);
+
+    res.status(200).json({ users, departments });
   } catch (error) {
     next(error);
   }

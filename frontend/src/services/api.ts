@@ -389,4 +389,6 @@ export const api = {
   deleteShiftAssignment: (id: string) => request(`/hr/shifts/assignments/${id}`, 'DELETE'),
   deleteShift: (id: string) => request(`/hr/shifts/${id}`, 'DELETE'),
   deleteRecognition: (id: string) => request(`/hr/recognitions/${id}`, 'DELETE'),
+  getAnalytics: () => request('/analytics'),
+  getOrgChart: () => request('/users/org-chart'),
 };

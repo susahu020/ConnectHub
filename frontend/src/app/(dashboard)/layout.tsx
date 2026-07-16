@@ -35,7 +35,8 @@ import {
   XCircle,
   Calendar,
   BookOpen,
-  Sparkles
+  Sparkles,
+  Network
 } from 'lucide-react';
 import { useAuthStore } from '../../lib/store';
 import { api } from '../../services/api';
@@ -365,6 +366,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Automations', href: '/workflows', icon: <Sparkles className="h-4 w-4" /> },
     { name: 'File Storage', href: '/files', icon: <FolderHeart className="h-4 w-4" /> },
     { name: 'Directory', href: '/directory', icon: <Contact className="h-4 w-4" /> },
+    { name: 'Org Chart', href: '/org-chart', icon: <Network className="h-4 w-4" /> },
     { name: 'Analytics', href: '/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { name: 'Settings', href: '/settings', icon: <Settings2 className="h-4 w-4" /> },
   ];
@@ -377,6 +379,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       icon: <ShieldAlert className="h-4 w-4" />,
     });
   }
+
+  const isManagerOrAdmin = user.role === 'ADMIN' || user.role === 'MANAGER';
+  const visibleLinks = navLinks.filter(link => {
+    if (link.name === 'Analytics') return isManagerOrAdmin;
+    return true;
+  });
 
   const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
 
@@ -423,7 +431,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className={`flex-1 py-6 space-y-1.5 overflow-y-auto transition-all duration-300 ${
           sidebarCollapsed ? 'px-2' : 'px-4'
         }`}>
-          {navLinks.map((link) => {
+          {visibleLinks.map((link) => {
             const active = pathname.startsWith(link.href);
             return (
               <Link
