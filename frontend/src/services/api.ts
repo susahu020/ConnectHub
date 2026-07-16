@@ -276,6 +276,10 @@ export const api = {
   moveItem: (id: string, targetFolderId: string | null, type: 'FILE' | 'FOLDER') => 
     request(`/files/${id}/move`, 'POST', { targetFolderId, type }),
   createShareLink: (id: string, expiresHours?: number, sharedWithUserIds?: string[]) => request(`/files/${id}/share`, 'POST', { expiresHours, sharedWithUserIds }),
+  scanFile: (id: string) => request(`/files/${id}/scan`, 'POST'),
+  ocrFile: (id: string) => request(`/files/${id}/ocr`, 'POST'),
+  watermarkFile: (id: string, text: string) => request(`/files/${id}/watermark?text=${encodeURIComponent(text)}`),
+  bulkDownload: (ids: string[]) => request(`/files/bulk-download?ids=${ids.join(',')}`),
 
   // Notifications
   getNotifications: () => request('/notifications'),

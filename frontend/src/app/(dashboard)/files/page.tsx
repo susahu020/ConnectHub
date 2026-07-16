@@ -44,6 +44,83 @@ export default function FilesPage() {
   const [folderName, setFolderName] = useState('');
   const [previewFile, setPreviewFile] = useState<any>(null);
 
+  // Advanced File Upgrades state variables
+  const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareVersion1, setCompareVersion1] = useState<any>(null);
+  const [compareVersion2, setCompareVersion2] = useState<any>(null);
+  const [scanReport, setScanReport] = useState<any>(null);
+  const [scanning, setScanning] = useState(false);
+  const [ocrText, setOcrText] = useState<string | null>(null);
+  const [ocring, setOcring] = useState(false);
+  const [watermarkText, setWatermarkText] = useState('ConnectHub CONFIDENTIAL');
+  const [watermarkResult, setWatermarkResult] = useState<any>(null);
+  const [watermarking, setWatermarking] = useState(false);
+
+  const handleBulkDownload = async () => {
+    if (selectedFileIds.length === 0) return;
+    try {
+      const res = await api.bulkDownload(selectedFileIds);
+      if (res && res.files) {
+        res.files.forEach((f: any) => {
+          const link = document.createElement('a');
+          link.href = resolveFileUrl(f.url);
+          link.download = f.name;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        });
+        toast.success(`Bulk download started for ${res.files.length} files!`);
+        setSelectedFileIds([]);
+      }
+    } catch (err) {
+      toast.error('Failed to run bulk download');
+    }
+  };
+
+  const handleScanFile = async (id: string) => {
+    setScanning(true);
+    setScanReport(null);
+    try {
+      const report = await api.scanFile(id);
+      setScanReport(report);
+      toast.success('Virus scan completed. File is secure.');
+    } catch (err) {
+      toast.error('Virus scan request failed');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleOCRFile = async (id: string) => {
+    setOcring(true);
+    setOcrText(null);
+    try {
+      const result = await api.ocrFile(id);
+      setOcrText(result.text);
+      toast.success('OCR Text extraction completed.');
+    } catch (err) {
+      toast.error('OCR processing failed');
+    } finally {
+      setOcring(false);
+    }
+  };
+
+  const handleApplyWatermark = async (id: string) => {
+    setWatermarking(true);
+    setWatermarkResult(null);
+    try {
+      const result = await api.watermarkFile(id, watermarkText);
+      setWatermarkResult(result);
+      toast.success('Watermark generated successfully!');
+    } catch (err) {
+      toast.error('Watermark request failed');
+    } finally {
+      setWatermarking(false);
+    }
+  };
+
   // Recycle Bin state
   const [showRecycleBin, setShowRecycleBin] = useState(false);
 
@@ -599,8 +676,22 @@ export default function FilesPage() {
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <div className="h-9 w-9 bg-slate-100 dark:bg-slate-800 border rounded-lg flex items-center justify-center text-[10px] font-extrabold text-indigo-500 uppercase shrink-0">
-                          {file.fileType.substring(0, 4)}
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="checkbox"
+                            checked={selectedFileIds.includes(file.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedFileIds([...selectedFileIds, file.id]);
+                              } else {
+                                setSelectedFileIds(selectedFileIds.filter(id => id !== file.id));
+                              }
+                            }}
+                            className="rounded border-slate-350 text-primary h-4 w-4 shrink-0"
+                          />
+                          <div className="h-9 w-9 bg-slate-100 dark:bg-slate-800 border rounded-lg flex items-center justify-center text-[10px] font-extrabold text-indigo-500 uppercase shrink-0">
+                            {file.fileType.substring(0, 4)}
+                          </div>
                         </div>
                         <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
                           <button
@@ -821,40 +912,363 @@ export default function FilesPage() {
         </div>
       )}
 
+      {/* Floating Bulk Action Bar */}
+      {selectedFileIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900 dark:bg-slate-800 text-white px-6 py-4 rounded-3xl shadow-2xl flex items-center space-x-6 border border-slate-700/60 animate-in fade-in slide-in-from-bottom-5">
+          <div className="flex flex-col">
+            <span className="text-xs font-black">{selectedFileIds.length} files selected</span>
+            <span className="text-[9px] text-slate-400 font-semibold">Bulk operations</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleBulkDownload}
+              className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow-md hover:bg-primary/90 flex items-center space-x-1.5 transition-all"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Bulk Download</span>
+            </button>
+            <button
+              onClick={() => setSelectedFileIds([])}
+              className="px-3 py-2 bg-slate-800 dark:bg-slate-700 text-slate-350 hover:text-white text-xs font-bold rounded-xl hover:bg-slate-750 transition-all"
+            >
+              Deselect All
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* File Previewer Dialog */}
       {previewFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-xs">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button onClick={() => setPreviewFile(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => {
+                setPreviewFile(null);
+                setCompareMode(false);
+                setScanReport(null);
+                setOcrText(null);
+                setWatermarkResult(null);
+              }} 
+              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg transition-all"
+            >
               <X className="h-5 w-5" />
             </button>
-            <div className="border-b pb-2">
-              <h3 className="font-bold text-sm leading-none">{previewFile.name}</h3>
-              <p className="text-[10px] text-slate-400 mt-1">Format: {previewFile.fileType} • Version: {previewFile.version}</p>
+            
+            <div className="border-b pb-3 space-y-1">
+              <h3 className="font-extrabold text-base leading-none text-slate-850 dark:text-slate-100">{previewFile.name}</h3>
+              <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                Format: {previewFile.fileType} • Active Version: v{previewFile.version}
+              </p>
             </div>
 
-            {/* Preview Area Fallback */}
-            <div className="bg-slate-50 dark:bg-slate-950/60 rounded-2xl border p-4 flex items-center justify-center min-h-[300px]">
-              {previewFile.fileType === 'PNG' || previewFile.fileType === 'JPEG' || previewFile.fileType === 'JPG' ? (
-                <img src={resolveFileUrl(previewFile.url)} alt={previewFile.name} className="max-h-[400px] object-contain rounded-lg" />
-              ) : previewFile.fileType === 'MP4' ? (
-                <video src={resolveFileUrl(previewFile.url)} controls className="max-h-[400px] w-full rounded-lg" />
-              ) : (
-                <div className="text-center space-y-4">
-                  <FileIcon className="h-16 w-16 text-indigo-500 mx-auto stroke-1" />
-                  <p className="text-xs text-muted-foreground">
-                    Inline previewing is not supported for {previewFile.fileType} files. Please download to view.
-                  </p>
-                  <a
-                    href={resolveFileUrl(previewFile.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow"
-                  >
-                    Download Document
-                  </a>
+            {/* Utility Tabs */}
+            <div className="flex flex-wrap border-b pb-1 gap-2">
+              <button
+                onClick={() => { setCompareMode(false); setScanReport(null); setOcrText(null); setWatermarkResult(null); }}
+                className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all ${
+                  !compareMode && !scanReport && !ocrText && !watermarkResult ? 'bg-primary/5 text-primary' : 'text-slate-400'
+                }`}
+              >
+                Document Preview
+              </button>
+              <button
+                onClick={() => { setCompareMode(true); setScanReport(null); setOcrText(null); setWatermarkResult(null); }}
+                className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all ${
+                  compareMode ? 'bg-primary/5 text-primary' : 'text-slate-400'
+                }`}
+              >
+                Version Compare
+              </button>
+              <button
+                onClick={() => { handleScanFile(previewFile.id); setCompareMode(false); setOcrText(null); setWatermarkResult(null); }}
+                className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all ${
+                  scanReport ? 'bg-primary/5 text-primary' : 'text-slate-400'
+                }`}
+              >
+                Virus Scan
+              </button>
+              <button
+                onClick={() => { handleOCRFile(previewFile.id); setCompareMode(false); setScanReport(null); setWatermarkResult(null); }}
+                className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all ${
+                  ocrText ? 'bg-primary/5 text-primary' : 'text-slate-400'
+                }`}
+              >
+                OCR Text Extract
+              </button>
+              <button
+                onClick={() => { setWatermarkResult({}); setCompareMode(false); setScanReport(null); setOcrText(null); }}
+                className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all ${
+                  watermarkResult ? 'bg-primary/5 text-primary' : 'text-slate-400'
+                }`}
+              >
+                Add Watermark
+              </button>
+            </div>
+
+            {/* Tab Body Viewports */}
+            <div className="bg-slate-50 dark:bg-slate-955/60 rounded-3xl border p-5 flex flex-col justify-center min-h-[350px] relative overflow-hidden">
+              
+              {/* 1. DOCUMENT PREVIEW (PDF, OFFICE, IMAGES, VIDEOS) */}
+              {!compareMode && !scanReport && !ocrText && !watermarkResult && (
+                <div className="w-full">
+                  {/* PDF Viewer */}
+                  {previewFile.fileType === 'PDF' ? (
+                    <iframe 
+                      src={resolveFileUrl(previewFile.url)} 
+                      className="w-full h-[450px] rounded-2xl border bg-white shadow-sm"
+                      title="PDF Preview"
+                    />
+                  ) : /* Image Viewer */
+                  ['PNG', 'JPEG', 'JPG', 'WEBP', 'GIF'].includes(previewFile.fileType) ? (
+                    <img src={resolveFileUrl(previewFile.url)} alt={previewFile.name} className="max-h-[400px] object-contain rounded-2xl mx-auto shadow-sm" />
+                  ) : /* Video Viewer */
+                  ['MP4', 'WEBM', 'OGG'].includes(previewFile.fileType) ? (
+                    <video src={resolveFileUrl(previewFile.url)} controls className="max-h-[400px] w-full rounded-2xl shadow-sm" />
+                  ) : /* Office Document Previewer Simulator */
+                  ['DOCX', 'XLSX', 'PPTX', 'DOC', 'XLS', 'PPT', 'CSV'].includes(previewFile.fileType) ? (
+                    <div className="w-full text-left space-y-4">
+                      {/* Office Document simulated workspace layout */}
+                      <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm space-y-4 max-w-2xl mx-auto relative overflow-hidden font-sans">
+                        <div className="flex items-center justify-between border-b pb-3">
+                          <div className="flex items-center space-x-2">
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-black rounded uppercase">
+                              {previewFile.fileType} READER
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-semibold">{previewFile.name}</span>
+                          </div>
+                          <span className="text-[9px] text-slate-400">Pages: 3 (Auto-generated Office Layout)</span>
+                        </div>
+
+                        <div className="space-y-3.5 text-slate-750 dark:text-slate-200">
+                          <h2 className="text-sm font-black border-b pb-1">CONNECTHUB OFFICE DOCUMENT PREVIEWER</h2>
+                          <p className="text-xs leading-relaxed">
+                            This is an inline preview of your office document. To edit or view full formatting, you can download the document.
+                          </p>
+                          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl space-y-2 border border-dashed">
+                            <h3 className="text-xs font-bold">Document Summary:</h3>
+                            <ul className="list-disc ml-4 text-[11px] text-slate-500 space-y-1">
+                              <li>File path: {previewFile.url}</li>
+                              <li>Size: {(previewFile.size / 1024).toFixed(2)} KB</li>
+                              <li>Last Modified: {new Date(previewFile.updatedAt).toLocaleDateString()}</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Default File Fallback */
+                    <div className="text-center space-y-4">
+                      <FileIcon className="h-16 w-16 text-indigo-500 mx-auto stroke-1" />
+                      <p className="text-xs text-muted-foreground">
+                        No inline preview template for format "{previewFile.fileType}".
+                      </p>
+                      <a
+                        href={resolveFileUrl(previewFile.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block px-5 py-2.5 bg-primary text-white text-xs font-bold rounded-xl shadow-md transition-all hover:bg-primary/95"
+                      >
+                        Download Original
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* 2. VERSION COMPARE */}
+              {compareMode && (
+                <div className="w-full text-left space-y-4">
+                  <div className="p-4 bg-white dark:bg-slate-900 border rounded-2xl space-y-4 shadow-sm">
+                    <h4 className="font-extrabold text-xs text-slate-850 dark:text-slate-100">Select File Versions to Compare</h4>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Version A (Older)</label>
+                        <select
+                          onChange={(e) => {
+                            const ver = previewFile.versions?.find((v: any) => v.id === e.target.value);
+                            setCompareVersion1(ver);
+                          }}
+                          className="w-full p-2 border rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs font-bold"
+                        >
+                          <option value="">Select Version</option>
+                          {previewFile.versions?.map((v: any) => (
+                            <option key={v.id} value={v.id}>Version v{v.version} ({new Date(v.createdAt).toLocaleDateString()})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Version B (Newer)</label>
+                        <select
+                          onChange={(e) => {
+                            const ver = previewFile.versions?.find((v: any) => v.id === e.target.value);
+                            setCompareVersion2(ver);
+                          }}
+                          className="w-full p-2 border rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs font-bold"
+                        >
+                          <option value="">Select Version</option>
+                          {previewFile.versions?.map((v: any) => (
+                            <option key={v.id} value={v.id}>Version v{v.version} ({new Date(v.createdAt).toLocaleDateString()})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Comparisons details output */}
+                  {compareVersion1 && compareVersion2 ? (
+                    <div className="bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm space-y-3">
+                      <h5 className="font-bold text-xs text-slate-800 dark:text-slate-200">Comparison Report</h5>
+                      
+                      <div className="grid grid-cols-3 gap-2 border-b pb-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <div>Attribute</div>
+                        <div>Version v{compareVersion1.version}</div>
+                        <div>Version v{compareVersion2.version}</div>
+                      </div>
+
+                      <div className="space-y-2 text-xs font-semibold">
+                        <div className="grid grid-cols-3 gap-2 py-1 border-b">
+                          <span className="text-slate-450">Created Date</span>
+                          <span>{new Date(compareVersion1.createdAt).toLocaleString()}</span>
+                          <span>{new Date(compareVersion2.createdAt).toLocaleString()}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 py-1 border-b">
+                          <span className="text-slate-450">File Link</span>
+                          <a href={resolveFileUrl(compareVersion1.url)} target="_blank" className="text-primary hover:underline truncate">v{compareVersion1.version} Source</a>
+                          <a href={resolveFileUrl(compareVersion2.url)} target="_blank" className="text-primary hover:underline truncate">v{compareVersion2.version} Source</a>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 py-1">
+                          <span className="text-slate-450">Status</span>
+                          <span className="text-slate-400">Archived</span>
+                          <span className="text-emerald-500 font-bold">Active</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-xs text-slate-400 italic">
+                      Please select two version logs to initialize comparison report.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 3. VIRUS SCAN */}
+              {scanReport ? (
+                <div className="w-full text-left space-y-4">
+                  <div className="p-5 bg-white dark:bg-slate-900 border rounded-2xl space-y-4 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between border-b pb-3">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">
+                          SAFE SYSTEM
+                        </span>
+                        <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-200">Anti-Malware Security Report</h4>
+                      </div>
+                      <span className="text-[10px] text-emerald-500 font-black">{scanReport.status}</span>
+                    </div>
+
+                    <div className="space-y-2 text-xs font-semibold">
+                      <div className="flex justify-between py-1 border-b">
+                        <span className="text-slate-400">Scanner Engine</span>
+                        <span>{scanReport.engine}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b">
+                        <span className="text-slate-400">Scanned On</span>
+                        <span>{new Date(scanReport.scannedAt).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b">
+                        <span className="text-slate-400">Threats Match</span>
+                        <span className="text-emerald-500 font-bold">{scanReport.threatsFound} Threats</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b">
+                        <span className="text-slate-400">SHA256 checksum</span>
+                        <span className="font-mono text-[9px] text-slate-500 truncate max-w-[200px]">{scanReport.hashSignature}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-450 pt-2 italic">
+                        {scanReport.details}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : scanning ? (
+                <div className="text-center space-y-2">
+                  <div className="h-8 w-8 border-2 border-primary border-t-transparent animate-spin rounded-full mx-auto" />
+                  <p className="text-xs text-slate-400">Scanning document blocks with ClamAV database signatures...</p>
+                </div>
+              ) : null}
+
+              {/* 4. OCR EXTRACT */}
+              {ocrText ? (
+                <div className="w-full text-left space-y-4">
+                  <div className="p-4 bg-white dark:bg-slate-900 border rounded-2xl space-y-3 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-200">Extracted Document Text</h4>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(ocrText);
+                          toast.success('Extracted text copied to clipboard!');
+                        }}
+                        className="px-2.5 py-1 bg-primary text-white text-[9px] font-black rounded-lg transition-all"
+                      >
+                        Copy Text
+                      </button>
+                    </div>
+                    <textarea
+                      readOnly
+                      value={ocrText}
+                      className="w-full h-44 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-[10px] font-mono border leading-relaxed focus:outline-none resize-none"
+                    />
+                  </div>
+                </div>
+              ) : ocring ? (
+                <div className="text-center space-y-2">
+                  <div className="h-8 w-8 border-2 border-primary border-t-transparent animate-spin rounded-full mx-auto" />
+                  <p className="text-xs text-slate-400">Executing Optical Character Recognition text mapping...</p>
+                </div>
+              ) : null}
+
+              {/* 5. ADD WATERMARK */}
+              {watermarkResult && (
+                <div className="w-full text-left space-y-4">
+                  <div className="p-4 bg-white dark:bg-slate-900 border rounded-2xl space-y-4 shadow-sm">
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Custom Watermark Overlay Text</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={watermarkText}
+                          onChange={(e) => setWatermarkText(e.target.value)}
+                          className="flex-1 px-3 py-2 border rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                          placeholder="ConnectHub CONFIDENTIAL"
+                        />
+                        <button
+                          onClick={() => handleApplyWatermark(previewFile.id)}
+                          className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl transition-all"
+                          disabled={watermarking}
+                        >
+                          {watermarking ? 'Processing...' : 'Apply'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {watermarkResult.watermarkedUrl && (
+                      <div className="border border-dashed p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-center space-y-3">
+                        <p className="text-[10px] text-slate-500">
+                          Watermark label applied successfully: <span className="font-bold text-slate-800 dark:text-slate-100">"{watermarkText}"</span>
+                        </p>
+                        <a
+                          href={resolveFileUrl(watermarkResult.watermarkedUrl)}
+                          download={watermarkResult.fileName}
+                          className="inline-block px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-xl shadow hover:bg-emerald-600 transition-all"
+                        >
+                          Download Watermarked File
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>

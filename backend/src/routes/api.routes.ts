@@ -177,6 +177,10 @@ import {
   moveItem,
   createShareLink,
   accessSharedFile,
+  scanFile,
+  ocrFile,
+  watermarkFile,
+  bulkDownload,
 } from '../controllers/file.controller';
 
 import {
@@ -376,6 +380,10 @@ router.delete('/files/:id/permanent', authenticate as any, deletePermanently as 
 router.post('/files/:id/move', authenticate as any, moveItem as any);
 router.post('/files/:id/share', authenticate as any, createShareLink as any);
 router.get('/files/shared/:accessKey', accessSharedFile as any);
+router.get('/files/bulk-download', authenticate as any, bulkDownload as any);
+router.post('/files/:id/scan', authenticate as any, scanFile as any);
+router.post('/files/:id/ocr', authenticate as any, ocrFile as any);
+router.get('/files/:id/watermark', authenticate as any, watermarkFile as any);
 
 // ==========================================
 // NOTIFICATIONS
