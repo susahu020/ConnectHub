@@ -8,45 +8,40 @@ const initMailer = async () => {
   const hasCredentials = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
 
   if (hasCredentials) {
+    const portNumber = parseInt(process.env.SMTP_PORT || '465', 10);
+    
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.mailtrap.io',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465',
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: portNumber,
+      secure: portNumber === 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      tls: {
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
+      },
+      connectionTimeout: 5000, // ⏱️ Fail fast! Only wait 5 seconds before giving up
+      greetingTimeout: 5000,
     });
-    console.log('Mailer configured with production SMTP settings.');
-  } else {
-    // Generate test SMTP service from ethereal.email
+
+    // Verify connection configuration immediately
     try {
-      const testAccount = await nodemailer.createTestAccount();
-      transporter = nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass,
-        },
-      });
-      console.log('--------------------------------------------------');
-      console.log('WARNING: SMTP credentials not set.');
-      console.log(`Mailer configured with Ethereal Email test account:`);
-      console.log(`User: ${testAccount.user}`);
-      console.log(`Pass: ${testAccount.pass}`);
-      console.log('--------------------------------------------------');
-    } catch (error) {
-      console.error('Failed to create Ethereal test mailer account:', error);
-      // Create a dummy fallback that prints to console
-      transporter = nodemailer.createTransport({
-        jsonTransport: true,
-      });
-      console.log('Mailer configured to output emails to console.');
+      await transporter.verify();
+      console.log(`Mailer verified successfully. Production SMTP: ${process.env.SMTP_HOST}:${portNumber}`);
+      return transporter;
+    } catch (verifyError) {
+      console.error('SMTP Verification Failed. falling back to console logging:', verifyError);
     }
   }
 
+  // 🛡️ FALLBACK: If SMTP times out or credentials fail, print to console instead of hanging
+  transporter = nodemailer.createTransport({
+    jsonTransport: true,
+  });
+  console.log('⚠️ WARNING: Mailer running in CONSOLE FALLBACK mode. Emails will print to Render logs.');
+  
   return transporter;
 };
 
@@ -60,7 +55,15 @@ export const sendEmail = async (to: string, subject: string, text: string, html?
     html,
   });
 
-  // Log ethereal URL if using ethereal email
+  // If using console/json transport fallback, print the output clearly
+  if ('message' in info) {
+    console.log('================= ✉️ OUTGOING EMAIL =================');
+    console.log(`TO: ${to}`);
+    console.log(`SUBJECT: ${subject}`);
+    console.log(`BODY: ${text}`);
+    console.log('====================================================');
+  }
+
   const previewUrl = nodemailer.getTestMessageUrl(info);
   if (previewUrl) {
     console.log(`Email sent. Preview URL: ${previewUrl}`);
