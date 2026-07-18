@@ -17,7 +17,7 @@ import {
   Calendar,
   Layers,
   ShieldAlert,
-  Coffee,
+  Clock,
   X
 } from 'lucide-react';
 import { api } from '../../../services/api';
@@ -26,7 +26,7 @@ import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type SubTabType = 'overview' | 'users' | 'chat' | 'departments' | 'tasks' | 'files';
+type SubTabType = 'overview' | 'productivity' | 'users' | 'chat' | 'departments' | 'tasks' | 'files';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuthStore();
@@ -76,7 +76,7 @@ export default function AnalyticsDashboard() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const { activeUsers, chatAnalytics, departmentProductivity, taskCompletion, fileUsage } = stats;
+  const { activeUsers, chatAnalytics, departmentProductivity, taskCompletion, fileUsage, productivityMetrics } = stats;
 
   return (
     <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50 dark:bg-slate-950">
@@ -89,7 +89,7 @@ export default function AnalyticsDashboard() {
             Workspace Analytics
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Real-time telemetry and aggregated system performance audits.
+            Real-time telemetry, productivity scorecard, and system resource metrics.
           </p>
         </div>
         <div className="mt-4 md:mt-0 flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-1.5 shadow-sm">
@@ -102,6 +102,7 @@ export default function AnalyticsDashboard() {
       <div className="flex border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto scrollbar-none gap-2">
         {[
           { id: 'overview', label: 'Overview', icon: <Layers className="h-4 w-4" /> },
+          { id: 'productivity', label: 'Productivity', icon: <Activity className="h-4 w-4" /> },
           { id: 'users', label: 'Active Users', icon: <Users className="h-4 w-4" /> },
           { id: 'chat', label: 'Chat Activity', icon: <MessageSquare className="h-4 w-4" /> },
           { id: 'departments', label: 'Department Output', icon: <TrendingUp className="h-4 w-4" /> },
@@ -216,11 +217,11 @@ export default function AnalyticsDashboard() {
                       ) : (
                         departmentProductivity.map((dept: any, idx: number) => (
                           <div key={dept.id} className="space-y-1">
-                            <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-350">
                               <span>#{idx + 1} {dept.name} ({dept.totalMembers} staff)</span>
                               <span>{dept.completionRate}%</span>
                             </div>
-                            <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                            <div className="w-full bg-slate-100 dark:bg-slate-850 h-2 rounded-full overflow-hidden">
                               <div 
                                 className="bg-primary h-full rounded-full" 
                                 style={{ width: `${dept.completionRate}%` }} 
@@ -257,7 +258,7 @@ export default function AnalyticsDashboard() {
                                 className={`${colorMap[priority]} h-full`} 
                                 style={{ width: `${pct}%` }} 
                               />
-                              <span className="absolute left-2 text-[10px] font-black text-slate-800 dark:text-white leading-none">
+                              <span className="absolute left-2 text-[10px] font-black text-slate-850 dark:text-white leading-none">
                                 {count} tasks ({pct}%)
                               </span>
                             </div>
@@ -267,6 +268,81 @@ export default function AnalyticsDashboard() {
                     </div>
                   </div>
 
+                </div>
+
+              </div>
+            )}
+
+            {/* PRODUCTIVITY TAB */}
+            {activeTab === 'productivity' && (
+              <div className="space-y-6">
+                
+                {/* Scorecards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  
+                  {/* Card 1: Engagement Score */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Employee Engagement</span>
+                    {/* SVG Radial Meter */}
+                    <div className="relative h-24 w-24 flex items-center justify-center mb-3">
+                      <svg className="absolute inset-0 transform -rotate-90" viewBox="0 0 36 36">
+                        <path className="text-slate-100 dark:text-slate-800" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path className="text-primary" strokeDasharray={`${productivityMetrics.engagementScore}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      </svg>
+                      <span className="text-2xl font-black text-slate-800 dark:text-white">{productivityMetrics.engagementScore}%</span>
+                    </div>
+                    <p className="text-xs text-slate-505 dark:text-slate-400 font-semibold leading-relaxed">Composite engagement score based on kudos, logs, and meeting activity.</p>
+                  </div>
+
+                  {/* Card 2: Chat Response Time */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Chat Response Speed</span>
+                    <div className="relative h-24 w-24 flex items-center justify-center mb-3 bg-emerald-500/10 text-emerald-500 rounded-full">
+                      <Clock className="h-10 w-10" />
+                    </div>
+                    <p className="text-2xl font-black text-slate-800 dark:text-white">{productivityMetrics.avgChatResponseMinutes} mins</p>
+                    <p className="text-xs text-slate-505 dark:text-slate-400 mt-2 font-semibold">Average duration to reply to direct DM messages.</p>
+                  </div>
+
+                  {/* Card 3: Task Resolution Time */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Task Resolution Time</span>
+                    <div className="relative h-24 w-24 flex items-center justify-center mb-3 bg-indigo-500/10 text-indigo-500 rounded-full">
+                      <CheckCircle className="h-10 w-10" />
+                    </div>
+                    <p className="text-2xl font-black text-slate-800 dark:text-white">{productivityMetrics.avgTaskResolutionHours} hrs</p>
+                    <p className="text-xs text-slate-550 dark:text-slate-400 mt-2 font-semibold">Average time from task creation to COMPLETED state.</p>
+                  </div>
+
+                </div>
+
+                {/* Additional Performance list */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Department Productivity rank */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+                    <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-4">Department Performance Overview</h4>
+                    <div className="space-y-4">
+                      {departmentProductivity.map((dept: any) => (
+                        <div key={dept.id} className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold text-slate-700 dark:text-slate-350">
+                            <span>{dept.name}</span>
+                            <span>{dept.completedTasks} / {dept.totalTasks} completed ({dept.completionRate}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-100 dark:bg-slate-850 h-2 rounded-full overflow-hidden">
+                            <div className="bg-primary h-full rounded-full" style={{ width: `${dept.completionRate}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Task completion summary */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col justify-center text-left">
+                    <h4 className="text-sm font-black text-slate-850 dark:text-white mb-4">Productivity Analysis</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                      A healthy workspace resolves tasks in under 24 hours and maintains a message response rate below 15 minutes. Currently, the team maintains an overall completion rate of <strong>{taskCompletion.completionRate}%</strong> with a composite engagement score of <strong>{productivityMetrics.engagementScore}%</strong>.
+                    </p>
+                  </div>
                 </div>
 
               </div>
@@ -297,7 +373,7 @@ export default function AnalyticsDashboard() {
                 {/* Sockets Details */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
                   <h4 className="text-sm font-black text-slate-850 dark:text-white mb-4">WebSocket Session Details</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-700 dark:text-slate-300">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-700 dark:text-slate-350">
                     <div className="space-y-2 border-b md:border-b-0 md:border-r pb-4 md:pb-0 md:pr-6">
                       <div className="flex justify-between py-1">
                         <span>Unique Connected Users</span>
@@ -338,7 +414,10 @@ export default function AnalyticsDashboard() {
                 
                 {/* SVG Line Graph for Chat history */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-                  <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-6">Message History (Last 7 Days)</h4>
+                  <h4 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider mb-6 flex items-center justify-between">
+                    Message History (Last 7 Days)
+                    <span className="text-xs text-slate-400 font-bold">Average Reply Speed: {chatAnalytics.avgChatResponseMinutes} mins</span>
+                  </h4>
                   
                   {chatAnalytics.chatHistory.length === 0 ? (
                     <p className="text-xs text-slate-400 py-12 text-center">No chat logs recorded.</p>
@@ -410,7 +489,7 @@ export default function AnalyticsDashboard() {
                               <td className="px-5 py-4">
                                 <div className="flex items-center gap-2">
                                   <span className="font-bold text-slate-800 dark:text-white">{dept.completionRate}%</span>
-                                  <div className="w-24 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                  <div className="w-24 bg-slate-100 dark:bg-slate-850 h-1.5 rounded-full overflow-hidden">
                                     <div className="bg-primary h-full" style={{ width: `${dept.completionRate}%` }} />
                                   </div>
                                 </div>
@@ -449,9 +528,9 @@ export default function AnalyticsDashboard() {
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Overall Completion Meter</span>
                   <p className="text-5xl font-black text-slate-900 dark:text-white">{taskCompletion.completionRate}%</p>
                   <p className="text-xs text-slate-500 mt-2">
-                    Of the {taskCompletion.totalTasks} total tasks assigned in the system, {taskCompletion.statusCounts.COMPLETED} have been successfully verified and completed.
+                    Of the {taskCompletion.totalTasks} total tasks assigned in the system, {taskCompletion.statusCounts.COMPLETED} have been completed. Average task resolution duration: <strong>{taskCompletion.avgTaskResolutionHours} hours</strong>.
                   </p>
-                  <div className="w-full max-w-md bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden mt-6">
+                  <div className="w-full max-w-md bg-slate-100 dark:bg-slate-850 h-2.5 rounded-full overflow-hidden mt-6">
                     <div className="bg-primary h-full" style={{ width: `${taskCompletion.completionRate}%` }} />
                   </div>
                 </div>

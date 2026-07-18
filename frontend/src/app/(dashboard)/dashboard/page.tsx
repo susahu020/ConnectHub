@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -28,10 +28,13 @@ import {
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
+import { useSocket } from '../../../hooks/useSocket';
+import CelebrationsWidget from '../../../components/CelebrationsWidget';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
 
   const [isEditing, setIsEditing] = useState(false);
   const [layouts, setLayouts] = useState<any[]>([]);
@@ -60,6 +63,29 @@ export default function DashboardPage() {
     queryKey: ['dashboard-stats'],
     queryFn: () => api.getDashboardStats(),
   });
+
+  // Fetch celebration wishes sent to the current user today
+  const { data: myWishes = [] } = useQuery({
+    queryKey: ['my-wishes'],
+    queryFn: () => api.getMyWishes(),
+    enabled: !!user,
+  });
+
+  // Keep the celebration wishes widget live: refresh as soon as a teammate sends a new wish
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleHRUpdate = (data: any) => {
+      if (data?.type === 'RECOGNITION') {
+        queryClient.invalidateQueries({ queryKey: ['my-wishes'] });
+      }
+    };
+
+    socket.on('hr_update', handleHRUpdate);
+    return () => {
+      socket.off('hr_update', handleHRUpdate);
+    };
+  }, [socket, queryClient]);
 
   // 2. Fetch widget layouts
   const { data: layoutData, isLoading: loadingLayout } = useQuery({
@@ -265,6 +291,48 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Celebration Wishes Dashboard Widget */}
+      {myWishes.length > 0 && (
+        <div className="bg-gradient-to-r from-primary/10 via-rose-500/5 to-primary/5 border border-primary/20 rounded-3xl p-6 space-y-4 shadow-sm relative overflow-hidden text-left mb-6">
+          <div className="absolute top-0 right-0 p-4 opacity-10 text-5xl">🎂🎖️</div>
+          <div className="space-y-1">
+            <h2 className="text-base font-black text-slate-850 dark:text-white flex items-center gap-2">
+              🎉 Teammate Celebration Wishes
+            </h2>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">
+              Wishes sent to you today by your colleagues. These will automatically clear tomorrow!
+            </p>
+          </div>
+          
+          <div className="max-h-[420px] overflow-y-auto pr-1 -mr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {myWishes.map((wish: any) => (
+                <div key={wish.id} className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs border border-slate-200/60 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex flex-col justify-between space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex items-center justify-center text-[10px] font-bold uppercase shrink-0 border dark:border-slate-700">
+                      {wish.sender?.avatarUrl ? (
+                        <img src={wish.sender.avatarUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        `${wish.sender?.firstName?.[0]}${wish.sender?.lastName?.[0]}`
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 dark:text-white leading-tight">
+                        {wish.sender?.firstName} {wish.sender?.lastName}
+                      </h4>
+                      <p className="text-[9px] text-slate-450">{wish.sender?.designation || 'Teammate'}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-650 dark:text-slate-350 italic pl-3 border-l-2 border-primary/30 leading-relaxed whitespace-pre-line">
+                    "{wish.message}"
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Draggable CSS Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 auto-rows-[minmax(180px,auto)]">
         {layouts
@@ -375,6 +443,19 @@ export default function DashboardPage() {
                           </div>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* WIDGET: TODAY'S CELEBRATIONS */}
+                  {widget.widgetKey === 'celebrations' && (
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100/80 dark:border-slate-800/80 mb-4">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-lg leading-none">🎉</span>
+                          <h3 className="font-bold text-base">Today's Celebrations</h3>
+                        </div>
+                      </div>
+                      <CelebrationsWidget variant="compact" embedded />
                     </div>
                   )}
 

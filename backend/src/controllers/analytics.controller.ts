@@ -36,7 +36,7 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
     const activeSocketConnections = Array.from(activeConnections.values()).reduce((sum, list) => sum + list.length, 0);
     const activeSocketUsers = activeConnections.size;
 
-    // 2. CHAT ANALYTICS (Last 7 Days)
+    // 2. CHAT ANALYTICS (Last 7 Days) & Response Time
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -63,6 +63,30 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
     });
     const chatHistory = Object.entries(messageCountsByDay).map(([date, count]) => ({ date, count }));
 
+    // Estimate Chat Response Time (time interval between direct messages)
+    const sampleMessages = await prisma.message.findMany({
+      where: { groupId: null },
+      orderBy: { createdAt: 'asc' },
+      take: 100,
+      select: { senderId: true, receiverId: true, createdAt: true }
+    });
+    let totalResponseTimeMs = 0;
+    let responseCount = 0;
+    for (let i = 1; i < sampleMessages.length; i++) {
+      const prev = sampleMessages[i - 1];
+      const curr = sampleMessages[i];
+      if (
+        (prev.senderId === curr.receiverId && prev.receiverId === curr.senderId) &&
+        (curr.createdAt.getTime() - prev.createdAt.getTime() < 4 * 60 * 60 * 1000)
+      ) {
+        totalResponseTimeMs += (curr.createdAt.getTime() - prev.createdAt.getTime());
+        responseCount++;
+      }
+    }
+    const avgChatResponseMinutes = responseCount > 0
+      ? parseFloat((totalResponseTimeMs / (1000 * 60 * responseCount)).toFixed(1))
+      : 0;
+
     // 3. DEPARTMENT PRODUCTIVITY
     const departments = await prisma.department.findMany({
       include: {
@@ -87,7 +111,7 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
       };
     });
 
-    // 4. TASK COMPLETION
+    // 4. TASK COMPLETION & Resolution Time
     const totalTasks = await prisma.task.count();
     const taskStatusGroups = await prisma.task.groupBy({
       by: ['status'],
@@ -124,6 +148,19 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
 
     const completedTasksCount = taskStatusCounts.COMPLETED;
     const taskCompletionRate = totalTasks > 0 ? parseFloat(((completedTasksCount / totalTasks) * 100).toFixed(1)) : 0;
+
+    // Calculate Task Resolution Time (creation to completion hours)
+    const completedTasksList = await prisma.task.findMany({
+      where: { status: 'COMPLETED' },
+      select: { createdAt: true, updatedAt: true }
+    });
+    let totalResolutionTimeMs = 0;
+    completedTasksList.forEach(task => {
+      totalResolutionTimeMs += (task.updatedAt.getTime() - task.createdAt.getTime());
+    });
+    const avgTaskResolutionHours = completedTasksList.length > 0
+      ? parseFloat((totalResolutionTimeMs / (1000 * 60 * 60 * completedTasksList.length)).toFixed(1))
+      : 0;
 
     // 5. FILE USAGE
     const totalFiles = await prisma.file.count({ where: { isDeleted: false } });
@@ -166,6 +203,17 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
       totalSize: info.totalSize
     }));
 
+    // 6. EMPLOYEE ENGAGEMENT COMPOSITE SCORE
+    const [totalKudos, totalComments, totalActivityLogs, totalMeetings] = await prisma.$transaction([
+      prisma.recognition.count(),
+      prisma.taskComment.count(),
+      prisma.activityLog.count(),
+      prisma.meeting.count()
+    ]);
+    const engagementScore = totalUsers > 0
+      ? Math.min(100, Math.round(((totalKudos * 5 + totalComments * 2 + totalActivityLogs + totalMeetings * 3) / totalUsers)))
+      : 0;
+
     res.status(200).json({
       activeUsers: {
         totalUsers,
@@ -176,19 +224,26 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
       chatAnalytics: {
         totalMessages,
         totalChannels,
-        chatHistory
+        chatHistory,
+        avgChatResponseMinutes
       },
       departmentProductivity: departmentStats,
       taskCompletion: {
         totalTasks,
         statusCounts: taskStatusCounts,
         priorityCounts: taskPriorityCounts,
-        completionRate: taskCompletionRate
+        completionRate: taskCompletionRate,
+        avgTaskResolutionHours
       },
       fileUsage: {
         totalFiles,
         totalStorageBytes,
         fileTypeDistribution: fileTypeData
+      },
+      productivityMetrics: {
+        engagementScore,
+        avgChatResponseMinutes,
+        avgTaskResolutionHours
       }
     });
 

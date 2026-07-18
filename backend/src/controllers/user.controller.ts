@@ -82,7 +82,7 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response, ne
         location: location !== undefined ? location : undefined,
         skills: skills !== undefined ? skills : undefined,
         status: status !== undefined ? status : undefined,
-        employeeId: employeeId !== undefined ? employeeId : undefined,
+        employeeId: employeeId !== undefined ? (employeeId === '' ? null : employeeId) : undefined,
         coverUrl: coverUrl !== undefined ? coverUrl : undefined,
         joiningDate: joiningDate ? new Date(joiningDate) : (joiningDate === null ? null : undefined),
         employmentType: employmentType !== undefined ? employmentType : undefined,
@@ -409,15 +409,16 @@ export const deleteSession = async (req: AuthenticatedRequest, res: Response, ne
 
 const DEFAULT_WIDGETS = [
   { widgetKey: 'stats', x: 0, y: 0, w: 4, h: 1, visible: true },
-  { widgetKey: 'tasks', x: 0, y: 1, w: 2, h: 2, visible: true },
-  { widgetKey: 'performance', x: 2, y: 1, w: 2, h: 2, visible: true },
-  { widgetKey: 'activity_feed', x: 0, y: 3, w: 2, h: 2, visible: true },
-  { widgetKey: 'projects', x: 2, y: 3, w: 2, h: 2, visible: true },
-  { widgetKey: 'meetings', x: 0, y: 5, w: 2, h: 2, visible: true },
-  { widgetKey: 'online', x: 2, y: 5, w: 2, h: 2, visible: true },
-  { widgetKey: 'files', x: 0, y: 7, w: 2, h: 2, visible: true },
-  { widgetKey: 'announcements', x: 2, y: 7, w: 2, h: 2, visible: true },
-  { widgetKey: 'quick_actions', x: 0, y: 9, w: 4, h: 1, visible: true },
+  { widgetKey: 'celebrations', x: 0, y: 1, w: 4, h: 1, visible: true },
+  { widgetKey: 'tasks', x: 0, y: 2, w: 2, h: 2, visible: true },
+  { widgetKey: 'performance', x: 2, y: 2, w: 2, h: 2, visible: true },
+  { widgetKey: 'activity_feed', x: 0, y: 4, w: 2, h: 2, visible: true },
+  { widgetKey: 'projects', x: 2, y: 4, w: 2, h: 2, visible: true },
+  { widgetKey: 'meetings', x: 0, y: 6, w: 2, h: 2, visible: true },
+  { widgetKey: 'online', x: 2, y: 6, w: 2, h: 2, visible: true },
+  { widgetKey: 'files', x: 0, y: 8, w: 2, h: 2, visible: true },
+  { widgetKey: 'announcements', x: 2, y: 8, w: 2, h: 2, visible: true },
+  { widgetKey: 'quick_actions', x: 0, y: 10, w: 4, h: 1, visible: true },
 ];
 
 export const getDashboardLayout = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -432,7 +433,12 @@ export const getDashboardLayout = async (req: AuthenticatedRequest, res: Respons
       return;
     }
 
-    res.status(200).json(layouts);
+    // Merge in any default widgets the user's saved layout predates (e.g. a widget added
+    // after they last customized their dashboard), so new widgets aren't silently missing.
+    const savedKeys = new Set(layouts.map((l) => l.widgetKey));
+    const missingDefaults = DEFAULT_WIDGETS.filter((w) => !savedKeys.has(w.widgetKey));
+
+    res.status(200).json([...layouts, ...missingDefaults]);
   } catch (error) {
     next(error);
   }
@@ -938,7 +944,7 @@ export const updateProfileById = async (req: AuthenticatedRequest, res: Response
         location: location !== undefined ? location : undefined,
         skills: skills !== undefined ? skills : undefined,
         status: status !== undefined ? status : undefined,
-        employeeId: employeeId !== undefined ? employeeId : undefined,
+        employeeId: employeeId !== undefined ? (employeeId === '' ? null : employeeId) : undefined,
         coverUrl: coverUrl !== undefined ? coverUrl : undefined,
         joiningDate: joiningDate ? new Date(joiningDate) : (joiningDate === null ? null : undefined),
         employmentType: employmentType !== undefined ? employmentType : undefined,

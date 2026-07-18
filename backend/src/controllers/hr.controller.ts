@@ -150,6 +150,11 @@ export const updateLeaveStatus = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
+    if (leaveRequest.userId === req.user?.id) {
+      res.status(403).json({ message: 'You cannot approve or reject your own leave request. Ask another manager or admin to review it.' });
+      return;
+    }
+
     if (status === 'APPROVED') {
       // Calculate leave days
       const diffTime = Math.abs(leaveRequest.endDate.getTime() - leaveRequest.startDate.getTime());
@@ -571,6 +576,11 @@ export const updateExpenseStatus = async (req: AuthenticatedRequest, res: Respon
       return;
     }
 
+    if (claim.userId === req.user?.id) {
+      res.status(403).json({ message: 'You cannot approve or reject your own expense claim. Ask another manager or admin to review it.' });
+      return;
+    }
+
     const updatedClaim = await prisma.expenseClaim.update({
       where: { id },
       data: {
@@ -637,6 +647,11 @@ export const generatePayslip = async (req: AuthenticatedRequest, res: Response, 
     const employee = await prisma.user.findUnique({ where: { id: employeeId } });
     if (!employee) {
       res.status(404).json({ message: 'Employee user not found.' });
+      return;
+    }
+
+    if (employeeId === req.user?.id) {
+      res.status(403).json({ message: 'You cannot generate your own payslip. Ask another admin to process this for you.' });
       return;
     }
 
@@ -736,24 +751,13 @@ export const createShift = async (req: AuthenticatedRequest, res: Response, next
 
 export const getShiftAssignments = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const role = req.user?.role!;
-    let assignments;
-
-    if (isManagerOrAdmin(role)) {
-      assignments = await prisma.shiftAssignment.findMany({
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true, email: true, designation: true } },
-          shift: true,
-        },
-        orderBy: { startDate: 'asc' },
-      });
-    } else {
-      assignments = await prisma.shiftAssignment.findMany({
-        where: { userId: req.user?.id! },
-        include: { shift: true },
-        orderBy: { startDate: 'asc' },
-      });
-    }
+    const assignments = await prisma.shiftAssignment.findMany({
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, designation: true } },
+        shift: true,
+      },
+      orderBy: { startDate: 'asc' },
+    });
 
     res.status(200).json(assignments);
   } catch (error) {
@@ -896,6 +900,11 @@ export const updateSwapRequestStatus = async (req: AuthenticatedRequest, res: Re
       return;
     }
 
+    if (swap.requesterId === req.user?.id || swap.assigneeId === req.user?.id) {
+      res.status(403).json({ message: 'You cannot approve a shift swap you are personally part of. Ask another manager or admin to review it.' });
+      return;
+    }
+
     if (status === 'APPROVED') {
       const requesterShiftId = swap.requesterAssignment.shiftId;
       const assigneeShiftId = swap.assigneeAssignment.shiftId;
@@ -941,6 +950,12 @@ export const updateSwapRequestStatus = async (req: AuthenticatedRequest, res: Re
 export const getRecognitions = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const recognitions = await prisma.recognition.findMany({
+      where: {
+        NOT: [
+          { message: { contains: 'Happy Birthday' } },
+          { message: { contains: 'Work Anniversary' } },
+        ]
+      },
       include: {
         sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, designation: true } },
         receiver: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, designation: true } },
@@ -948,6 +963,85 @@ export const getRecognitions = async (req: AuthenticatedRequest, res: Response, 
       orderBy: { createdAt: 'desc' },
     });
     res.status(200).json(recognitions);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyWishes = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.id!;
+    const today = new Date();
+
+    const wishes = await prisma.recognition.findMany({
+      where: {
+        receiverId: userId,
+        OR: [
+          { message: { contains: 'Happy Birthday' } },
+          { message: { contains: 'Work Anniversary' } }
+        ]
+      },
+      include: {
+        sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, designation: true } }
+      }
+    });
+
+    const activeWishes: any[] = [];
+    const expiredWishIds: string[] = [];
+
+    wishes.forEach(w => {
+      const wDate = new Date(w.createdAt);
+      const isSameDay = wDate.getDate() === today.getDate() &&
+                        wDate.getMonth() === today.getMonth() &&
+                        wDate.getFullYear() === today.getFullYear();
+      if (isSameDay) {
+        activeWishes.push(w);
+      } else {
+        expiredWishIds.push(w.id);
+      }
+    });
+
+    if (expiredWishIds.length > 0) {
+      await prisma.recognition.deleteMany({
+        where: { id: { in: expiredWishIds } }
+      });
+    }
+
+    res.status(200).json(activeWishes);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Returns ALL birthday/work-anniversary wishes created today, across the whole org
+// (not scoped to the requesting user). Used to:
+//  - determine whether the current user has already sent a wish to a given teammate today
+//  - show the wishes a teammate has already received alongside the "send wish" action
+export const getCelebrationWishes = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const wishes = await prisma.recognition.findMany({
+      where: {
+        OR: [
+          { message: { contains: 'Happy Birthday' } },
+          { message: { contains: 'Work Anniversary' } }
+        ]
+      },
+      include: {
+        sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, designation: true } },
+        receiver: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, designation: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const today = new Date();
+    const activeWishes = wishes.filter(w => {
+      const wDate = new Date(w.createdAt);
+      return wDate.getDate() === today.getDate() &&
+             wDate.getMonth() === today.getMonth() &&
+             wDate.getFullYear() === today.getFullYear();
+    });
+
+    res.status(200).json(activeWishes);
   } catch (error) {
     next(error);
   }
@@ -1000,11 +1094,30 @@ export const createRecognition = async (req: AuthenticatedRequest, res: Response
 
 export const deleteLeaveRequest = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    if (req.user?.role !== 'ADMIN') {
-      res.status(403).json({ message: 'Forbidden. Only Admins can delete leave requests.' });
+    const { id } = req.params;
+    const leave = await prisma.leaveRequest.findUnique({ where: { id } });
+
+    if (!leave) {
+      res.status(404).json({ message: 'Leave request not found.' });
       return;
     }
-    const { id } = req.params;
+
+    const isAdmin = req.user?.role === 'ADMIN';
+    const isOwner = leave.userId === req.user?.id;
+
+    // Admins can delete any leave request. Employees/managers can only cancel their
+    // own request, and only while it hasn't been decided on yet.
+    if (!isAdmin) {
+      if (!isOwner) {
+        res.status(403).json({ message: 'You can only cancel your own leave requests.' });
+        return;
+      }
+      if (leave.status !== 'PENDING') {
+        res.status(400).json({ message: 'This request has already been processed and can no longer be cancelled. Contact an admin if you need it removed.' });
+        return;
+      }
+    }
+
     await prisma.leaveRequest.delete({ where: { id } });
     emitHRUpdate(req, 'LEAVE');
     res.status(200).json({ message: 'Leave request deleted successfully.' });
@@ -1076,11 +1189,30 @@ export const deleteAttendanceLog = async (req: AuthenticatedRequest, res: Respon
 
 export const deleteExpenseClaim = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    if (req.user?.role !== 'ADMIN') {
-      res.status(403).json({ message: 'Forbidden. Only Admins can delete expense claims.' });
+    const { id } = req.params;
+    const claim = await prisma.expenseClaim.findUnique({ where: { id } });
+
+    if (!claim) {
+      res.status(404).json({ message: 'Expense claim not found.' });
       return;
     }
-    const { id } = req.params;
+
+    const isAdmin = req.user?.role === 'ADMIN';
+    const isOwner = claim.userId === req.user?.id;
+
+    // Admins can delete any expense claim. Employees/managers can only withdraw
+    // their own claim, and only while it hasn't been decided on yet.
+    if (!isAdmin) {
+      if (!isOwner) {
+        res.status(403).json({ message: 'You can only withdraw your own expense claims.' });
+        return;
+      }
+      if (claim.status !== 'PENDING') {
+        res.status(400).json({ message: 'This claim has already been processed and can no longer be withdrawn. Contact an admin if you need it removed.' });
+        return;
+      }
+    }
+
     await prisma.expenseClaim.delete({ where: { id } });
     emitHRUpdate(req, 'EXPENSE');
     res.status(200).json({ message: 'Expense claim deleted successfully.' });
@@ -1144,6 +1276,55 @@ export const deleteRecognition = async (req: AuthenticatedRequest, res: Response
     await prisma.recognition.delete({ where: { id } });
     emitHRUpdate(req, 'RECOGNITION');
     res.status(200).json({ message: 'Recognition deleted successfully.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getCelebrations = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const currentMonth = new Date().getMonth() + 1; // 1-indexed (Jan = 1, Dec = 12)
+    
+    const allUsers = await prisma.user.findMany({
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        designation: true,
+        avatarUrl: true,
+        birthday: true,
+        createdAt: true
+      }
+    });
+
+    const birthdays = allUsers.filter(u => {
+      if (!u.birthday) return false;
+      return (new Date(u.birthday).getMonth() + 1) === currentMonth;
+    }).map(u => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      designation: u.designation,
+      avatarUrl: u.avatarUrl,
+      date: u.birthday
+    }));
+
+    const anniversaries = allUsers.filter(u => {
+      return (new Date(u.createdAt).getMonth() + 1) === currentMonth;
+    }).map(u => {
+      const years = new Date().getFullYear() - new Date(u.createdAt).getFullYear();
+      return {
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        designation: u.designation,
+        avatarUrl: u.avatarUrl,
+        date: u.createdAt,
+        years: years > 0 ? years : 1
+      };
+    });
+
+    res.status(200).json({ birthdays, anniversaries });
   } catch (error) {
     next(error);
   }

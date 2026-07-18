@@ -60,6 +60,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
 
+  // Cheerful Birthday Modal state
+  const [showBirthdayModal, setShowBirthdayModal] = useState(false);
+
+  useEffect(() => {
+    if (user?.birthday) {
+      const bday = new Date(user.birthday);
+      const today = new Date();
+      const isBdayToday = bday.getDate() === today.getDate() && bday.getMonth() === today.getMonth();
+      const currentYear = today.getFullYear();
+      const hasSeen = localStorage.getItem(`bday_wish_seen_${user.id}_${currentYear}`);
+      
+      if (isBdayToday && !hasSeen) {
+        setShowBirthdayModal(true);
+      }
+    }
+  }, [user]);
+
+  // Cheerful Work Anniversary Modal state
+  const [showAnniversaryModal, setShowAnniversaryModal] = useState(false);
+  const [anniversaryYears, setAnniversaryYears] = useState(0);
+
+  useEffect(() => {
+    if (user?.createdAt) {
+      const joinDate = new Date(user.createdAt);
+      const today = new Date();
+      const isAnniversaryToday = joinDate.getDate() === today.getDate() && joinDate.getMonth() === today.getMonth();
+      const completedYears = today.getFullYear() - joinDate.getFullYear();
+      const currentYear = today.getFullYear();
+      const hasSeen = localStorage.getItem(`anniversary_wish_seen_${user.id}_${currentYear}`);
+      
+      if (isAnniversaryToday && completedYears > 0 && !hasSeen) {
+        setAnniversaryYears(completedYears);
+        setShowAnniversaryModal(true);
+      }
+    }
+  }, [user]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (statusRef.current && !statusRef.current.contains(event.target as Node)) {
@@ -901,6 +938,118 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 className="py-2.5 px-4 bg-primary text-white rounded-xl shadow transition-all hover:bg-primary/95"
               >
                 Stay Logged In
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cheerful Birthday Modal */}
+      {showBirthdayModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-8 shadow-2xl relative text-center overflow-hidden">
+            <div className="absolute -top-10 -left-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl" />
+            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl" />
+
+            <button 
+              onClick={() => {
+                setShowBirthdayModal(false);
+                if (user?.id) {
+                  const currentYear = new Date().getFullYear();
+                  localStorage.setItem(`bday_wish_seen_${user.id}_${currentYear}`, 'true');
+                }
+              }} 
+              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-650 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-xl transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-6 relative z-10 flex flex-col items-center">
+              <div className="text-6xl animate-bounce">🎂</div>
+              
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-slate-850 dark:text-white leading-tight">
+                  Happy Birthday, {user?.firstName}! 🎉
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm">
+                  ConnectHub wishes you a wonderful birthday filled with happiness, success, and amazing achievements! Thank you for being such an invaluable part of our team! 🎁✨
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <span className="text-2xl animate-pulse">🎈</span>
+                <span className="text-2xl animate-pulse">🥳</span>
+                <span className="text-2xl animate-pulse">🎁</span>
+                <span className="text-2xl animate-pulse">🎉</span>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowBirthdayModal(false);
+                  if (user?.id) {
+                    const currentYear = new Date().getFullYear();
+                    localStorage.setItem(`bday_wish_seen_${user.id}_${currentYear}`, 'true');
+                  }
+                }}
+                className="px-6 py-2.5 bg-primary text-white text-xs font-black rounded-xl hover:bg-primary-dark shadow-md hover:shadow-lg transition-all"
+              >
+                Thank you! ❤️
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cheerful Work Anniversary Modal */}
+      {showAnniversaryModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-md p-8 shadow-2xl relative text-center overflow-hidden">
+            <div className="absolute -top-10 -left-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl" />
+            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl" />
+
+            <button 
+              onClick={() => {
+                setShowAnniversaryModal(false);
+                if (user?.id) {
+                  const currentYear = new Date().getFullYear();
+                  localStorage.setItem(`anniversary_wish_seen_${user.id}_${currentYear}`, 'true');
+                }
+              }} 
+              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-650 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-xl transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-6 relative z-10 flex flex-col items-center">
+              <div className="text-6xl animate-bounce">🎖️</div>
+              
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-slate-855 dark:text-white leading-tight">
+                  Happy Work Anniversary! 🎉
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm">
+                  Congratulations, {user?.firstName}, on completing <strong>{anniversaryYears} Year{anniversaryYears > 1 ? 's' : ''}</strong> with ConnectHub! We appreciate your hard work, commitment, and the outstanding contributions you bring to our team every day! 🥂✨
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <span className="text-2xl animate-pulse">🎖️</span>
+                <span className="text-2xl animate-pulse">👏</span>
+                <span className="text-2xl animate-pulse">🌟</span>
+                <span className="text-2xl animate-pulse">🎉</span>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowAnniversaryModal(false);
+                  if (user?.id) {
+                    const currentYear = new Date().getFullYear();
+                    localStorage.setItem(`anniversary_wish_seen_${user.id}_${currentYear}`, 'true');
+                  }
+                }}
+                className="px-6 py-2.5 bg-primary text-white text-xs font-black rounded-xl hover:bg-primary-dark shadow-md hover:shadow-lg transition-all"
+              >
+                Thank you! ❤️
               </button>
             </div>
           </div>

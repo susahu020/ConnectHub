@@ -244,6 +244,8 @@ import {
   getSwapRequests,
   updateSwapRequestStatus,
   getRecognitions,
+  getMyWishes,
+  getCelebrationWishes,
   createRecognition,
   deleteLeaveRequest,
   updateLeaveBalance,
@@ -253,7 +255,8 @@ import {
   deletePayslip,
   deleteShiftAssignment,
   deleteShift,
-  deleteRecognition
+  deleteRecognition,
+  getCelebrations
 } from '../controllers/hr.controller';
 
 import { getAnalyticsStats } from '../controllers/analytics.controller';
@@ -486,7 +489,7 @@ router.get('/hr/leaves', authenticate as any, getLeaves as any);
 router.post('/hr/leaves', authenticate as any, requestLeave as any);
 router.get('/hr/leaves/balances', authenticate as any, getLeaveBalances as any);
 router.put('/hr/leaves/:id/status', authenticate as any, authorize(['ADMIN', 'MANAGER']), updateLeaveStatus as any);
-router.delete('/hr/leaves/:id', authenticate as any, authorize(['ADMIN']), deleteLeaveRequest as any);
+router.delete('/hr/leaves/:id', authenticate as any, deleteLeaveRequest as any);
 router.put('/hr/leaves/balances/:id', authenticate as any, authorize(['ADMIN']), updateLeaveBalance as any);
 
 // Attendance
@@ -508,7 +511,7 @@ router.delete('/hr/holidays/:id', authenticate as any, authorize(['ADMIN', 'MANA
 router.get('/hr/expenses', authenticate as any, getExpenseClaims as any);
 router.post('/hr/expenses', authenticate as any, createExpenseClaim as any);
 router.put('/hr/expenses/:id/status', authenticate as any, authorize(['ADMIN', 'MANAGER']), updateExpenseStatus as any);
-router.delete('/hr/expenses/:id', authenticate as any, authorize(['ADMIN']), deleteExpenseClaim as any);
+router.delete('/hr/expenses/:id', authenticate as any, deleteExpenseClaim as any);
 
 // Payslips
 router.get('/hr/payslips', authenticate as any, getPayslips as any);
@@ -529,8 +532,11 @@ router.delete('/hr/shifts/:id', authenticate as any, authorize(['ADMIN']), delet
 
 // Recognition
 router.get('/hr/recognitions', authenticate as any, getRecognitions as any);
+router.get('/hr/my-wishes', authenticate as any, getMyWishes as any);
+router.get('/hr/celebration-wishes', authenticate as any, getCelebrationWishes as any);
 router.post('/hr/recognitions', authenticate as any, createRecognition as any);
 router.delete('/hr/recognitions/:id', authenticate as any, authorize(['ADMIN']), deleteRecognition as any);
+router.get('/hr/celebrations', authenticate as any, getCelebrations as any);
 
 // Analytics Dashboard
 router.get('/analytics', authenticate as any, authorize(['ADMIN', 'MANAGER']), getAnalyticsStats as any);

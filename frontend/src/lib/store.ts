@@ -14,6 +14,9 @@ interface User {
   skills: string[];
   status: string;
   departmentId?: string;
+  birthday?: string;
+  joiningDate?: string;
+  createdAt?: string;
   settings?: {
     theme: string;
     language: string;

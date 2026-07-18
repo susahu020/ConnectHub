@@ -391,4 +391,7 @@ export const api = {
   deleteRecognition: (id: string) => request(`/hr/recognitions/${id}`, 'DELETE'),
   getAnalytics: () => request('/analytics'),
   getOrgChart: () => request('/users/org-chart'),
+  getCelebrations: () => request('/hr/celebrations'),
+  getMyWishes: () => request('/hr/my-wishes'),
+  getCelebrationWishes: () => request('/hr/celebration-wishes'),
 };

@@ -89,6 +89,7 @@ export default function ProfilePage() {
     officeLocation: '',
     emergencyContact: '',
     birthday: '',
+    joiningDate: '',
     timezone: 'UTC',
     workingHours: '9:00 AM - 5:00 PM',
     managerId: '',
@@ -170,6 +171,7 @@ export default function ProfilePage() {
         officeLocation: data.officeLocation || '',
         emergencyContact: data.emergencyContact || '',
         birthday: data.birthday ? data.birthday.split('T')[0] : '',
+        joiningDate: data.createdAt ? data.createdAt.split('T')[0] : '',
         timezone: data.timezone || 'UTC',
         workingHours: data.workingHours || '9:00 AM - 5:00 PM',
         managerId: data.managerId || '',
@@ -686,6 +688,14 @@ export default function ProfilePage() {
                     <div className="flex justify-between py-1 border-b dark:border-slate-800">
                       <span className="text-muted-foreground">Emergency Contact</span>
                       <span className="text-slate-850 dark:text-slate-200">{profile?.emergencyContact || 'Not Specified'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b dark:border-slate-800">
+                      <span className="text-muted-foreground">Joining Date</span>
+                      <span className="text-slate-850 dark:text-slate-200">
+                        {profile?.createdAt 
+                          ? new Date(profile.createdAt).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' }) 
+                          : 'Not Specified'}
+                      </span>
                     </div>
                     <div className="flex justify-between py-1 border-b dark:border-slate-800">
                       <span className="text-muted-foreground">Last Login</span>
@@ -1305,6 +1315,18 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[9px] tracking-wider">Joining Date (Read-Only)</label>
+                  <input
+                    type="date"
+                    value={basicForm.joiningDate}
+                    disabled
+                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-100 dark:bg-slate-800 dark:border-slate-700 text-slate-500 cursor-not-allowed focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
                   <label className="text-slate-400 uppercase text-[9px] tracking-wider">Reporting Manager</label>
                   <select
                     value={basicForm.managerId}
@@ -1319,11 +1341,26 @@ export default function ProfilePage() {
                     ))}
                   </select>
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[9px] tracking-wider">Department</label>
+                  <select
+                    value={basicForm.departmentId}
+                    onChange={(e) => setBasicForm({ ...basicForm, departmentId: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-855 dark:border-slate-700 focus:outline-none text-slate-805 dark:text-slate-200"
+                  >
+                    <option value="">No Department</option>
+                    {departmentsList.map((dep) => (
+                      <option key={dep.id} value={dep.id}>
+                        {dep.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider">Timezone</label>
+                  <label className="text-slate-40-400 uppercase text-[9px] tracking-wider">Timezone</label>
                   <input
                     type="text"
                     value={basicForm.timezone}
@@ -1344,22 +1381,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider">Department</label>
-                  <select
-                    value={basicForm.departmentId}
-                    onChange={(e) => setBasicForm({ ...basicForm, departmentId: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-850 dark:border-slate-700 focus:outline-none text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="">No Department</option>
-                    {departmentsList.map((dep) => (
-                      <option key={dep.id} value={dep.id}>
-                        {dep.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-slate-400 uppercase text-[9px] tracking-wider">Presence Status</label>
                   <select
@@ -1373,10 +1395,11 @@ export default function ProfilePage() {
                     <option value="DND">DO NOT DISTURB</option>
                     <option value="IN_MEETING">IN MEETING</option>
                     <option value="ON_LEAVE">ON LEAVE</option>
-                    <option value="OFFLINE">OFFLINE (Invisible)</option>
+                    <option value="OFFLINE">OFFLINE</option>
                   </select>
                 </div>
               </div>
+
 
               <div className="space-y-1.5">
                 <label className="text-slate-400 uppercase text-[9px] tracking-wider">Personal Bio / About</label>

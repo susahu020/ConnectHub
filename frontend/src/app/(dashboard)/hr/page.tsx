@@ -20,13 +20,20 @@ import {
   Coffee,
   Users,
   Trash2,
-  Edit
+  Edit,
+  Heart,
+  Sparkles,
+  Lightbulb,
+  Handshake,
+  Star,
+  MessageSquare
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../../../hooks/useSocket';
+import CelebrationsWidget from '../../../components/CelebrationsWidget';
 
 type TabType = 'leave' | 'attendance' | 'holidays' | 'expenses' | 'payslips' | 'shifts' | 'recognition';
 
@@ -53,10 +60,20 @@ export default function HRPortal() {
   
   // Recognition Modal
   const [recognitionModalOpen, setRecognitionModalOpen] = useState(false);
+  const [selectedTeammateId, setSelectedTeammateId] = useState('');
 
   // Admin adjustments state
   const [editAttendanceOpen, setEditAttendanceOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState<any>(null);
+
+  // Kudos Likes state
+  const [likesMap, setLikesMap] = useState<Record<string, { count: number; liked: boolean }>>({});
+
+  // Swap shift coworker selection state
+  const [swapCoworkerId, setSwapCoworkerId] = useState('');
+
+  // Pre-populated praise message state
+  const [praiseMessage, setPraiseMessage] = useState('');
 
   const isManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const isAdmin = user?.role === 'ADMIN';
@@ -81,6 +98,9 @@ export default function HRPortal() {
       queryClient.invalidateQueries({ queryKey: ['hr-shift-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['hr-shift-swaps'] });
       queryClient.invalidateQueries({ queryKey: ['hr-recognitions'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-celebrations'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-celebration-wishes'] });
+      queryClient.invalidateQueries({ queryKey: ['my-wishes'] });
     };
 
     socket.on('hr_update', handleHRUpdate);
@@ -317,6 +337,9 @@ export default function HRPortal() {
     onSuccess: () => {
       toast.success('Recognition sent!');
       setRecognitionModalOpen(false);
+      setSelectedTeammateId('');
+      setPraiseMessage('');
+      queryClient.invalidateQueries({ queryKey: ['hr-recognitions'] });
     },
     onError: (err: any) => toast.error(err.message || 'Failed to send recognition'),
   });
@@ -571,15 +594,19 @@ export default function HRPortal() {
                                   }`}>
                                     {req.status}
                                   </span>
-                                  {isAdmin && (
+                                  {(isAdmin || req.status === 'PENDING') && (
                                     <button
                                       onClick={() => {
-                                        if (confirm('Are you sure you want to delete this leave request?')) {
+                                        const isMine = req.userId === user?.id;
+                                        const confirmText = isMine && req.status === 'PENDING'
+                                          ? 'Cancel this leave request?'
+                                          : 'Are you sure you want to delete this leave request?';
+                                        if (confirm(confirmText)) {
                                           deleteLeaveMutation.mutate(req.id);
                                         }
                                       }}
                                       className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-500"
-                                      title="Delete Request"
+                                      title={req.status === 'PENDING' ? 'Cancel Request' : 'Delete Request'}
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </button>
@@ -613,12 +640,12 @@ export default function HRPortal() {
                           </tr>
                         </thead>
                         <tbody className="divide-y text-xs">
-                          {leaves.filter((l: any) => l.status === 'PENDING').length === 0 ? (
+                          {leaves.filter((l: any) => l.status === 'PENDING' && l.userId !== user?.id).length === 0 ? (
                             <tr>
                               <td colSpan={5} className="text-center py-8 text-slate-400">No pending approvals.</td>
                             </tr>
                           ) : (
-                            leaves.filter((l: any) => l.status === 'PENDING').map((req: any) => (
+                            leaves.filter((l: any) => l.status === 'PENDING' && l.userId !== user?.id).map((req: any) => (
                               <tr key={req.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                                 <td className="px-5 py-4">
                                   <p className="font-bold text-slate-800 dark:text-slate-200">{req.user?.firstName} {req.user?.lastName}</p>
@@ -685,7 +712,7 @@ export default function HRPortal() {
                   <div className="w-full space-y-3">
                     {!todayAttendance && (
                       <button
-                        onClick={() => clockInMutation.mutate({})}
+                        onClick={() => clockInMutation.mutate(undefined)}
                         className="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-black shadow-md hover:shadow-lg transition-all"
                       >
                         Clock In
@@ -697,14 +724,14 @@ export default function HRPortal() {
                         {/* Break controls */}
                         {todayAttendance.breaks?.some((b: any) => b.endTime === null) ? (
                           <button
-                            onClick={() => endBreakMutation.mutate({})}
+                            onClick={() => endBreakMutation.mutate()}
                             className="py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black shadow-sm transition-all"
                           >
                             End Break
                           </button>
                         ) : (
                           <button
-                            onClick={() => startBreakMutation.mutate({})}
+                            onClick={() => startBreakMutation.mutate()}
                             className="py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 rounded-xl font-black shadow-sm transition-all flex items-center justify-center gap-1.5"
                           >
                             <Coffee className="h-4 w-4" />
@@ -926,15 +953,19 @@ export default function HRPortal() {
                                 }`}>
                                   {claim.status}
                                 </span>
-                                {isAdmin && (
+                                {(isAdmin || claim.status === 'PENDING') && (
                                   <button
                                     onClick={() => {
-                                      if (confirm('Are you sure you want to delete this expense claim?')) {
+                                      const isMine = claim.userId === user?.id;
+                                      const confirmText = isMine && claim.status === 'PENDING'
+                                        ? 'Withdraw this expense claim?'
+                                        : 'Are you sure you want to delete this expense claim?';
+                                      if (confirm(confirmText)) {
                                         deleteExpenseMutation.mutate(claim.id);
                                       }
                                     }}
                                     className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-500"
-                                    title="Delete Claim"
+                                    title={claim.status === 'PENDING' ? 'Withdraw Claim' : 'Delete Claim'}
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
@@ -967,12 +998,12 @@ export default function HRPortal() {
                           </tr>
                         </thead>
                         <tbody className="divide-y text-xs">
-                          {expenses.filter((c: any) => c.status === 'PENDING').length === 0 ? (
+                          {expenses.filter((c: any) => c.status === 'PENDING' && c.userId !== user?.id).length === 0 ? (
                             <tr>
                               <td colSpan={5} className="text-center py-8 text-slate-400">No pending expense claims.</td>
                             </tr>
                           ) : (
-                            expenses.filter((c: any) => c.status === 'PENDING').map((claim: any) => (
+                            expenses.filter((c: any) => c.status === 'PENDING' && c.userId !== user?.id).map((claim: any) => (
                               <tr key={claim.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                                 <td className="px-5 py-4">
                                   <p className="font-bold text-slate-800 dark:text-slate-200">{claim.user?.firstName} {claim.user?.lastName}</p>
@@ -1263,7 +1294,7 @@ export default function HRPortal() {
                               Swapping: <span className="font-bold">{swap.requesterAssignment?.shift?.name}</span> ({swap.requesterAssignment?.shift?.startTime}) with <span className="font-bold">{swap.assigneeAssignment?.shift?.name}</span> ({swap.assigneeAssignment?.shift?.startTime})
                             </p>
                             
-                            {isManager && swap.status === 'PENDING' && (
+                            {isManager && swap.status === 'PENDING' && swap.requesterId !== user?.id && swap.assigneeId !== user?.id && (
                               <div className="flex justify-end gap-2 pt-2 border-t mt-2">
                                 <button
                                   onClick={() => updateSwapRequestStatusMutation.mutate({ id: swap.id, status: 'APPROVED' })}
@@ -1289,13 +1320,19 @@ export default function HRPortal() {
               </div>
             )}
 
-            {/* EMPLOYEE RECOGNITION TAB */}
+            {/* EMPLOYEE RECOGNITION & CELEBRATIONS TAB */}
             {activeTab === 'recognition' && (
               <div className="space-y-6">
+                
+                {/* Header Row */}
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-slate-800 dark:text-white">Peer Recognition Board</h3>
                   <button
-                    onClick={() => setRecognitionModalOpen(true)}
+                    onClick={() => {
+                      setSelectedTeammateId('');
+                      setPraiseMessage('');
+                      setRecognitionModalOpen(true);
+                    }}
                     className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-white bg-primary rounded-xl shadow-md hover:bg-primary-dark transition-all"
                   >
                     <Award className="h-4 w-4" />
@@ -1303,76 +1340,152 @@ export default function HRPortal() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {recognitions.length === 0 ? (
-                    <div className="col-span-full text-center py-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400">
-                      Be the first to recognize a colleague for their outstanding work!
-                    </div>
-                  ) : (
-                    recognitions.map((rec: any) => (
-                      <div key={rec.id} className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4">
-                        {isAdmin && (
-                          <button
-                            onClick={() => {
-                              if (confirm('Are you sure you want to delete this recognition post?')) {
-                                deleteRecognitionMutation.mutate(rec.id);
-                              }
-                            }}
-                            className="absolute top-4 right-4 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500"
-                            title="Delete recognition"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2.5">
-                            <div className="h-9 w-9 rounded-full bg-slate-150 dark:bg-slate-800 overflow-hidden flex items-center justify-center font-bold uppercase text-slate-650 dark:text-slate-350">
-                              {rec.sender?.avatarUrl ? (
-                                <img src={rec.sender.avatarUrl} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                `${rec.sender?.firstName?.[0]}${rec.sender?.lastName?.[0]}`
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-xs font-black text-slate-800 dark:text-white leading-tight">
-                                {rec.sender?.firstName} {rec.sender?.lastName}
-                              </p>
-                              <p className="text-[9px] text-slate-400 leading-none mt-0.5">recognized</p>
-                            </div>
-                          </div>
+                {/* 3-Column Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  
+                  {/* Kudos Feed */}
+                  <div className="lg:col-span-2 space-y-6">
 
-                          <div className="flex items-center gap-2 pt-2">
-                            <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-purple-500/10 text-purple-600 border border-purple-500/20 flex items-center gap-1">
-                              <Award className="h-3 w-3" />
-                              {rec.badge.replace('_', ' ')}
-                            </span>
-                          </div>
-
-                          <p className="text-xs text-slate-600 dark:text-slate-300 italic pt-2 pl-2 border-l-2 border-slate-200 dark:border-slate-850">
-                            "{rec.message}"
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-850">
-                          <div className="h-7 w-7 rounded-full bg-slate-150 dark:bg-slate-800 overflow-hidden flex items-center justify-center text-[10px] font-bold uppercase text-slate-650 dark:text-slate-350">
-                            {rec.receiver?.avatarUrl ? (
-                              <img src={rec.receiver.avatarUrl} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              `${rec.receiver?.firstName?.[0]}${rec.receiver?.lastName?.[0]}`
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-xs font-black text-slate-800 dark:text-white leading-tight">
-                              {rec.receiver?.firstName} {rec.receiver?.lastName}
-                            </p>
-                            <p className="text-[9px] text-slate-400 leading-none">{rec.receiver?.designation}</p>
-                          </div>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {recognitions.length === 0 ? (
+                      <div className="col-span-full text-center py-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400">
+                        Be the first to recognize a colleague for their outstanding work!
                       </div>
-                    ))
-                  )}
+                    ) : (
+                      recognitions.map((rec: any) => {
+                        const recLikes = likesMap[rec.id] || { count: Math.floor(Math.random() * 5) + 1, liked: false };
+                        const handleLike = () => {
+                          setLikesMap(prev => {
+                            const cur = prev[rec.id] || { count: recLikes.count, liked: false };
+                            const nextLiked = !cur.liked;
+                            return {
+                              ...prev,
+                              [rec.id]: {
+                                count: nextLiked ? cur.count + 1 : Math.max(0, cur.count - 1),
+                                liked: nextLiked
+                              }
+                            };
+                          });
+                        };
+
+                        const getBadgeIcon = (badge: string) => {
+                          switch (badge) {
+                            case 'TEAM_PLAYER': return <Handshake className="h-3.5 w-3.5" />;
+                            case 'INNOVATOR': return <Lightbulb className="h-3.5 w-3.5" />;
+                            case 'CUSTOMER_CHAMPION': return <Heart className="h-3.5 w-3.5" />;
+                            case 'ROCKSTAR': return <Star className="h-3.5 w-3.5" />;
+                            default: return <Award className="h-3.5 w-3.5" />;
+                          }
+                        };
+
+                        const getBadgeColors = (badge: string) => {
+                          switch (badge) {
+                            case 'TEAM_PLAYER': return 'bg-sky-50 dark:bg-sky-950/20 text-sky-600 border-sky-200 dark:border-sky-900/30';
+                            case 'INNOVATOR': return 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 border-amber-200 dark:border-amber-900/30';
+                            case 'CUSTOMER_CHAMPION': return 'bg-rose-50 dark:bg-rose-950/20 text-rose-600 border-rose-200 dark:border-rose-900/30';
+                            case 'ROCKSTAR': return 'bg-purple-50 dark:bg-purple-950/20 text-purple-600 border-purple-200 dark:border-purple-900/30';
+                            default: return 'bg-primary/5 text-primary border-primary/10';
+                          }
+                        };
+
+                        return (
+                          <div 
+                            key={rec.id} 
+                            className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                          >
+                            {isAdmin && (
+                              <button
+                                onClick={() => {
+                                  if (confirm('Are you sure you want to delete this recognition post?')) {
+                                    deleteRecognitionMutation.mutate(rec.id);
+                                  }
+                                }}
+                                className="absolute top-5 right-5 p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 transition-colors"
+                                title="Delete recognition"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+
+                            {/* Card Content */}
+                            <div className="space-y-4 text-left">
+                              {/* Sender Profile */}
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-full bg-slate-105 dark:bg-slate-800 overflow-hidden flex items-center justify-center font-bold uppercase text-slate-500 shrink-0 border border-slate-200 dark:border-slate-800">
+                                  {rec.sender?.avatarUrl ? (
+                                    <img src={rec.sender.avatarUrl} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    `${rec.sender?.firstName?.[0]}${rec.sender?.lastName?.[0]}`
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-black text-slate-800 dark:text-white leading-tight">
+                                    {rec.sender?.firstName} {rec.sender?.lastName}
+                                  </h4>
+                                  <p className="text-[10px] text-slate-450 leading-none mt-0.5">{rec.sender?.designation || 'Staff member'}</p>
+                                </div>
+                              </div>
+
+                              {/* Badge Tag */}
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase border ${getBadgeColors(rec.badge)}`}>
+                                {getBadgeIcon(rec.badge)}
+                                {rec.badge.replace('_', ' ')}
+                              </span>
+
+                              {/* Quote block */}
+                              <div className="relative pl-4 border-l-2 border-primary/20">
+                                <p className="text-xs text-slate-650 dark:text-slate-300 italic leading-relaxed">
+                                  "{rec.message}"
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Card Footer (Recipient & Action line) */}
+                            <div className="pt-4 border-t border-slate-100 dark:border-slate-850 flex flex-col space-y-3">
+                              <div className="flex items-center gap-2.5 text-left">
+                                <div className="h-8 w-8 rounded-full bg-slate-105 dark:bg-slate-800 overflow-hidden flex items-center justify-center text-[10px] font-bold uppercase text-slate-500 shrink-0 border border-slate-200 dark:border-slate-800">
+                                  {rec.receiver?.avatarUrl ? (
+                                    <img src={rec.receiver.avatarUrl} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    `${rec.receiver?.firstName?.[0]}${rec.receiver?.lastName?.[0]}`
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-slate-800 dark:text-white leading-tight truncate">
+                                    {rec.receiver?.firstName} {rec.receiver?.lastName}
+                                  </p>
+                                  <p className="text-[9px] text-slate-450 truncate">{rec.receiver?.designation || 'Teammate'}</p>
+                                </div>
+                              </div>
+
+                              {/* Likes & Interaction Bar */}
+                              <div className="flex items-center gap-4 text-slate-450 text-[10px] pt-1">
+                                <button 
+                                  onClick={handleLike}
+                                  className={`flex items-center gap-1.5 font-bold hover:text-rose-500 transition-colors ${recLikes.liked ? 'text-rose-500' : ''}`}
+                                >
+                                  <Heart className={`h-4 w-4 ${recLikes.liked ? 'fill-current' : ''}`} />
+                                  <span>{recLikes.count} Likes</span>
+                                </button>
+                                <div className="flex items-center gap-1.5 font-bold">
+                                  <MessageSquare className="h-4 w-4" />
+                                  <span>Public Recognition</span>
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
+
+                {/* Celebrations Widget (shared with Dashboard) */}
+                <CelebrationsWidget variant="full" />
+
               </div>
+            </div>
             )}
 
           </motion.div>
@@ -1526,7 +1639,7 @@ export default function HRPortal() {
             <form onSubmit={(e) => {
               e.preventDefault();
               const target = e.target as HTMLFormElement;
-              const title = target.title.value;
+              const title = (target.elements.namedItem('title') as HTMLInputElement).value;
               const category = target.category.value;
               const amount = parseFloat(target.amount.value);
               const receiptUrl = target.receiptUrl.value;
@@ -1691,7 +1804,7 @@ export default function HRPortal() {
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Select Employee</label>
                 <select name="employeeId" required className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none">
                   <option value="">— Select Employee —</option>
-                  {employees.map((emp: any) => (
+                  {employees.filter((emp: any) => emp.id !== user?.id).map((emp: any) => (
                     <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName} ({emp.designation || 'Staff'})</option>
                   ))}
                 </select>
@@ -1834,7 +1947,13 @@ export default function HRPortal() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Teammate to Swap With</label>
-                <select name="assigneeId" required className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none">
+                <select 
+                  name="assigneeId" 
+                  value={swapCoworkerId}
+                  onChange={(e) => setSwapCoworkerId(e.target.value)}
+                  required 
+                  className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                >
                   <option value="">— Select Coworker —</option>
                   {employees.filter((emp: any) => emp.id !== user?.id).map((emp: any) => (
                     <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
@@ -1845,9 +1964,9 @@ export default function HRPortal() {
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Teammate's Shift Assignment ID</label>
                 <select name="assigneeAssignmentId" required className="w-full bg-slate-50 dark:bg-slate-855 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none">
                   <option value="">— Select Teammate's Shift —</option>
-                  {shiftAssignments.filter((a: any) => a.userId !== user?.id).map((assign: any) => (
+                  {shiftAssignments.filter((a: any) => a.userId === swapCoworkerId).map((assign: any) => (
                     <option key={assign.id} value={assign.id}>
-                      {assign.user?.firstName}: {assign.shift?.name} ({new Date(assign.startDate).toLocaleDateString()})
+                      {assign.shift?.name} ({new Date(assign.startDate).toLocaleDateString()})
                     </option>
                   ))}
                 </select>
@@ -1972,7 +2091,9 @@ export default function HRPortal() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 animate-scale-up">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">Recognize a Teammate</h3>
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
+                Recognize a Teammate
+              </h3>
               <button onClick={() => setRecognitionModalOpen(false)} className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850 rounded">
                 <X className="h-5 w-5" />
               </button>
@@ -1988,7 +2109,13 @@ export default function HRPortal() {
             }} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Who would you like to recognize?</label>
-                <select name="receiverId" required className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none">
+                <select 
+                  name="receiverId" 
+                  value={selectedTeammateId}
+                  onChange={(e) => setSelectedTeammateId(e.target.value)}
+                  required 
+                  className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                >
                   <option value="">— Select Teammate —</option>
                   {employees.filter((emp: any) => emp.id !== user?.id).map((emp: any) => (
                     <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName}</option>
@@ -2005,15 +2132,25 @@ export default function HRPortal() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Praise Message</label>
-                <textarea name="message" rows={3} required placeholder="Write a public message of appreciation..." className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none" />
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Praise Message
+                </label>
+                <textarea 
+                  name="message" 
+                  rows={3} 
+                  required 
+                  value={praiseMessage}
+                  onChange={(e) => setPraiseMessage(e.target.value)}
+                  placeholder="Write a public message of appreciation..." 
+                  className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none" 
+                />
               </div>
               <button
                 type="submit"
                 disabled={createRecognitionMutation.isPending}
                 className="w-full py-2.5 bg-primary text-white text-xs font-black rounded-xl hover:bg-primary-dark transition-all"
               >
-                {createRecognitionMutation.isPending ? 'Sending Kudos...' : 'Send Recognition'}
+                {createRecognitionMutation.isPending ? 'Sending...' : 'Send Recognition'}
               </button>
             </form>
           </div>
