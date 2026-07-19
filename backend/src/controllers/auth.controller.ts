@@ -17,8 +17,7 @@ import {
   revokeSession
 } from '../services/session.service';
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456';
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'default-local-jwt-refresh-secret-123456';
+import { JWT_ACCESS_SECRET as ACCESS_SECRET, JWT_REFRESH_SECRET as REFRESH_SECRET } from '../config/env';
 
 // Helper to generate access and refresh tokens
 const generateTokens = (userId: string, email: string, sessionId: string, rememberMe: boolean) => {

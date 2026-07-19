@@ -13,6 +13,8 @@ import { initSocket } from './services/socket.service';
 import { errorHandler } from './middleware/error.middleware';
 import { securityHeaders } from './middleware/securityHeaders';
 import { createNotification } from './services/notification.service';
+import { withLock } from './services/lock.service';
+import { isConfigured as isCloudinaryConfigured } from './config/cloudinary';
 
 const app = express();
 const server = http.createServer(app);
@@ -137,7 +139,11 @@ app.get('/health', (req, res) => {
 app.use(errorHandler as any);
 
 // Background worker for scheduled messages delivery
+// Wrapped in a distributed lock so that if this process is ever scaled to
+// 2+ instances, only one of them actually dispatches each batch — otherwise
+// every instance would deliver the same scheduled messages independently.
 setInterval(async () => {
+  await withLock('scheduled-messages-worker', 9000, async () => {
   try {
     const now = new Date();
     const pendingMessages = await prisma.message.findMany({
@@ -186,10 +192,14 @@ setInterval(async () => {
   } catch (err) {
     console.error('Error in scheduled messages worker:', err);
   }
+  });
 }, 10000); // Check every 10 seconds
 
 // Due Date Reminders Background Scanner (Runs every 10 minutes)
+// Same reasoning as above: locked so only one instance sends each day's
+// reminders instead of every instance sending duplicates.
 setInterval(async () => {
+  await withLock('due-date-reminders-worker', 9 * 60 * 1000, async () => {
   try {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -239,7 +249,22 @@ setInterval(async () => {
   } catch (err) {
     console.error('Failed to run due date reminders scan:', err);
   }
+  });
 }, 10 * 60 * 1000); // Check every 10 minutes
+
+if (process.env.NODE_ENV === 'production' && !isCloudinaryConfigured) {
+  console.warn(
+    '==================================================\n' +
+    '⚠️  WARNING: Running in production without Cloudinary configured.\n' +
+    'Uploaded files are falling back to local disk (/app/uploads). Most\n' +
+    'hosts (Render, Railway, etc. free/standard web services) use an\n' +
+    'EPHEMERAL filesystem — every redeploy or restart will silently\n' +
+    'delete all uploaded files, avatars, and attachments.\n' +
+    'Set CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET\n' +
+    'before going live. See backend/.env.example and DEPLOYMENT.md.\n' +
+    '=================================================='
+  );
+}
 
 // Listen on all network interfaces
 server.listen(PORT, () => {

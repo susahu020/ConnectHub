@@ -1,0 +1,22 @@
+# Automatically merged into docker-compose.yml by `docker compose up` — this
+# file is what makes local dev convenient (push schema + reseed on every
+# boot). It is NOT used by `docker compose -f docker-compose.yml up`, which
+# is what you'd run in a real environment (Render/Railway/VPS via
+# docker-compose, or as a template for those platforms' own build steps).
+#
+# Do not add real secrets here — this file is meant to be committed.
+services:
+  backend:
+    # The final "runtime" stage in backend/Dockerfile deliberately strips
+    # devDependencies (smaller, more secure prod image) — but `prisma db
+    # push` and `npm run seed` need the Prisma CLI / ts-node, which are
+    # devDependencies. Target the earlier "build" stage instead for local
+    # dev, where those are still present.
+    build:
+      target: build
+    environment:
+      - NODE_ENV=development
+    # Local dev convenience: force the schema to match prisma/schema.prisma
+    # and reseed every time. --accept-data-loss is fine here because this
+    # only ever targets the local Postgres container's disposable data.
+    command: sh -c "npx prisma db push --accept-data-loss && npm run seed && npm start"

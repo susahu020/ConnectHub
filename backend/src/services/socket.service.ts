@@ -1,9 +1,26 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
+import redis from '../config/redis';
+import { JWT_ACCESS_SECRET as ACCESS_SECRET } from '../config/env';
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456';
+// NOTE ON MULTI-INSTANCE SCALING:
+// The Redis adapter wired up below fixes cross-instance broadcast — an
+// io.to(room).emit(...) call on one backend instance will now reach sockets
+// connected to any other instance, because emits are relayed through Redis
+// pub/sub instead of only hitting the local process's in-memory socket list.
+//
+// The Maps below (activeConnections, activeDevices, meetingParticipants,
+// activeMeetings, meetingHosts, lockedMeetings) are still local, in-process
+// state. That's fine for a single backend instance. If you ever run 2+
+// backend instances, presence/participant lookups that read these Maps
+// directly (rather than emitting through `io`) will only see the sockets
+// connected to whichever instance handled the request — you'd need to move
+// this state into Redis (hashes/sets keyed by room or userId) for it to be
+// consistent across instances. Flagging this rather than leaving it as a
+// silent landmine.
 
 // Store online sockets (userId -> Socket IDs list)
 export const activeConnections = new Map<string, string[]>();
@@ -42,6 +59,24 @@ export const initSocket = (server: HttpServer) => {
       credentials: true,
     },
   });
+
+  // Wire up the Redis adapter so broadcasts (io.to(...).emit(...)) reach
+  // sockets connected to *any* backend instance, not just this process.
+  // Without this, chat/notifications/meetings silently break the moment
+  // you scale past a single instance (or a load balancer round-robins
+  // requests across instances). Falls back to the default in-memory
+  // adapter (single-instance only) if Redis isn't reachable.
+  try {
+    const pubClient = redis.duplicate();
+    const subClient = redis.duplicate();
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('Socket.IO Redis adapter attached — multi-instance broadcast enabled.');
+  } catch (err) {
+    console.warn(
+      'Could not attach Socket.IO Redis adapter, falling back to single-instance in-memory adapter.',
+      err
+    );
+  }
 
   // Authentication Middleware for socket connections
   io.use(async (socket: Socket, next) => {

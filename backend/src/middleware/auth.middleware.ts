@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { User } from '@prisma/client';
 import { getCachedSession, cacheSession } from '../services/session.service';
+import { JWT_ACCESS_SECRET } from '../config/env';
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
@@ -31,7 +32,7 @@ export const authenticate = async (
     // A. Decode and verify Access Token signature
     const decoded = jwt.verify(
       token,
-      process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456'
+      JWT_ACCESS_SECRET
     ) as {
       id: string;
       email: string;
