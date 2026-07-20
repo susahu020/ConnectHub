@@ -9,44 +9,30 @@ const initMailer = async (): Promise<nodemailer.Transporter> => {
   const hasCredentials = !!(SMTP_CONFIG.user && SMTP_CONFIG.pass);
 
   if (hasCredentials) {
-    const isGmail = SMTP_CONFIG.host.includes('gmail.com') || SMTP_CONFIG.user.includes('@gmail.com');
+    // Explicitly using Port 587 with STARTTLS (secure: false) instead of native service profiles.
+    // This handles cloud firewall routing much more reliably on platforms like Render.
+    const transportConfig: nodemailer.TransportOptions = {
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // Must be false for port 587
+      pool: true,
+      auth: {
+        user: SMTP_CONFIG.user,
+        pass: SMTP_CONFIG.pass,
+      },
+      tls: {
+        rejectUnauthorized: false, // Prevents cloud certificate authentication rejections
+        minVersion: 'TLSv1.2',
+      },
+      connectionTimeout: 15000, // Giving the stream a slightly wider buffer window
+      greetingTimeout: 15000,
+    };
 
-    // FIX: Using a generic object type here satisfies the TypeScript compiler 
-    // while keeping Nodemailer's internal custom routing fully intact.
-    const transportConfig: Record<string, any> = isGmail
-      ? {
-          service: 'gmail',
-          pool: true, 
-          auth: {
-            user: SMTP_CONFIG.user,
-            pass: SMTP_CONFIG.pass,
-          },
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-        }
-      : {
-          host: SMTP_CONFIG.host,
-          port: SMTP_CONFIG.port,
-          secure: SMTP_CONFIG.secure,
-          pool: true,
-          auth: {
-            user: SMTP_CONFIG.user,
-            pass: SMTP_CONFIG.pass,
-          },
-          tls: {
-            rejectUnauthorized: false,
-            minVersion: 'TLSv1.2',
-          },
-          connectionTimeout: 10000,
-          greetingTimeout: 10000,
-        };
+    transporter = nodemailer.createTransport(transportConfig);
 
-    transporter = nodemailer.createTransport(transportConfig as nodemailer.TransportOptions);
-
-    // Defensive validation check on boot
     transporter.verify()
       .then(() => {
-        console.log(`🎉 Success: Mailer authenticated smoothly via ${isGmail ? 'Gmail Native Service Profile' : 'Custom SMTP Network'}.`);
+        console.log(`🎉 Success: Mailer authenticated smoothly via secure STARTTLS on Port 587.`);
       })
       .catch((verifyError) => {
         console.error('⚠️ SMTP verification deferred. Retrying live on transactional send:', verifyError.message);
@@ -55,7 +41,6 @@ const initMailer = async (): Promise<nodemailer.Transporter> => {
     return transporter;
   }
 
-  // Safe fallback wrapper
   transporter = nodemailer.createTransport({ jsonTransport: true });
   console.warn('⚠️ WARNING: Mailer running in CONSOLE FALLBACK mode.');
   return transporter;
