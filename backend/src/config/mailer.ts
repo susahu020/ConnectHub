@@ -1,35 +1,35 @@
 import nodemailer from 'nodemailer';
+import { SMTP_CONFIG } from './env'; // Corrected path: they are in the same folder!
 
 let transporter: nodemailer.Transporter;
 
-const initMailer = async () => {
+const initMailer = async (): Promise<nodemailer.Transporter> => {
   if (transporter) return transporter;
 
-  const hasCredentials = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+  const hasCredentials = !!(SMTP_CONFIG.user && SMTP_CONFIG.pass);
 
   if (hasCredentials) {
-    const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const isGmail = smtpHost.includes('gmail.com') || process.env.SMTP_USER?.includes('@gmail.com');
+    const isGmail = SMTP_CONFIG.host.includes('gmail.com') || SMTP_CONFIG.user.includes('@gmail.com');
 
-    // FORCE NATIVE SERVICE ROUTING FOR GMAIL ON CLOUD PLATFORMS
-    const transportConfig = isGmail
+    const transportConfig: nodemailer.TransportOptions = isGmail
       ? {
           service: 'gmail',
+          pool: true, // Maximizes production pipeline throughput
           auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS?.trim(), // Cleans up accidental dashboard white spaces
+            user: SMTP_CONFIG.user,
+            pass: SMTP_CONFIG.pass,
           },
-          // This forces the underlying module to drop connection streams fast if blocked
           connectionTimeout: 10000,
           greetingTimeout: 10000,
         }
       : {
-          host: smtpHost,
-          port: parseInt(process.env.SMTP_PORT || '465', 10),
-          secure: process.env.SMTP_PORT === '465',
+          host: SMTP_CONFIG.host,
+          port: SMTP_CONFIG.port,
+          secure: SMTP_CONFIG.secure,
+          pool: true,
           auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: SMTP_CONFIG.user,
+            pass: SMTP_CONFIG.pass,
           },
           tls: {
             rejectUnauthorized: false,
@@ -39,25 +39,23 @@ const initMailer = async () => {
           greetingTimeout: 10000,
         };
 
-    transporter = nodemailer.createTransport(transportConfig as any);
+    transporter = nodemailer.createTransport(transportConfig);
 
-    // Background validation check
+    // Defensive validation check on boot
     transporter.verify()
       .then(() => {
-        console.log(`🎉 Success: Mailer authenticated natively with Gmail Service Profile.`);
+        console.log(`🎉 Success: Mailer authenticated smoothly via ${isGmail ? 'Gmail Native Service Profile' : 'Custom SMTP Network'}.`);
       })
       .catch((verifyError) => {
-        console.error('Gmail native verification deferred. Retrying live on message send:', verifyError.message);
+        console.error('⚠️ SMTP verification deferred. Retrying live on transactional send:', verifyError.message);
       });
 
     return transporter;
   }
 
-  transporter = nodemailer.createTransport({
-    jsonTransport: true,
-  });
-  console.log('⚠️ WARNING: Mailer running in CONSOLE FALLBACK mode.');
-  
+  // Safe fallback wrapper
+  transporter = nodemailer.createTransport({ jsonTransport: true });
+  console.warn('⚠️ WARNING: Mailer running in CONSOLE FALLBACK mode.');
   return transporter;
 };
 
@@ -66,18 +64,19 @@ export const sendEmail = async (to: string, subject: string, text: string, html?
   
   try {
     const info = await mailTransporter.sendMail({
-      from: process.env.SMTP_FROM || `"ConnectHub" <${process.env.SMTP_USER}>`,
+      from: SMTP_CONFIG.from,
       to,
       subject,
       text,
       html,
     });
 
+    console.log(`✨ Email pushed successfully to ${to}. [ID: ${info.messageId}]`);
     return info;
   } catch (error: any) {
-    console.error('🔴 Nodemailer failed to push through Gmail network pipeline:', error.message);
+    console.error('🔴 Nodemailer failed to push through network pipeline:', error.message);
     
-    // Emergency console fallback so your user registration process never freezes
+    // Emergency console fallback to prevent UI freezing during live user flows
     console.log('================= ✉️ EMERGENCY CONSOLE FALLBACK =================');
     console.log(`TO: ${to}`);
     console.log(`SUBJECT: ${subject}`);
