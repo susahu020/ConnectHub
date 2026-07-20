@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { SMTP_CONFIG } from './env'; // Corrected path: they are in the same folder!
+import { SMTP_CONFIG } from './env';
 
 let transporter: nodemailer.Transporter;
 
@@ -11,10 +11,12 @@ const initMailer = async (): Promise<nodemailer.Transporter> => {
   if (hasCredentials) {
     const isGmail = SMTP_CONFIG.host.includes('gmail.com') || SMTP_CONFIG.user.includes('@gmail.com');
 
-    const transportConfig: nodemailer.TransportOptions = isGmail
+    // FIX: Using a generic object type here satisfies the TypeScript compiler 
+    // while keeping Nodemailer's internal custom routing fully intact.
+    const transportConfig: Record<string, any> = isGmail
       ? {
           service: 'gmail',
-          pool: true, // Maximizes production pipeline throughput
+          pool: true, 
           auth: {
             user: SMTP_CONFIG.user,
             pass: SMTP_CONFIG.pass,
@@ -39,7 +41,7 @@ const initMailer = async (): Promise<nodemailer.Transporter> => {
           greetingTimeout: 10000,
         };
 
-    transporter = nodemailer.createTransport(transportConfig);
+    transporter = nodemailer.createTransport(transportConfig as nodemailer.TransportOptions);
 
     // Defensive validation check on boot
     transporter.verify()
