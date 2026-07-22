@@ -119,8 +119,8 @@ export default function CalendarPage() {
             type: 'company',
             title: a.title,
             description: a.content,
-            color: 'bg-blue-500 text-white',
-            dotColor: 'bg-blue-500',
+            color: 'bg-info text-white',
+            dotColor: 'bg-info',
             icon: Compass,
             meta: `Posted by: Org Announcements`,
           });
@@ -153,22 +153,27 @@ export default function CalendarPage() {
       });
     }
 
-    // 3. Meeting Calendar (Meetings)
+    // 3. Meeting Calendar (Meetings) — scheduled meetings plot on their scheduled
+    // date; instant "start now" meetings (no scheduledFor) plot on the day they
+    // were created, since that's the only date we have for those.
     if (filters.meeting) {
       meetings.forEach((m: any) => {
-        const mDate = new Date(m.createdAt);
+        const mDate = new Date(m.scheduledFor || m.createdAt);
         if (
           mDate.getFullYear() === year &&
           mDate.getMonth() === month &&
           mDate.getDate() === day
         ) {
+          const time = mDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
           dayEvents.push({
             id: `meet-${m.id}`,
             type: 'meeting',
-            title: m.title || 'Live Video Conference',
-            description: `Google Meet style collaboration room. Access code is: ${m.code}`,
-            color: 'bg-indigo-500 text-white',
-            dotColor: 'bg-indigo-500',
+            title: m.title || 'Video Conference',
+            description: m.scheduledFor
+              ? `Scheduled for ${time}${m.durationMins ? ` (${m.durationMins} min)` : ''}. Access code: ${m.code}`
+              : `Instant video meeting. Access code: ${m.code}`,
+            color: 'bg-primary text-white',
+            dotColor: 'bg-primary',
             icon: Video,
             meta: `Host: ${m.host?.firstName} ${m.host?.lastName} • Code: ${m.code}`,
             link: `/meetings?code=${m.code}`,
@@ -245,10 +250,10 @@ export default function CalendarPage() {
 
           <div className="space-y-3">
             {[
-              { key: 'company', label: 'Company Calendar', color: 'bg-blue-500', desc: 'Org holidays & Announcements' },
+              { key: 'company', label: 'Company Calendar', color: 'bg-info', desc: 'Org holidays & Announcements' },
               { key: 'team', label: 'Team Calendar', color: 'bg-emerald-500', desc: 'Assigned task deadlines' },
               { key: 'leave', label: 'Leave Calendar', color: 'bg-amber-500', desc: 'Teammates out of office' },
-              { key: 'meeting', label: 'Meeting Calendar', color: 'bg-indigo-500', desc: 'Scheduled conference rooms' },
+              { key: 'meeting', label: 'Meeting Calendar', color: 'bg-primary', desc: 'Scheduled conference rooms' },
               { key: 'birthday', label: 'Birthday Calendar', color: 'bg-pink-500', desc: 'Colleague birthdays' },
             ].map((item) => (
               <label 

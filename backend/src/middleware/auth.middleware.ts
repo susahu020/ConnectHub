@@ -107,3 +107,71 @@ export const authenticate = async (
     res.status(401).json({ message: 'Invalid authentication token.' });
   }
 };
+
+// Same verification as `authenticate`, but never blocks the request — attaches
+// req.user when a valid token is present, otherwise just calls next(). Used for
+// endpoints that must work for anonymous callers by default, but can layer on
+// extra restrictions when the caller happens to be signed in (e.g. a file share
+// link that's public unless it was scoped to specific people).
+export const optionalAuthenticate = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    let token = '';
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies && req.cookies.accessToken) {
+      token = req.cookies.accessToken;
+    }
+
+    if (!token) {
+      next();
+      return;
+    }
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456'
+    ) as { id: string; email: string; sessionId: string };
+
+    if (!decoded.sessionId) {
+      next();
+      return;
+    }
+
+    let sessionData = await getCachedSession(decoded.sessionId);
+
+    if (!sessionData) {
+      const session = await prisma.session.findUnique({ where: { sessionId: decoded.sessionId } });
+      if (!session || session.isRevoked || session.expiresAt < new Date()) {
+        next();
+        return;
+      }
+      sessionData = {
+        userId: session.userId,
+        accessTokenVersion: session.accessTokenVersion,
+        expiresAt: session.expiresAt.getTime(),
+      };
+      const ttlSeconds = (session.expiresAt.getTime() - Date.now()) / 1000;
+      await cacheSession(decoded.sessionId, sessionData, ttlSeconds);
+    } else if (sessionData.expiresAt < Date.now()) {
+      next();
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: sessionData.userId } });
+    if (user && user.isVerified) {
+      req.user = user;
+      req.sessionId = decoded.sessionId;
+    }
+
+    next();
+  } catch {
+    // Any decode/verify failure just means "treat as anonymous" here, unlike
+    // `authenticate`, which rejects the request outright.
+    next();
+  }
+};

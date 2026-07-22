@@ -72,6 +72,7 @@ export const createTask = async (req: AuthenticatedRequest, res: Response, next:
       message: `Task: "${title}" has been assigned to you by ${req.user?.firstName}.`,
       type: 'TASK_ASSIGNED',
       relatedId: task.id,
+      emailFeature: 'TASK_ASSIGNED',
       io,
     });
 
@@ -285,11 +286,12 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response, next:
     // Trigger workflow automation engine on task completion
     if (updates.status === 'COMPLETED' && existingTask.status !== 'COMPLETED') {
       const { AutomationService } = require('../services/automation.service');
+      const automationIo = req.app.get('io');
       AutomationService.trigger('TASK_COMPLETED', {
         taskId: updatedTask.id,
         taskTitle: updatedTask.title,
         assigneeId: updatedTask.assigneeId,
-      }).catch((err: any) => console.error('[Automation] TASK_COMPLETED trigger failed:', err));
+      }, automationIo).catch((err: any) => console.error('[Automation] TASK_COMPLETED trigger failed:', err));
     }
 
     // Write histories
@@ -312,6 +314,7 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response, next:
           message: `Task: "${updatedTask.title}" has been updated by ${req.user?.firstName}.`,
           type: 'SYSTEM',
           relatedId: id,
+          emailFeature: 'TASK_UPDATED',
           io,
         });
       }
@@ -437,8 +440,15 @@ export const getProjects = async (req: AuthenticatedRequest, res: Response, next
   }
 };
 
+const isManagerOrAdmin = (role?: string) => role === 'ADMIN' || role === 'MANAGER';
+
 export const createProject = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    if (!isManagerOrAdmin(req.user?.role)) {
+      res.status(403).json({ message: 'Only managers and admins can create projects.' });
+      return;
+    }
+
     const { name, description, teamId } = req.body;
 
     let targetTeamId = teamId;
@@ -474,6 +484,11 @@ export const createProject = async (req: AuthenticatedRequest, res: Response, ne
 
 export const updateProject = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    if (!isManagerOrAdmin(req.user?.role)) {
+      res.status(403).json({ message: 'Only managers and admins can edit projects.' });
+      return;
+    }
+
     const { id } = req.params;
     const { name, description, status } = req.body;
     const project = await prisma.project.update({
@@ -488,6 +503,11 @@ export const updateProject = async (req: AuthenticatedRequest, res: Response, ne
 
 export const deleteProject = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    if (!isManagerOrAdmin(req.user?.role)) {
+      res.status(403).json({ message: 'Only managers and admins can delete projects.' });
+      return;
+    }
+
     const { id } = req.params;
     await prisma.project.delete({
       where: { id },
@@ -526,6 +546,12 @@ async function checkCyclicDependency(taskId: string, targetDependsOnId: string):
   return false;
 }
 
+// Same rule updateTask already applies: the assignee, the creator, or a manager/admin.
+// Subtasks, time logs, etc. are really just editing the task in disguise, so they
+// should be gated the same way updateTask itself already is.
+const canManageTask = (task: { assigneeId: string | null; creatorId: string }, userId: string, role?: string) =>
+  isManagerOrAdmin(role) || task.assigneeId === userId || task.creatorId === userId;
+
 /**
  * Create a subtask checklist item.
  */
@@ -533,6 +559,17 @@ export const createSubtask = async (req: AuthenticatedRequest, res: Response, ne
   try {
     const { id: taskId } = req.params;
     const { title } = req.body;
+    const userId = req.user!.id;
+
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      res.status(404).json({ message: 'Task not found.' });
+      return;
+    }
+    if (!canManageTask(task, userId, req.user?.role)) {
+      res.status(403).json({ message: 'You do not have permission to edit this task.' });
+      return;
+    }
 
     const subtask = await prisma.subtask.create({
       data: {
@@ -545,7 +582,7 @@ export const createSubtask = async (req: AuthenticatedRequest, res: Response, ne
     await prisma.taskHistory.create({
       data: {
         taskId,
-        userId: req.user?.id!,
+        userId,
         action: 'SUBTASK_ADDED',
         details: `Subtask checklist item "${title}" added.`,
       },
@@ -563,10 +600,17 @@ export const createSubtask = async (req: AuthenticatedRequest, res: Response, ne
 export const toggleSubtask = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { subtaskId } = req.params;
+    const userId = req.user!.id;
 
     const existing = await prisma.subtask.findUnique({ where: { id: subtaskId } });
     if (!existing) {
       res.status(404).json({ message: 'Subtask not found.' });
+      return;
+    }
+
+    const parentTask = await prisma.task.findUnique({ where: { id: existing.taskId } });
+    if (parentTask && !canManageTask(parentTask, userId, req.user?.role)) {
+      res.status(403).json({ message: 'You do not have permission to edit this task.' });
       return;
     }
 
@@ -579,7 +623,7 @@ export const toggleSubtask = async (req: AuthenticatedRequest, res: Response, ne
     await prisma.taskHistory.create({
       data: {
         taskId: existing.taskId,
-        userId: req.user?.id!,
+        userId,
         action: 'SUBTASK_TOGGLED',
         details: `Subtask "${existing.title}" marked as ${updated.isCompleted ? 'Completed' : 'Pending'}.`,
       },
@@ -598,8 +642,13 @@ export const deleteSubtask = async (req: AuthenticatedRequest, res: Response, ne
   try {
     const { subtaskId } = req.params;
     const existing = await prisma.subtask.findUnique({ where: { id: subtaskId } });
-    
+
     if (existing) {
+      const parentTask = await prisma.task.findUnique({ where: { id: existing.taskId } });
+      if (parentTask && !canManageTask(parentTask, req.user!.id, req.user?.role)) {
+        res.status(403).json({ message: 'You do not have permission to edit this task.' });
+        return;
+      }
       await prisma.subtask.delete({ where: { id: subtaskId } });
     }
 
@@ -620,6 +669,16 @@ export const logTaskTime = async (req: AuthenticatedRequest, res: Response, next
 
     if (!minutes || isNaN(minutes) || minutes <= 0) {
       res.status(400).json({ message: 'A valid number of logged minutes is required.' });
+      return;
+    }
+
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      res.status(404).json({ message: 'Task not found.' });
+      return;
+    }
+    if (!canManageTask(task, userId, req.user?.role)) {
+      res.status(403).json({ message: 'You can only log time on tasks assigned to you (or that you created/manage).' });
       return;
     }
 
@@ -671,9 +730,20 @@ export const addTaskDependency = async (req: AuthenticatedRequest, res: Response
   try {
     const { id: taskId } = req.params;
     const { dependsOnTaskId } = req.body;
+    const userId = req.user!.id;
 
     if (taskId === dependsOnTaskId) {
       res.status(400).json({ message: 'Task cannot depend on itself.' });
+      return;
+    }
+
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      res.status(404).json({ message: 'Task not found.' });
+      return;
+    }
+    if (!canManageTask(task, userId, req.user?.role)) {
+      res.status(403).json({ message: 'You do not have permission to edit this task.' });
       return;
     }
 
@@ -698,7 +768,7 @@ export const addTaskDependency = async (req: AuthenticatedRequest, res: Response
     await prisma.taskHistory.create({
       data: {
         taskId,
-        userId: req.user?.id!,
+        userId,
         action: 'DEPENDENCY_ADDED',
         details: `Dependency added: Task now depends on blocker "${dep.dependsOnTask.title}".`,
       },
@@ -716,6 +786,16 @@ export const addTaskDependency = async (req: AuthenticatedRequest, res: Response
 export const removeTaskDependency = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id: taskId, dependsOnTaskId } = req.params;
+
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      res.status(404).json({ message: 'Task not found.' });
+      return;
+    }
+    if (!canManageTask(task, req.user!.id, req.user?.role)) {
+      res.status(403).json({ message: 'You do not have permission to edit this task.' });
+      return;
+    }
 
     await prisma.taskDependency.deleteMany({
       where: {

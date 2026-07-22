@@ -13,7 +13,9 @@ import {
   Calendar,
   Loader2,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Users,
+  CheckCircle2
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
@@ -27,6 +29,7 @@ export default function AnnouncementsPage() {
 
   const [activeAnn, setActiveAnn] = useState<any>(null);
   const [commentText, setCommentText] = useState('');
+  const [viewersOpen, setViewersOpen] = useState(false);
 
   // Search & Filter bulletin list
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,6 +47,15 @@ export default function AnnouncementsPage() {
   const { data: announcements, isLoading, refetch } = useQuery({
     queryKey: ['announcements'],
     queryFn: () => api.getAnnouncements(''),
+  });
+
+  // Read receipts — who has (and hasn't) viewed the active announcement.
+  // Only meaningful for the creator/admin, and the backend enforces that
+  // restriction too, so a 403 here just quietly shows nothing.
+  const { data: viewersData, isLoading: loadingViewers } = useQuery({
+    queryKey: ['announcement-viewers', activeAnn?.id],
+    queryFn: () => api.getAnnouncementViewers(activeAnn.id),
+    enabled: !!activeAnn?.id && viewersOpen,
   });
 
   const handleDeleteAnnouncement = async (id: string) => {
@@ -113,6 +125,7 @@ export default function AnnouncementsPage() {
     try {
       const data = await api.getAnnouncementDetails(id);
       setActiveAnn(data);
+      setViewersOpen(false);
       // Refresh count logs
       refetch();
     } catch (err) {
@@ -205,7 +218,7 @@ export default function AnnouncementsPage() {
       {/* Bulletins Summary Metrics bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
         {[
-          { label: 'Total Bulletins', value: announcements?.length || 0, icon: '📢', color: 'bg-blue-50/50 dark:bg-blue-950/15 text-blue-600 border-blue-100 dark:border-blue-900/30' },
+          { label: 'Total Bulletins', value: announcements?.length || 0, icon: '📢', color: 'bg-info/5 dark:bg-info/10 text-info-dark dark:text-info border-info/15 dark:border-info/20' },
           { label: 'Total Views', value: announcements?.reduce((acc: number, cur: any) => acc + (cur.viewsCount || 0), 0) || 0, icon: '👁️', color: 'bg-primary/5 text-primary border-primary/10' },
           { label: 'Urgent Notices', value: announcements?.filter((a: any) => a.priority === 'URGENT').length || 0, icon: '🔥', color: 'bg-red-50/50 dark:bg-red-950/15 text-red-500 border-red-100 dark:border-red-900/30' },
           { label: 'Pinned bulletins', value: announcements?.filter((a: any) => a.isPinned).length || 0, icon: '📌', color: 'bg-amber-50/50 dark:bg-amber-950/15 text-amber-500 border-amber-100 dark:border-amber-900/30' }
@@ -383,6 +396,16 @@ export default function AnnouncementsPage() {
                 </span>
               </div>
 
+              {(user?.role === 'ADMIN' || activeAnn.creator?.id === user?.id) && (
+                <button
+                  onClick={() => setViewersOpen(true)}
+                  className="flex items-center justify-center space-x-1.5 w-full py-2 border rounded-xl text-[10px] font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  <span>View Read Receipts</span>
+                </button>
+              )}
+
               {/* Comments/Replies */}
               <div className="space-y-4">
                 <h4 className="font-bold text-xs uppercase text-slate-400 flex items-center space-x-1.5">
@@ -439,9 +462,69 @@ export default function AnnouncementsPage() {
         </div>
       </div>
 
+      {/* Read Receipts Modal */}
+      {viewersOpen && activeAnn && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative max-h-[80vh] flex flex-col">
+            <button onClick={() => setViewersOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1 rounded-lg">
+              <X className="h-5 w-5" />
+            </button>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base flex items-center space-x-2">
+                <Users className="h-4 w-4 text-primary" />
+                <span>Read Receipts</span>
+              </h3>
+              <p className="text-[10px] text-slate-400 truncate">{activeAnn.title}</p>
+            </div>
+
+            {loadingViewers ? (
+              <div className="flex items-center justify-center py-10 text-slate-450">
+                <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+                <span className="text-xs">Loading...</span>
+              </div>
+            ) : viewersData ? (
+              <div className="overflow-y-auto space-y-5 pr-1">
+                <div>
+                  <h4 className="font-bold text-[10px] uppercase text-emerald-500 flex items-center space-x-1.5 mb-2">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Viewed ({viewersData.viewed?.length || 0} of {viewersData.totalAudience})</span>
+                  </h4>
+                  <div className="space-y-2">
+                    {viewersData.viewed?.length === 0 && (
+                      <p className="text-[10px] text-slate-400 italic">No one has viewed this yet.</p>
+                    )}
+                    {viewersData.viewed?.map((v: any) => (
+                      <div key={v.id} className="flex items-center justify-between text-xs">
+                        <span className="font-semibold">{v.firstName} {v.lastName}</span>
+                        <span className="text-[10px] text-slate-400">{new Date(v.viewedAt).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-[10px] uppercase text-amber-500 flex items-center space-x-1.5 mb-2">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span>Not Yet Viewed ({viewersData.notViewed?.length || 0})</span>
+                  </h4>
+                  <div className="space-y-2">
+                    {viewersData.notViewed?.length === 0 && (
+                      <p className="text-[10px] text-slate-400 italic">Everyone in the audience has viewed this.</p>
+                    )}
+                    {viewersData.notViewed?.map((u: any) => (
+                      <div key={u.id} className="text-xs font-semibold text-slate-500">{u.firstName} {u.lastName}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       {/* Creation Modal */}
       {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-lg space-y-5 shadow-2xl relative">
             <button onClick={() => setCreateOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
               <X className="h-5 w-5" />

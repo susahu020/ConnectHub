@@ -16,12 +16,13 @@ export const globalSearch = async (req: AuthenticatedRequest, res: Response, nex
         departments: [],
         groups: [],
         teams: [],
+        wikiPages: [],
       });
       return;
     }
 
     // Parallel DB lookup queries
-    const [users, messages, files, tasks, announcements, departments, groups, teams] = await Promise.all([
+    const [users, messages, files, tasks, announcements, departments, groups, teams, wikiPages] = await Promise.all([
       // 1. Users
       prisma.user.findMany({
         where: {
@@ -109,6 +110,35 @@ export const globalSearch = async (req: AuthenticatedRequest, res: Response, nex
         },
         take: 5,
       }),
+
+      // 9. WikiPages (Knowledge Base Articles)
+      prisma.wikiPage.findMany({
+        where: {
+          AND: [
+            {
+              OR: [
+                { title: { contains: q, mode: 'insensitive' } },
+                { content: { contains: q, mode: 'insensitive' } },
+              ],
+            },
+            {
+              OR: [
+                { isPublished: true },
+                { authorId: req.user!.id },
+                ...(req.user?.role === 'ADMIN' ? [{ isPublished: false }] : []),
+              ],
+            },
+          ],
+        },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          category: true,
+          isPublished: true,
+          updatedAt: true,
+        },
+      }),
     ]);
 
     res.json({
@@ -120,6 +150,7 @@ export const globalSearch = async (req: AuthenticatedRequest, res: Response, nex
       departments,
       groups,
       teams,
+      wikiPages,
     });
   } catch (error) {
     next(error);

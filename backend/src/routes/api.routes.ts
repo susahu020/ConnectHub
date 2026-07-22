@@ -7,6 +7,8 @@ import {
 
 import {
   createMeeting,
+  scheduleMeeting,
+  respondToInvite,
   getMeetingByCode,
   startMeeting,
   endMeeting,
@@ -14,6 +16,8 @@ import {
 } from '../controllers/meeting.controller';
 
 import { globalSearch } from '../controllers/search.controller';
+import { getPublicOrganizationSettings, updateOrganizationSettings, uploadOrganizationLogo, uploadOrganizationFavicon } from '../controllers/organization.controller';
+import { getTeams, getTeamById, createTeam, updateTeam, deleteTeam, addTeamMember, removeTeamMember } from '../controllers/team.controller';
 
 import {
   getWikiPages,
@@ -32,7 +36,7 @@ import {
 } from '../controllers/workflow.controller';
 
 // Middlewares
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/role.middleware';
 import { checkPermission } from '../middleware/rbac.middleware';
 import { validate } from '../middleware/validation.middleware';
@@ -159,6 +163,7 @@ import {
   createAnnouncement,
   getAnnouncements,
   getAnnouncementDetails,
+  getAnnouncementViewers,
   deleteAnnouncement,
   likeAnnouncement,
   addComment,
@@ -197,6 +202,9 @@ import {
   adminUpdateUser,
   adminDeleteUser,
   adminChangeUserPassword,
+  getEmailFeatureSettings,
+  updateEmailFeatureSettings,
+  sendTestEmail,
 } from '../controllers/admin.controller';
 
 import {
@@ -343,6 +351,8 @@ router.post('/rbac/users/:userId/role', authenticate as any, authorize(['ADMIN']
 // ==========================================
 router.get('/meetings', authenticate as any, getMeetings as any);
 router.post('/meetings', authenticate as any, createMeeting as any);
+router.post('/meetings/schedule', authenticate as any, scheduleMeeting as any);
+router.patch('/meetings/:id/invite', authenticate as any, respondToInvite as any);
 router.get('/meetings/:code', authenticate as any, getMeetingByCode as any);
 router.post('/meetings/:code/start', authenticate as any, startMeeting as any);
 router.post('/meetings/:code/end', authenticate as any, endMeeting as any);
@@ -407,6 +417,7 @@ router.delete('/projects/:id', authenticate as any, checkPermission('Tasks', 'De
 router.post('/announcements', authenticate as any, checkPermission('Announcements', 'Create'), validate(createAnnouncementSchema), createAnnouncement as any);
 router.get('/announcements', authenticate as any, getAnnouncements as any);
 router.get('/announcements/:id', authenticate as any, getAnnouncementDetails as any);
+router.get('/announcements/:id/views', authenticate as any, getAnnouncementViewers as any);
 router.delete('/announcements/:id', authenticate as any, checkPermission('Announcements', 'Delete'), deleteAnnouncement as any);
 router.post('/announcements/:id/like', authenticate as any, likeAnnouncement as any);
 router.post('/announcements/:id/comment', authenticate as any, addComment as any);
@@ -426,7 +437,7 @@ router.post('/files/:id/restore', authenticate as any, restoreItem as any);
 router.delete('/files/:id/permanent', authenticate as any, deletePermanently as any);
 router.post('/files/:id/move', authenticate as any, moveItem as any);
 router.post('/files/:id/share', authenticate as any, createShareLink as any);
-router.get('/files/shared/:accessKey', accessSharedFile as any);
+router.get('/files/shared/:accessKey', optionalAuthenticate as any, accessSharedFile as any);
 router.get('/files/bulk-download', authenticate as any, bulkDownload as any);
 router.post('/files/:id/scan', authenticate as any, scanFile as any);
 router.post('/files/:id/ocr', authenticate as any, ocrFile as any);
@@ -462,6 +473,20 @@ router.post('/admin/logout-user', authenticate as any, authorize(['ADMIN']), adm
 router.post('/admin/logout-all', authenticate as any, authorize(['ADMIN']), adminLogoutAll as any);
 router.get('/admin/departments', authenticate as any, getDepartments as any);
 router.delete('/admin/departments/:id', authenticate as any, authorize(['ADMIN']), deleteDepartment as any);
+router.get('/teams', authenticate as any, getTeams as any);
+router.get('/teams/:id', authenticate as any, getTeamById as any);
+router.post('/teams', authenticate as any, authorize(['ADMIN']), createTeam as any);
+router.put('/teams/:id', authenticate as any, authorize(['ADMIN']), updateTeam as any);
+router.delete('/teams/:id', authenticate as any, authorize(['ADMIN']), deleteTeam as any);
+router.post('/teams/:id/members', authenticate as any, authorize(['ADMIN']), addTeamMember as any);
+router.delete('/teams/:id/members/:userId', authenticate as any, authorize(['ADMIN']), removeTeamMember as any);
+router.get('/admin/email-settings', authenticate as any, authorize(['ADMIN']), getEmailFeatureSettings as any);
+router.put('/admin/email-settings', authenticate as any, authorize(['ADMIN']), updateEmailFeatureSettings as any);
+router.post('/admin/email-settings/test', authenticate as any, authorize(['ADMIN']), sendTestEmail as any);
+router.get('/organization/settings', getPublicOrganizationSettings as any);
+router.put('/admin/organization-settings', authenticate as any, authorize(['ADMIN']), updateOrganizationSettings as any);
+router.post('/admin/organization-settings/logo', authenticate as any, authorize(['ADMIN']), upload.single('logo'), uploadOrganizationLogo as any);
+router.post('/admin/organization-settings/favicon', authenticate as any, authorize(['ADMIN']), upload.single('favicon'), uploadOrganizationFavicon as any);
 
 // ==========================================
 // COMPANY WIKI
@@ -476,10 +501,10 @@ router.post('/wiki/:id/rollback/:versionId', authenticate as any, rollbackWikiPa
 // ==========================================
 // WORKFLOW AUTOMATION
 // ==========================================
-router.get('/workflows', authenticate as any, getWorkflows as any);
-router.post('/workflows', authenticate as any, createWorkflow as any);
-router.put('/workflows/:id', authenticate as any, updateWorkflow as any);
-router.delete('/workflows/:id', authenticate as any, deleteWorkflow as any);
+router.get('/workflows', authenticate as any, authorize(['ADMIN']), getWorkflows as any);
+router.post('/workflows', authenticate as any, authorize(['ADMIN']), createWorkflow as any);
+router.put('/workflows/:id', authenticate as any, authorize(['ADMIN']), updateWorkflow as any);
+router.delete('/workflows/:id', authenticate as any, authorize(['ADMIN']), deleteWorkflow as any);
 
 // ==========================================
 // HR MODULE ROUTES

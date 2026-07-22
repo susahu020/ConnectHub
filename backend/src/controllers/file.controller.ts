@@ -5,6 +5,7 @@ import prisma from '../config/db';
 import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cloudinary';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { createNotification } from '../services/notification.service';
+import { getOrganizationSettings } from '../services/organization.service';
 
 export const uploadFile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -64,11 +65,12 @@ export const uploadFile = async (req: AuthenticatedRequest, res: Response, next:
 
     // Trigger workflow automation engine on document uploaded
     const { AutomationService } = require('../services/automation.service');
+    const automationIo = req.app.get('io');
     AutomationService.trigger('DOCUMENT_UPLOADED', {
       fileId: dbFile.id,
       fileName: dbFile.name,
       uploaderId: dbFile.uploaderId,
-    }).catch((err: any) => console.error('[Automation] DOCUMENT_UPLOADED trigger failed:', err));
+    }, automationIo).catch((err: any) => console.error('[Automation] DOCUMENT_UPLOADED trigger failed:', err));
 
     res.status(201).json(dbFile);
   } catch (error) {
@@ -386,6 +388,22 @@ export const createShareLink = async (req: AuthenticatedRequest, res: Response, 
     const { expiresHours, sharedWithUserIds } = req.body;
     const sharedById = req.user?.id!;
 
+    const file = await prisma.file.findUnique({ where: { id: fileId } });
+    if (!file || file.isDeleted) {
+      res.status(404).json({ message: 'File not found.' });
+      return;
+    }
+
+    // Only the person who uploaded the file (or an admin) can generate a link
+    // for it — otherwise anyone who knew/guessed a fileId could publish a
+    // download link for someone else's file.
+    const isOwner = file.uploaderId === sharedById;
+    const isAdmin = req.user?.role === 'ADMIN';
+    if (!isOwner && !isAdmin) {
+      res.status(403).json({ message: 'You can only create share links for files you uploaded.' });
+      return;
+    }
+
     const accessKey = require('crypto').randomBytes(16).toString('hex');
     let expiresAt: Date | null = null;
     if (expiresHours) {
@@ -393,12 +411,17 @@ export const createShareLink = async (req: AuthenticatedRequest, res: Response, 
       expiresAt.setHours(expiresAt.getHours() + expiresHours);
     }
 
+    const restrictedToUserIds: string[] = Array.isArray(sharedWithUserIds)
+      ? [...new Set(sharedWithUserIds.filter((id: any) => typeof id === 'string'))]
+      : [];
+
     const fileShare = await prisma.fileShare.create({
       data: {
         fileId,
         sharedById,
         accessKey,
         expiresAt,
+        restrictedToUserIds,
       },
       include: {
         file: true,
@@ -406,16 +429,17 @@ export const createShareLink = async (req: AuthenticatedRequest, res: Response, 
     });
 
     // Notify targeted users if document was shared directly
-    if (sharedWithUserIds && Array.isArray(sharedWithUserIds)) {
+    if (restrictedToUserIds.length > 0) {
       const io = req.app.get('io');
       await Promise.all(
-        sharedWithUserIds.map((targetUserId) =>
+        restrictedToUserIds.map((targetUserId) =>
           createNotification({
             userId: targetUserId,
             title: 'Document Shared',
             message: `${req.user?.firstName} shared a document with you: "${fileShare.file.name}"`,
             type: 'SYSTEM',
             relatedId: fileId,
+            emailFeature: 'FILE_SHARED',
             io,
           })
         )
@@ -425,14 +449,16 @@ export const createShareLink = async (req: AuthenticatedRequest, res: Response, 
     const serverUrl = `${req.protocol}://${req.get('host')}`;
     const shareLink = `${serverUrl}/api/v1/files/shared/${accessKey}`;
 
-    res.status(201).json({ shareLink, expiresAt });
+    res.status(201).json({ shareLink, expiresAt, restrictedTo: restrictedToUserIds.length });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Access/Download a shared file via accessKey.
+ * Access/Download a shared file via accessKey. Public by default (matches "anyone
+ * with the link"); if the share was scoped to specific people, the caller must be
+ * signed in as one of them — enforced here, not just implied by the UI.
  */
 export const accessSharedFile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -451,6 +477,14 @@ export const accessSharedFile = async (req: AuthenticatedRequest, res: Response,
     if (share.expiresAt && new Date() > share.expiresAt) {
       res.status(410).send('Shared link has expired.');
       return;
+    }
+
+    if (share.restrictedToUserIds.length > 0) {
+      const requesterId = req.user?.id;
+      if (!requesterId || !share.restrictedToUserIds.includes(requesterId)) {
+        res.status(403).send('This file was shared with specific people only. Sign in with the account it was shared with and try again.');
+        return;
+      }
     }
 
     await prisma.fileShare.update({
@@ -535,7 +569,8 @@ export const ocrFile = async (req: AuthenticatedRequest, res: Response, next: Ne
 export const watermarkFile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
-    const { text = 'ConnectHub CONFIDENTIAL' } = req.query;
+    const orgSettings = await getOrganizationSettings();
+    const { text = orgSettings.defaultWatermarkText } = req.query;
     const file = await prisma.file.findUnique({ where: { id } });
     if (!file) {
       res.status(404).json({ message: 'File not found.' });

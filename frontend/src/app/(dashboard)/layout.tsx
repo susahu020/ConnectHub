@@ -41,6 +41,7 @@ import {
 import { useAuthStore } from '../../lib/store';
 import { api } from '../../services/api';
 import { useSocket } from '../../hooks/useSocket';
+import { useOrganizationSettings } from '../../hooks/useOrganizationSettings';
 import { toast } from 'react-hot-toast';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { user, logout, token, isAuthenticated, updateUser } = useAuthStore();
   const { socket } = useSocket();
+  const { settings: orgSettings } = useOrganizationSettings();
 
   // State
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -139,6 +141,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const matchedMessages = globalSearchResults?.messages || [];
   const matchedFiles = globalSearchResults?.files || [];
   const matchedDepartments = globalSearchResults?.departments || [];
+  const matchedWikiPages = globalSearchResults?.wikiPages || [];
 
   const hasSearchResults = 
     matchedUsers.length > 0 || 
@@ -148,7 +151,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     matchedAnnouncements.length > 0 ||
     matchedMessages.length > 0 ||
     matchedFiles.length > 0 ||
-    matchedDepartments.length > 0;
+    matchedDepartments.length > 0 ||
+    matchedWikiPages.length > 0;
 
   // Inactivity & Heartbeat states
   const [showWarningModal, setShowWarningModal] = useState(false);
@@ -399,8 +403,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Calendar', href: '/calendar', icon: <Calendar className="h-4 w-4" /> },
     { name: 'HR Portal', href: '/hr', icon: <Briefcase className="h-4 w-4" /> },
     { name: 'Announcements', href: '/announcements', icon: <Megaphone className="h-4 w-4" /> },
-    { name: 'Company Wiki', href: '/wiki', icon: <BookOpen className="h-4 w-4" /> },
-    { name: 'Automations', href: '/workflows', icon: <Sparkles className="h-4 w-4" /> },
+    { name: 'Knowledge Base', href: '/wiki', icon: <BookOpen className="h-4 w-4" /> },
     { name: 'File Storage', href: '/files', icon: <FolderHeart className="h-4 w-4" /> },
     { name: 'Directory', href: '/directory', icon: <Contact className="h-4 w-4" /> },
     { name: 'Org Chart', href: '/org-chart', icon: <Network className="h-4 w-4" /> },
@@ -414,6 +417,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       name: 'Admin Panel',
       href: '/admin',
       icon: <ShieldAlert className="h-4 w-4" />,
+    });
+    navLinks.push({
+      name: 'Automations',
+      href: '/workflows',
+      icon: <Sparkles className="h-4 w-4" />,
     });
   }
 
@@ -446,8 +454,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           sidebarCollapsed ? 'px-2 justify-center' : 'px-6 justify-between'
         }`}>
           <Link href="/dashboard" onClick={() => setSidebarOpen(false)} className="flex items-center space-x-2 font-bold text-lg tracking-tight shrink-0">
-            <Layers className="h-5 w-5 text-primary shrink-0" />
-            {!sidebarCollapsed && <span>ConnectHub</span>}
+            {orgSettings.logoUrl ? (
+              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-5 w-5 rounded shrink-0 object-contain" />
+            ) : (
+              <Layers className="h-5 w-5 text-primary shrink-0" />
+            )}
+            {!sidebarCollapsed && <span>{orgSettings.orgName}</span>}
           </Link>
           <button 
             onClick={() => setSidebarOpen(false)} 
@@ -752,7 +764,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
                           >
                             <div className="h-6 w-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                              <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+                              <MessageSquare className="h-3.5 w-3.5 text-info" />
                             </div>
                             <div className="min-w-0 flex-1 text-left">
                               <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.sender?.firstName} {item.sender?.lastName}</p>
@@ -782,6 +794,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <div className="min-w-0 flex-1 text-left">
                               <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.name}</p>
                               <p className="text-[8px] text-muted-foreground truncate leading-none">{(item.size / 1024).toFixed(1)} KB • {item.fileType?.toUpperCase()}</p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category: Knowledge Base */}
+                  {matchedWikiPages.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-1">Knowledge Base</div>
+                      <div className="space-y-1">
+                        {matchedWikiPages.map((item: any) => (
+                          <Link
+                            key={item.id}
+                            href={`/wiki?id=${item.id}`}
+                            onClick={() => setSearchFocused(false)}
+                            className="flex items-center space-x-2.5 p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-xl transition-all"
+                          >
+                            <div className="h-6 w-6 rounded bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                              <BookOpen className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                            <div className="min-w-0 flex-1 text-left">
+                              <p className="text-xs font-bold text-foreground truncate leading-none mb-0.5">{item.title}</p>
+                              <p className="text-[8px] text-muted-foreground truncate leading-none">{item.category} • {new Date(item.updatedAt).toLocaleDateString()}</p>
                             </div>
                           </Link>
                         ))}
@@ -915,7 +952,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
       {/* Session Expiring Warning Modal */}
       {showWarningModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-5 shadow-2xl relative text-center">
             <div className="p-3 bg-amber-500/10 w-fit mx-auto rounded-full text-amber-500">
               <Clock className="h-8 w-8 animate-pulse" />
@@ -972,7 +1009,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   Happy Birthday, {user?.firstName}! 🎉
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm">
-                  ConnectHub wishes you a wonderful birthday filled with happiness, success, and amazing achievements! Thank you for being such an invaluable part of our team! 🎁✨
+                  {orgSettings.orgName} wishes you a wonderful birthday filled with happiness, success, and amazing achievements! Thank you for being such an invaluable part of our team! 🎁✨
                 </p>
               </div>
 
@@ -1028,7 +1065,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   Happy Work Anniversary! 🎉
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm">
-                  Congratulations, {user?.firstName}, on completing <strong>{anniversaryYears} Year{anniversaryYears > 1 ? 's' : ''}</strong> with ConnectHub! We appreciate your hard work, commitment, and the outstanding contributions you bring to our team every day! 🥂✨
+                  Congratulations, {user?.firstName}, on completing <strong>{anniversaryYears} Year{anniversaryYears > 1 ? 's' : ''}</strong> with {orgSettings.orgName}! We appreciate your hard work, commitment, and the outstanding contributions you bring to our team every day! 🥂✨
                 </p>
               </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Play, 
@@ -14,12 +15,16 @@ import {
   CheckCircle2,
   FileText,
   Clock,
-  Sparkles
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { api } from '../../../services/api';
+import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
 
 export default function WorkflowsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   
@@ -28,10 +33,18 @@ export default function WorkflowsPage() {
   const [flowTrigger, setFlowTrigger] = useState('TASK_COMPLETED');
   const [flowAction, setFlowAction] = useState('NOTIFY_MANAGER');
 
+  // Workflows configure company-wide automation policy — admin only, same as the Admin Panel.
+  useEffect(() => {
+    if (user && user.role !== 'ADMIN') {
+      router.push('/unauthorized');
+    }
+  }, [user, router]);
+
   // Queries
   const { data: workflows = [], isLoading } = useQuery({
     queryKey: ['workflows-list'],
     queryFn: () => api.getWorkflows(),
+    enabled: user?.role === 'ADMIN',
   });
 
   // Mutations
@@ -97,11 +110,19 @@ export default function WorkflowsPage() {
   const getTriggerIcon = (trig: string) => {
     switch (trig) {
       case 'TASK_COMPLETED': return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
-      case 'EMPLOYEE_JOINED': return <UserCheck className="h-5 w-5 text-blue-500" />;
+      case 'EMPLOYEE_JOINED': return <UserCheck className="h-5 w-5 text-info" />;
       case 'DOCUMENT_UPLOADED': return <FileText className="h-5 w-5 text-amber-500" />;
       default: return <Sparkles className="h-5 w-5 text-primary" />;
     }
   };
+
+  if (!user || user.role !== 'ADMIN') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 text-left p-1">

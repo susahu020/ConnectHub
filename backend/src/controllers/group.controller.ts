@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { createManyNotifications } from '../services/notification.service';
 
 export const createGroup = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -43,6 +44,25 @@ export const createGroup = async (req: AuthenticatedRequest, res: Response, next
         details: `Created group channel "${name}"`,
       },
     });
+
+    // Notify everyone added to the group except the creator (Real-time and
+    // Email preferences integrated)
+    const invitedMemberIds = uniqueMemberIds.filter((id: string) => id !== creatorId);
+    if (invitedMemberIds.length > 0) {
+      const io = req.app.get('io');
+      const creatorName = `${req.user?.firstName} ${req.user?.lastName}`.trim();
+      await createManyNotifications({
+        notifications: invitedMemberIds.map((userId: string) => ({
+          userId,
+          title: 'Added to a New Group',
+          message: `${creatorName} added you to the group "${name}".`,
+          type: 'GROUP_CREATED',
+          relatedId: group.id,
+          emailFeature: 'GROUP_CREATION',
+        })),
+        io,
+      });
+    }
 
     res.status(201).json(group);
   } catch (error) {

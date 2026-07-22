@@ -41,6 +41,7 @@ enum NotificationType {
   REMINDER
   SYSTEM
   MEETING
+  GROUP_CREATED
 }
 
 enum MeetingStatus {
@@ -111,6 +112,7 @@ model User {
   announcements    Announcement[]       @relation("AnnouncementCreator")
   comments         AnnouncementComment[]
   likes            AnnouncementLike[]
+  announcementViews AnnouncementView[]
   assignedTasks    Task[]               @relation("TaskAssignee")
   createdTasks     Task[]               @relation("TaskCreator")
   taskComments     TaskComment[]
@@ -137,6 +139,7 @@ model User {
   lockoutUntil     DateTime?
   deletedConversations DeletedConversation[]
   hostedMeetings   Meeting[]
+  meetingInvites   MeetingInvite[]
 
   leaveRequests        LeaveRequest[]
   leaveApprovals       LeaveRequest[]        @relation("LeaveApprover")
@@ -369,6 +372,7 @@ model Announcement {
   updatedAt    DateTime              @updatedAt
   comments     AnnouncementComment[]
   likes        AnnouncementLike[]
+  views        AnnouncementView[]
 }
 
 model AnnouncementComment {
@@ -389,6 +393,22 @@ model AnnouncementLike {
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt      DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+}
+
+// Per-user read receipt for an announcement. Lets the author/admin see
+// exactly who has (and hasn't) opened a given announcement — important for
+// compliance-critical posts (policy changes, mandatory notices) where the
+// aggregate `viewsCount` on Announcement alone isn't enough to know who
+// still needs to be followed up with.
+model AnnouncementView {
+  id             String       @id @default(uuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewedAt       DateTime     @default(now())
 
   @@unique([announcementId, userId])
 }
@@ -477,16 +497,41 @@ model Notification {
 // it's currently live — the guest lobby screen checks this over REST *before*
 // falling back to the socket for real-time "host just started" pushes, so a
 // mistyped/expired code fails fast instead of spinning forever.
+//
+// scheduledFor is null for instant "start now" meetings, and set for meetings
+// booked ahead of time via the scheduler — the calendar and "My Meetings" list
+// both key off this field when it's present, falling back to createdAt otherwise.
 model Meeting {
-  id        String        @id @default(uuid())
-  code      String        @unique
-  title     String?
-  hostId    String
-  host      User          @relation(fields: [hostId], references: [id], onDelete: Cascade)
-  status    MeetingStatus @default(SCHEDULED)
-  createdAt DateTime      @default(now())
-  startedAt DateTime?
-  endedAt   DateTime?
+  id           String          @id @default(uuid())
+  code         String          @unique
+  title        String?
+  hostId       String
+  host         User            @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  status       MeetingStatus   @default(SCHEDULED)
+  createdAt    DateTime        @default(now())
+  startedAt    DateTime?
+  endedAt      DateTime?
+  scheduledFor DateTime?
+  durationMins Int?
+  invites      MeetingInvite[]
+}
+
+enum MeetingInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model MeetingInvite {
+  id        String              @id @default(uuid())
+  meetingId String
+  meeting   Meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    MeetingInviteStatus @default(PENDING)
+  createdAt DateTime            @default(now())
+
+  @@unique([meetingId, userId])
 }
 
 model Session {
@@ -572,6 +617,47 @@ model UserSettings {
   desktopEnabled Boolean @default(true)
 }
 
+// Singleton table (a single row) holding admin-controlled, per-feature
+// switches for outbound notification emails. When a switch is off, no
+// email is sent for that feature regardless of any user's personal email
+// preference (UserSettings.emailEnabled) — the two checks are ANDed
+// together in notification.service.ts.
+model EmailFeatureSettings {
+  id                  String   @id @default(uuid())
+  newMessageEmail     Boolean  @default(true) // direct (1:1) messages
+  groupMessageEmail   Boolean  @default(true) // group messages & mentions
+  groupCreationEmail  Boolean  @default(true) // added to a new group
+  taskAssignedEmail   Boolean  @default(true)
+  taskUpdatedEmail    Boolean  @default(true)
+  announcementEmail   Boolean  @default(true)
+  meetingInviteEmail  Boolean  @default(true)
+  fileSharedEmail     Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+  updatedById         String?
+}
+
+// Singleton table (a single row) holding org-wide branding and configuration
+// values. Any code that needs the company name, logo, support contact, etc.
+// should read from here (via organization.service.ts on the backend, or the
+// useOrganizationSettings hook on the frontend) instead of hardcoding a
+// literal string — so a change made once by the admin propagates everywhere
+// automatically (sidebar, auth pages, emails, landing page, file watermark).
+model OrganizationSettings {
+  id                   String   @id @default(uuid())
+  orgName              String   @default("ConnectHub")
+  tagline              String   @default("Enterprise Communication & Collaboration Platform")
+  logoUrl              String?
+  faviconUrl           String?
+  primaryColor         String   @default("#4f46e5")
+  supportEmail         String?
+  website              String?
+  address              String?
+  defaultWatermarkText String   @default("ConnectHub CONFIDENTIAL")
+  defaultTimezone      String   @default("UTC")
+  updatedAt            DateTime @updatedAt
+  updatedById          String?
+}
+
 model CustomRole {
   id          String             @id @default(uuid())
   name        String             @unique
@@ -649,15 +735,18 @@ model MessagePollVote {
 }
 
 model FileShare {
-  id          String    @id @default(uuid())
-  fileId      String
-  file        File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  sharedById  String
-  sharedBy    User      @relation(fields: [sharedById], references: [id], onDelete: Cascade)
-  accessKey   String    @unique
-  expiresAt   DateTime?
-  downloads   Int       @default(0)
-  createdAt   DateTime  @default(now())
+  id                 String    @id @default(uuid())
+  fileId             String
+  file               File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  sharedById         String
+  sharedBy           User      @relation(fields: [sharedById], references: [id], onDelete: Cascade)
+  accessKey          String    @unique
+  expiresAt          DateTime?
+  downloads          Int       @default(0)
+  createdAt          DateTime  @default(now())
+  // Empty = "anyone with the link" (public). Non-empty = only these user ids may
+  // access it — enforced in accessSharedFile, not just cosmetic.
+  restrictedToUserIds String[] @default([])
 }
 
 model Subtask {

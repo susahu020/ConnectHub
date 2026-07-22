@@ -14,11 +14,27 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  AlertTriangle,
   X,
   Copy,
   Save,
   Activity,
-  UserPlus
+  UserPlus,
+  Mail,
+  MessageSquare,
+  UsersRound,
+  ClipboardCheck,
+  ClipboardPen,
+  Megaphone,
+  Video,
+  FileText,
+  Palette,
+  Globe,
+  MapPin,
+  Image as ImageIcon,
+  LogOut,
+  ShieldOff,
+  Upload
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
@@ -28,13 +44,61 @@ import { useConfirm } from '../../../context/ConfirmContext';
 const MODULES = ['Dashboard', 'Users', 'Groups', 'Announcements', 'Tasks', 'Files', 'Messages', 'Notifications', 'Reports', 'Admin', 'Analytics', 'Settings'];
 const ACTIONS = ['Create', 'Read', 'Update', 'Delete', 'Export', 'Import', 'Approve', 'Assign', 'Archive', 'Publish'];
 
+// Admin-controlled email notification features. `key` must match a column
+// on the backend's EmailFeatureSettings model.
+// Common IANA timezones for the org-wide default timezone selector. Not
+// exhaustive (there are ~400 IANA zones) — covers the zones a typical
+// distributed org's HQ/primary offices are likely to be in.
+const COMMON_TIMEZONES: string[] = [
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Sao_Paulo',
+  'America/Mexico_City',
+  'America/Toronto',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Europe/Madrid',
+  'Europe/Moscow',
+  'Africa/Cairo',
+  'Africa/Lagos',
+  'Africa/Johannesburg',
+  'Asia/Dubai',
+  'Asia/Karachi',
+  'Asia/Kolkata',
+  'Asia/Dhaka',
+  'Asia/Bangkok',
+  'Asia/Singapore',
+  'Asia/Hong_Kong',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+  'Asia/Seoul',
+  'Australia/Sydney',
+  'Australia/Perth',
+  'Pacific/Auckland',
+];
+
+const EMAIL_FEATURES: { key: string; label: string; description: string; icon: any }[] = [
+  { key: 'newMessageEmail', label: 'New Direct Message', description: 'Email a user when they receive a new 1:1 chat message.', icon: MessageSquare },
+  { key: 'groupMessageEmail', label: 'Group Message & Mentions', description: 'Email group members on new group messages and @mentions.', icon: UsersRound },
+  { key: 'groupCreationEmail', label: 'Group Creation', description: 'Email users when they are added to a newly created group.', icon: UserPlus },
+  { key: 'taskAssignedEmail', label: 'Task Assigned', description: 'Email the assignee when a new task is assigned to them.', icon: ClipboardCheck },
+  { key: 'taskUpdatedEmail', label: 'Task Updated', description: 'Email the assignee when someone else updates their task.', icon: ClipboardPen },
+  { key: 'announcementEmail', label: 'Announcement Posted', description: 'Email employees when a new company announcement is posted.', icon: Megaphone },
+  { key: 'meetingInviteEmail', label: 'Meeting Invite', description: 'Email invitees when they are invited to a scheduled meeting.', icon: Video },
+  { key: 'fileSharedEmail', label: 'File / Document Shared', description: 'Email a user when a document is shared directly with them.', icon: FileText },
+];
+
 export default function AdminPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'roles' | 'logs' | 'system'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'roles' | 'logs' | 'system' | 'email' | 'org' | 'teams'>('users');
 
   // Search & Filter system items
   const [userSearch, setUserSearch] = useState('');
@@ -51,6 +115,14 @@ export default function AdminPage() {
   const [createDeptOpen, setCreateDeptOpen] = useState(false);
   const [deptName, setDeptName] = useState('');
   const [deptDesc, setDeptDesc] = useState('');
+
+  // Team creation & roster management state
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const [teamName, setTeamName] = useState('');
+  const [teamDesc, setTeamDesc] = useState('');
+  const [teamDeptId, setTeamDeptId] = useState('');
+  const [manageTeamRosterId, setManageTeamRosterId] = useState<string | null>(null);
+  const [addMemberUserId, setAddMemberUserId] = useState('');
 
   // Role management state
   const [selectedRole, setSelectedRole] = useState<any>(null);
@@ -102,6 +174,12 @@ export default function AdminPage() {
     enabled: user?.role === 'ADMIN',
   });
 
+  const { data: teams, isLoading: loadingTeams } = useQuery({
+    queryKey: ['admin-teams'],
+    queryFn: () => api.getTeams(),
+    enabled: user?.role === 'ADMIN' && activeTab === 'teams',
+  });
+
   const { data: roles, isLoading: loadingRoles } = useQuery({
     queryKey: ['admin-roles'],
     queryFn: () => api.getRoles(),
@@ -119,6 +197,18 @@ export default function AdminPage() {
     queryFn: () => api.getSystemMetrics(),
     enabled: user?.role === 'ADMIN' && activeTab === 'system',
     refetchInterval: 5000,
+  });
+
+  const { data: emailFeatureSettings, isLoading: loadingEmailSettings } = useQuery({
+    queryKey: ['admin-email-settings'],
+    queryFn: () => api.getEmailFeatureSettings(),
+    enabled: user?.role === 'ADMIN' && activeTab === 'email',
+  });
+
+  const { data: orgSettingsData, isLoading: loadingOrgSettings } = useQuery({
+    queryKey: ['organization-settings'],
+    queryFn: () => api.getOrganizationSettings(),
+    enabled: user?.role === 'ADMIN' && activeTab === 'org',
   });
 
   const filteredUsers = systemUsers?.filter((u: any) => {
@@ -149,6 +239,190 @@ export default function AdminPage() {
       toast.success('User status updated successfully.');
     },
   });
+
+  // Force Logout Mutations — terminate a single user's active sessions, or
+  // every session platform-wide (e.g. after a suspected credential leak).
+  const forceLogoutUserMutation = useMutation({
+    mutationFn: (targetUserId: string) => api.adminLogoutUser(targetUserId),
+    onSuccess: () => {
+      toast.success('User sessions terminated.');
+    },
+    onError: () => {
+      toast.error('Failed to terminate user sessions.');
+    },
+  });
+
+  const forceLogoutAllMutation = useMutation({
+    mutationFn: () => api.adminLogoutAllUsers(),
+    onSuccess: () => {
+      toast.success('All sessions terminated platform-wide. Everyone (including you) will need to sign in again.');
+    },
+    onError: () => {
+      toast.error('Failed to terminate sessions.');
+    },
+  });
+
+  const handleForceLogoutUser = async (u: any) => {
+    if (!await confirm({
+      title: 'Force Logout User',
+      message: `Immediately terminate all active sessions for ${u.firstName} ${u.lastName}? They will be signed out on every device and must log in again.`,
+      confirmText: 'Force Logout',
+      type: 'danger'
+    })) return;
+    forceLogoutUserMutation.mutate(u.id);
+  };
+
+  const handleForceLogoutAll = async () => {
+    if (!await confirm({
+      title: 'Force Logout Everyone',
+      message: 'This immediately terminates every active session for every user platform-wide — including your own. Everyone will need to sign in again. This cannot be undone.',
+      confirmText: 'Log Out Everyone',
+      type: 'danger'
+    })) return;
+    forceLogoutAllMutation.mutate();
+  };
+
+  // Email Feature Toggle Mutation — flips a single feature switch and
+  // optimistically updates the cache so the switch feels instant.
+  const updateEmailFeatureMutation = useMutation({
+    mutationFn: (updates: Record<string, boolean>) => api.updateEmailFeatureSettings(updates),
+    onMutate: async (updates) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-email-settings'] });
+      const previous = queryClient.getQueryData(['admin-email-settings']);
+      queryClient.setQueryData(['admin-email-settings'], (old: any) => ({ ...old, ...updates }));
+      return { previous };
+    },
+    onError: (_err, _updates, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['admin-email-settings'], context.previous);
+      }
+      toast.error('Failed to update email setting.');
+    },
+    onSuccess: () => {
+      toast.success('Email notification setting updated.');
+    },
+  });
+
+  const handleToggleEmailFeature = (key: string, currentValue: boolean) => {
+    updateEmailFeatureMutation.mutate({ [key]: !currentValue });
+  };
+
+  // Send Test Email — lets the admin verify SMTP delivery on demand,
+  // without needing to trigger a real business event.
+  const [testEmailTarget, setTestEmailTarget] = useState('');
+  const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; mode: string; message: string } | null>(null);
+
+  const sendTestEmailMutation = useMutation({
+    mutationFn: (to?: string) => api.sendTestEmail(to),
+    onSuccess: (data) => {
+      setTestEmailResult(data);
+      if (data.success) {
+        toast.success('Test email sent.');
+      } else {
+        toast.error('Test email did not go through — see details below.');
+      }
+    },
+    onError: (err: any) => {
+      setTestEmailResult({ success: false, mode: 'error', message: err?.message || 'Request failed unexpectedly.' });
+      toast.error('Failed to send test email.');
+    },
+  });
+
+  const handleSendTestEmail = () => {
+    setTestEmailResult(null);
+    sendTestEmailMutation.mutate(testEmailTarget.trim() || undefined);
+  };
+
+  // Organization Settings — local editable form state, synced from the
+  // fetched row whenever it (re)loads.
+  const [orgForm, setOrgForm] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (orgSettingsData) {
+      setOrgForm({
+        orgName: orgSettingsData.orgName || '',
+        tagline: orgSettingsData.tagline || '',
+        logoUrl: orgSettingsData.logoUrl || '',
+        faviconUrl: orgSettingsData.faviconUrl || '',
+        primaryColor: orgSettingsData.primaryColor || '#4f46e5',
+        supportEmail: orgSettingsData.supportEmail || '',
+        website: orgSettingsData.website || '',
+        address: orgSettingsData.address || '',
+        defaultWatermarkText: orgSettingsData.defaultWatermarkText || '',
+        defaultTimezone: orgSettingsData.defaultTimezone || '',
+      });
+    }
+  }, [orgSettingsData]);
+
+  const updateOrgSettingsMutation = useMutation({
+    mutationFn: (updates: Record<string, string | null>) => api.updateOrganizationSettings(updates),
+    onSuccess: (data) => {
+      // Keep the admin form's own cache entry in sync, and also update the
+      // shared ['organization-settings'] key that every page in the app
+      // reads from via useOrganizationSettings — so the change is reflected
+      // everywhere (sidebar, auth pages, emails, landing page) right away.
+      queryClient.setQueryData(['organization-settings'], data);
+      toast.success('Organization settings updated.');
+    },
+    onError: () => {
+      toast.error('Failed to update organization settings.');
+    },
+  });
+
+  const handleSaveOrgSettings = () => {
+    updateOrgSettingsMutation.mutate(orgForm);
+  };
+
+  // Logo/Favicon — uploaded immediately on file selection (not deferred to
+  // the Save button), matching how avatar uploads work elsewhere in the
+  // app. Updates the shared cache right away so the new image shows up
+  // everywhere (sidebar, auth pages, landing page) without a page reload.
+  const uploadLogoMutation = useMutation({
+    mutationFn: (formData: FormData) => api.uploadOrganizationLogo(formData),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['organization-settings'], data);
+      setOrgForm((prev) => ({ ...prev, logoUrl: data.logoUrl || '' }));
+      toast.success('Logo uploaded successfully.');
+    },
+    onError: (err: any) => toast.error(err?.message || 'Logo upload failed.'),
+  });
+
+  const uploadFaviconMutation = useMutation({
+    mutationFn: (formData: FormData) => api.uploadOrganizationFavicon(formData),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['organization-settings'], data);
+      setOrgForm((prev) => ({ ...prev, faviconUrl: data.faviconUrl || '' }));
+      toast.success('Favicon uploaded successfully.');
+    },
+    onError: (err: any) => toast.error(err?.message || 'Favicon upload failed.'),
+  });
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('logo', file);
+    uploadLogoMutation.mutate(formData);
+    e.target.value = '';
+  };
+
+  const handleFaviconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('favicon', file);
+    uploadFaviconMutation.mutate(formData);
+    e.target.value = '';
+  };
+
+  const handleRemoveLogo = () => {
+    updateOrgSettingsMutation.mutate({ logoUrl: null });
+    setOrgForm((prev) => ({ ...prev, logoUrl: '' }));
+  };
+
+  const handleRemoveFavicon = () => {
+    updateOrgSettingsMutation.mutate({ faviconUrl: null });
+    setOrgForm((prev) => ({ ...prev, faviconUrl: '' }));
+  };
 
   // User Role Update Mutation (Dynamic)
   const assignRoleMutation = useMutation({
@@ -181,6 +455,57 @@ export default function AdminPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-depts'] });
       toast.success('Department deleted.');
+    },
+  });
+
+  // Team Create Mutation
+  const createTeamMutation = useMutation({
+    mutationFn: (body: { name: string; description?: string; departmentId: string }) => api.createTeam(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+      setCreateTeamOpen(false);
+      setTeamName('');
+      setTeamDesc('');
+      setTeamDeptId('');
+      toast.success('Team created successfully.');
+    },
+    onError: () => toast.error('Failed to create team.'),
+  });
+
+  // Team Delete Mutation
+  const deleteTeamMutation = useMutation({
+    mutationFn: (id: string) => api.deleteTeam(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+      toast.success('Team deleted.');
+    },
+  });
+
+  const handleDeleteTeam = async (id: string) => {
+    if (!await confirm({
+      title: 'Delete Team',
+      message: 'Delete this team? Its roster will be removed. Projects assigned to it are not deleted.',
+      confirmText: 'Delete Team',
+      type: 'danger'
+    })) return;
+    deleteTeamMutation.mutate(id);
+  };
+
+  // Team Member Add/Remove Mutations
+  const addTeamMemberMutation = useMutation({
+    mutationFn: ({ teamId, userId }: { teamId: string; userId: string }) => api.addTeamMember(teamId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+      toast.success('Member added to team.');
+    },
+    onError: (err: any) => toast.error(err?.message || 'Failed to add member.'),
+  });
+
+  const removeTeamMemberMutation = useMutation({
+    mutationFn: ({ teamId, userId }: { teamId: string; userId: string }) => api.removeTeamMember(teamId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-teams'] });
+      toast.success('Member removed from team.');
     },
   });
 
@@ -442,6 +767,16 @@ export default function AdminPage() {
           </button>
         )}
 
+        {activeTab === 'teams' && (
+          <button
+            onClick={() => setCreateTeamOpen(true)}
+            className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create Team</span>
+          </button>
+        )}
+
         {activeTab === 'roles' && (
           <button
             onClick={() => setCreateRoleOpen(true)}
@@ -463,6 +798,17 @@ export default function AdminPage() {
           >
             <UserPlus className="h-4 w-4" />
             <span>Invite Teammate</span>
+          </button>
+        )}
+
+        {activeTab === 'users' && (
+          <button
+            onClick={handleForceLogoutAll}
+            className="px-4 py-2.5 border border-red-200 dark:border-red-950 text-red-500 rounded-xl text-xs font-bold hover:bg-red-50 dark:hover:bg-red-950/20 transition-all flex items-center space-x-1.5"
+            title="Terminate every active session for every user"
+          >
+            <ShieldOff className="h-4 w-4" />
+            <span>Force Logout Everyone</span>
           </button>
         )}
       </div>
@@ -487,6 +833,16 @@ export default function AdminPage() {
         >
           <Building2 className="h-4 w-4" />
           <span>Departments</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('teams')}
+          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
+            activeTab === 'teams' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
+          }`}
+        >
+          <UsersRound className="h-4 w-4" />
+          <span>Teams</span>
         </button>
 
         <button
@@ -517,6 +873,26 @@ export default function AdminPage() {
         >
           <Activity className="h-4 w-4" />
           <span>System Monitors</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('email')}
+          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
+            activeTab === 'email' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
+          }`}
+        >
+          <Mail className="h-4 w-4" />
+          <span>Email Notifications</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('org')}
+          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
+            activeTab === 'org' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
+          }`}
+        >
+          <Building2 className="h-4 w-4" />
+          <span>Organization</span>
         </button>
       </div>
 
@@ -636,6 +1012,16 @@ export default function AdminPage() {
                           {u.isVerified ? 'Suspend' : 'Activate'}
                         </button>
 
+                        {/* Force Logout Button */}
+                        <button
+                          onClick={() => handleForceLogoutUser(u)}
+                          className="text-[10px] font-bold px-2.5 py-1 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-650 dark:text-slate-300"
+                          id={`force-logout-btn-${u.id}`}
+                          title="Terminate all active sessions for this user"
+                        >
+                          Force Logout
+                        </button>
+
                         {/* Delete User Button */}
                         {u.id !== user?.id && (
                           <button
@@ -694,6 +1080,91 @@ export default function AdminPage() {
               )}
             </tbody>
           </table>
+        )}
+
+        {/* Team Management Workspace */}
+        {activeTab === 'teams' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {loadingTeams ? (
+              <div className="col-span-2 flex items-center justify-center py-20 text-slate-450">
+                <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+                <span>Loading teams...</span>
+              </div>
+            ) : teams?.length === 0 ? (
+              <div className="col-span-2 text-center py-16 text-slate-400 text-xs">
+                No teams yet. Create one to start building rosters.
+              </div>
+            ) : (
+              teams?.map((t: any) => (
+                <div key={t.id} className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-bold text-sm flex items-center gap-1.5">
+                        <UsersRound className="h-4 w-4 text-primary" />
+                        <span>{t.name}</span>
+                      </h4>
+                      <p className="text-[10px] text-slate-400">{t.department?.name} · {t.members?.length || 0} member{t.members?.length === 1 ? '' : 's'} · {t._count?.projects || 0} project{t._count?.projects === 1 ? '' : 's'}</p>
+                      {t.description && <p className="text-[10px] text-slate-450 mt-1">{t.description}</p>}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteTeam(t.id)}
+                      className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {t.members?.length === 0 ? (
+                      <span className="text-[10px] text-slate-400 italic">No members yet.</span>
+                    ) : (
+                      t.members.map((m: any) => (
+                        <span key={m.id} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-900 border rounded-full text-[10px] font-semibold">
+                          {m.user.firstName} {m.user.lastName}
+                          <button
+                            onClick={() => removeTeamMemberMutation.mutate({ teamId: t.id, userId: m.userId })}
+                            className="text-slate-400 hover:text-red-500"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <select
+                      value={manageTeamRosterId === t.id ? addMemberUserId : ''}
+                      onChange={(e) => {
+                        setManageTeamRosterId(t.id);
+                        setAddMemberUserId(e.target.value);
+                      }}
+                      className="flex-1 bg-white dark:bg-slate-900 border rounded-lg px-2 py-1.5 text-[10px] focus:outline-none"
+                    >
+                      <option value="">-- Add a member --</option>
+                      {systemUsers
+                        ?.filter((u: any) => !t.members?.some((m: any) => m.userId === u.id))
+                        .map((u: any) => (
+                          <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                        ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        if (!addMemberUserId || manageTeamRosterId !== t.id) return;
+                        addTeamMemberMutation.mutate({ teamId: t.id, userId: addMemberUserId });
+                        setAddMemberUserId('');
+                        setManageTeamRosterId(null);
+                      }}
+                      disabled={manageTeamRosterId !== t.id || !addMemberUserId}
+                      className="px-3 py-1.5 bg-primary text-white rounded-lg text-[10px] font-bold hover:opacity-90 disabled:opacity-40 transition-all"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         )}
 
         {/* Custom Role Management Workspace */}
@@ -1060,11 +1531,395 @@ export default function AdminPage() {
             )}
           </div>
         )}
+
+        {/* Email Notifications Workspace */}
+        {activeTab === 'email' && (
+          <div className="space-y-6 animate-in fade-in duration-200 text-xs">
+            <div className="border-b pb-3">
+              <h3 className="font-bold text-sm text-foreground">Email Notification Features</h3>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Control which events trigger outbound emails, platform-wide. When a feature is off here, no email is sent
+                for it regardless of any individual user's personal notification preferences.
+              </p>
+            </div>
+
+            {/* Send Test Email */}
+            <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-3">
+              <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
+                <Mail className="h-3.5 w-3.5" />
+                <span>Send Test Email</span>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Send a real email right now through the current SMTP configuration to verify delivery is working —
+                no need to wait for a real notification to trigger.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="email"
+                  value={testEmailTarget}
+                  onChange={(e) => setTestEmailTarget(e.target.value)}
+                  placeholder={user?.email || 'you@example.com'}
+                  className="flex-1 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                />
+                <button
+                  onClick={handleSendTestEmail}
+                  disabled={sendTestEmailMutation.isPending}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:opacity-90 transition-all disabled:opacity-50 shrink-0"
+                >
+                  {sendTestEmailMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Mail className="h-3.5 w-3.5" />
+                  )}
+                  <span>Send Test Email</span>
+                </button>
+              </div>
+              <p className="text-[9px] text-slate-400">Leave blank to send to your own account email ({user?.email}).</p>
+
+              {testEmailResult && (
+                <div
+                  className={`flex items-start gap-2 p-3 rounded-xl text-[10px] font-semibold ${
+                    testEmailResult.success
+                      ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600'
+                      : testEmailResult.mode === 'not-configured'
+                      ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-600'
+                      : 'bg-red-50 dark:bg-red-950/20 text-red-600'
+                  }`}
+                >
+                  {testEmailResult.success ? (
+                    <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  ) : testEmailResult.mode === 'not-configured' ? (
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  ) : (
+                    <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  )}
+                  <span>{testEmailResult.message}</span>
+                </div>
+              )}
+            </div>
+
+            {loadingEmailSettings ? (
+              <div className="flex items-center justify-center py-20 text-slate-450">
+                <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+                <span>Loading email feature settings...</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                {EMAIL_FEATURES.map(({ key, label, description, icon: Icon }) => {
+                  const isEnabled = emailFeatureSettings ? !!emailFeatureSettings[key] : true;
+                  return (
+                    <div
+                      key={key}
+                      className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 flex items-start justify-between gap-4"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-xs text-foreground">{label}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">{description}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isEnabled}
+                        onClick={() => handleToggleEmailFeature(key, isEnabled)}
+                        disabled={updateEmailFeatureMutation.isPending}
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                          isEnabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            isEnabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Organization Settings Workspace */}
+        {activeTab === 'org' && (
+          <div className="space-y-6 animate-in fade-in duration-200 text-xs max-w-3xl">
+            <div className="border-b pb-3 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-bold text-sm text-foreground">Organization Branding & Configuration</h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  These values propagate everywhere automatically — the sidebar, login/registration screens, outbound
+                  emails, the public landing page, and file watermarks all read from here. No code change needed.
+                </p>
+              </div>
+              {orgSettingsData?.updatedAt && (
+                <span className="text-[9px] text-slate-400 whitespace-nowrap shrink-0 pt-0.5">
+                  Last updated {new Date(orgSettingsData.updatedAt).toLocaleString()}
+                </span>
+              )}
+            </div>
+
+            {loadingOrgSettings ? (
+              <div className="flex items-center justify-center py-20 text-slate-450">
+                <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+                <span>Loading organization settings...</span>
+              </div>
+            ) : (
+              <div className="space-y-5 pt-1">
+                {/* Identity */}
+                <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+                  <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
+                    <Building2 className="h-3.5 w-3.5" />
+                    <span>Identity</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Organization Name</label>
+                      <input
+                        type="text"
+                        value={orgForm.orgName || ''}
+                        onChange={(e) => setOrgForm({ ...orgForm, orgName: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        placeholder="ConnectHub"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Tagline</label>
+                      <input
+                        type="text"
+                        value={orgForm.tagline || ''}
+                        onChange={(e) => setOrgForm({ ...orgForm, tagline: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        placeholder="Enterprise Communication & Collaboration Platform"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Branding */}
+                <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+                  <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
+                    <Palette className="h-3.5 w-3.5" />
+                    <span>Branding</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                        <ImageIcon className="h-3 w-3" /> Logo
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="h-14 w-14 shrink-0 rounded-xl border bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                          {orgForm.logoUrl ? (
+                            <img src={orgForm.logoUrl} alt="Organization logo" className="h-full w-full object-contain" />
+                          ) : (
+                            <ImageIcon className="h-5 w-5 text-slate-300" />
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-1.5">
+                          <label
+                            htmlFor="org-logo-upload"
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-[10px] font-bold transition-all"
+                          >
+                            {uploadLogoMutation.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Upload className="h-3.5 w-3.5" />
+                            )}
+                            <span>{orgForm.logoUrl ? 'Replace Logo' : 'Upload Logo'}</span>
+                          </label>
+                          <input
+                            id="org-logo-upload"
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/gif,image/svg+xml,image/webp"
+                            onChange={handleLogoFileChange}
+                            disabled={uploadLogoMutation.isPending}
+                            className="hidden"
+                          />
+                          {orgForm.logoUrl && (
+                            <button
+                              onClick={handleRemoveLogo}
+                              className="w-full text-[10px] text-red-500 hover:text-red-600 font-semibold"
+                            >
+                              Remove logo
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                        <ImageIcon className="h-3 w-3" /> Favicon
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="h-14 w-14 shrink-0 rounded-xl border bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                          {orgForm.faviconUrl ? (
+                            <img src={orgForm.faviconUrl} alt="Organization favicon" className="h-full w-full object-contain" />
+                          ) : (
+                            <ImageIcon className="h-5 w-5 text-slate-300" />
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-1.5">
+                          <label
+                            htmlFor="org-favicon-upload"
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-[10px] font-bold transition-all"
+                          >
+                            {uploadFaviconMutation.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Upload className="h-3.5 w-3.5" />
+                            )}
+                            <span>{orgForm.faviconUrl ? 'Replace Favicon' : 'Upload Favicon'}</span>
+                          </label>
+                          <input
+                            id="org-favicon-upload"
+                            type="file"
+                            accept="image/png,image/x-icon,image/vnd.microsoft.icon,image/svg+xml"
+                            onChange={handleFaviconFileChange}
+                            disabled={uploadFaviconMutation.isPending}
+                            className="hidden"
+                          />
+                          {orgForm.faviconUrl && (
+                            <button
+                              onClick={handleRemoveFavicon}
+                              className="w-full text-[10px] text-red-500 hover:text-red-600 font-semibold"
+                            >
+                              Remove favicon
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Primary Color</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={orgForm.primaryColor || '#4f46e5'}
+                          onChange={(e) => setOrgForm({ ...orgForm, primaryColor: e.target.value })}
+                          className="h-9 w-12 border rounded-lg bg-white dark:bg-slate-900 cursor-pointer shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={orgForm.primaryColor || ''}
+                          onChange={(e) => setOrgForm({ ...orgForm, primaryColor: e.target.value })}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim();
+                            if (v && !/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(v)) {
+                              toast.error('Primary color must be a valid hex code, e.g. #4f46e5.');
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                          placeholder="#4f46e5"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact */}
+                <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+                  <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
+                    <Mail className="h-3.5 w-3.5" />
+                    <span>Contact</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Support Email</label>
+                      <input
+                        type="email"
+                        value={orgForm.supportEmail || ''}
+                        onChange={(e) => setOrgForm({ ...orgForm, supportEmail: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        placeholder="support@example.com"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                        <Globe className="h-3 w-3" /> Website
+                      </label>
+                      <input
+                        type="text"
+                        value={orgForm.website || ''}
+                        onChange={(e) => setOrgForm({ ...orgForm, website: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        placeholder="https://example.com"
+                      />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> Address
+                      </label>
+                      <input
+                        type="text"
+                        value={orgForm.address || ''}
+                        onChange={(e) => setOrgForm({ ...orgForm, address: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        placeholder="123 Main St, Suite 100, San Francisco, CA"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Defaults */}
+                <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+                  <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>Defaults</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Default Watermark Text</label>
+                      <input
+                        type="text"
+                        value={orgForm.defaultWatermarkText || ''}
+                        onChange={(e) => setOrgForm({ ...orgForm, defaultWatermarkText: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        placeholder="ConnectHub CONFIDENTIAL"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Default Timezone</label>
+                      <select
+                        value={orgForm.defaultTimezone || 'UTC'}
+                        onChange={(e) => setOrgForm({ ...orgForm, defaultTimezone: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      >
+                        {COMMON_TIMEZONES.map((tz) => (
+                          <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
+                        ))}
+                      </select>
+                      <p className="text-[9px] text-slate-400">Applied to new employees' accounts when they register or accept an invite.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    onClick={handleSaveOrgSettings}
+                    disabled={updateOrgSettingsMutation.isPending}
+                    className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-white rounded-xl font-bold text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {updateOrgSettingsMutation.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Save className="h-3.5 w-3.5" />
+                    )}
+                    <span>Save Organization Settings</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Create Department Modal */}
       {createDeptOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button onClick={() => setCreateDeptOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
               <X className="h-5 w-5" />
@@ -1104,9 +1959,77 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Create Team Modal */}
+      {createTeamOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => setCreateTeamOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+              <X className="h-5 w-5" />
+            </button>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base">Create New Team</h3>
+              <p className="text-xs text-slate-400">Build a roster within a department to organize projects and members.</p>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!teamName.trim() || !teamDeptId) return;
+                createTeamMutation.mutate({ name: teamName, description: teamDesc || undefined, departmentId: teamDeptId });
+              }}
+              className="space-y-4 text-xs font-semibold"
+            >
+              <div className="space-y-2">
+                <label className="text-slate-400 uppercase text-[10px]">Team Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Platform Engineering"
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-slate-400 uppercase text-[10px]">Department</label>
+                <select
+                  required
+                  value={teamDeptId}
+                  onChange={(e) => setTeamDeptId(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                >
+                  <option value="">-- Select a department --</option>
+                  {depts?.map((d: any) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-slate-400 uppercase text-[10px]">Description (optional)</label>
+                <textarea
+                  placeholder="What does this team own..."
+                  value={teamDesc}
+                  onChange={(e) => setTeamDesc(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={createTeamMutation.isPending}
+                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+              >
+                {createTeamMutation.isPending ? 'Creating...' : 'Create Team'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Create Custom Role Modal */}
       {createRoleOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button onClick={() => setCreateRoleOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
               <X className="h-5 w-5" />
@@ -1178,7 +2101,7 @@ export default function AdminPage() {
 
       {/* Duplicate Role Modal */}
       {dupRoleOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button onClick={() => { setDupRoleOpen(false); setDupTargetRole(null); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
               <X className="h-5 w-5" />
@@ -1220,7 +2143,7 @@ export default function AdminPage() {
 
       {/* Invite Teammate Onboarding Modal */}
       {inviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setInviteModalOpen(false); setGeneratedLink(''); }} 
@@ -1303,7 +2226,7 @@ export default function AdminPage() {
 
       {/* Edit User Details Modal */}
       {editUserOpen && selectedEditUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setEditUserOpen(false); setSelectedEditUser(null); }} 
@@ -1422,7 +2345,7 @@ export default function AdminPage() {
 
       {/* Force Change Password Modal */}
       {changePasswordOpen && selectedPasswordUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setChangePasswordOpen(false); setSelectedPasswordUser(null); }} 

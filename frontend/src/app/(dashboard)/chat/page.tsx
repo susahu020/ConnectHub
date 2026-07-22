@@ -465,6 +465,27 @@ export default function ChatPage() {
       );
     };
 
+    const handleReactionAdded = ({ messageId, reaction }: any) => {
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+          // Own reactions are already applied optimistically in handleAddReaction — avoid duplicating.
+          if ((m.reactions || []).some((r: any) => r.id === reaction.id)) return m;
+          return { ...m, reactions: [...(m.reactions || []), reaction] };
+        })
+      );
+    };
+
+    const handleReactionRemoved = ({ messageId, userId: reactorId, emoji }: any) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, reactions: (m.reactions || []).filter((r: any) => !(r.userId === reactorId && r.emoji === emoji)) }
+            : m
+        )
+      );
+    };
+
     socket.on('message', handleIncomingMessage);
     socket.on('message_read', handleReadReceipt);
     socket.on('typing', handleTyping);
@@ -474,6 +495,8 @@ export default function ChatPage() {
     socket.on('message_pinned', handleMessagePinned);
     socket.on('message_edited', handleMessageEdited);
     socket.on('poll_updated', handlePollUpdated);
+    socket.on('reaction_added', handleReactionAdded);
+    socket.on('reaction_removed', handleReactionRemoved);
 
     return () => {
       socket.off('message', handleIncomingMessage);
@@ -485,6 +508,8 @@ export default function ChatPage() {
       socket.off('message_pinned', handleMessagePinned);
       socket.off('message_edited', handleMessageEdited);
       socket.off('poll_updated', handlePollUpdated);
+      socket.off('reaction_added', handleReactionAdded);
+      socket.off('reaction_removed', handleReactionRemoved);
     };
   }, [socket, activeContact, user]);
 
@@ -719,17 +744,30 @@ export default function ChatPage() {
   };
 
   const handleAddReaction = async (msgId: string, emoji: string) => {
+    const message = messages.find((m) => m.id === msgId);
+    const existing = message?.reactions?.find((r: any) => r.userId === user?.id && r.emoji === emoji);
     try {
-      const reaction = await api.addReaction(msgId, emoji);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId
-            ? { ...m, reactions: [...(m.reactions || []), reaction] }
-            : m
-        )
-      );
+      if (existing) {
+        await api.removeReaction(msgId, emoji);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId
+              ? { ...m, reactions: (m.reactions || []).filter((r: any) => r.id !== existing.id) }
+              : m
+          )
+        );
+      } else {
+        const reaction = await api.addReaction(msgId, emoji);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId
+              ? { ...m, reactions: [...(m.reactions || []), reaction] }
+              : m
+          )
+        );
+      }
     } catch (err) {
-      toast.error('Failed to add reaction.');
+      toast.error('Failed to update reaction.');
     }
   };
 
@@ -1651,7 +1689,7 @@ export default function ChatPage() {
                         {self && (
                           <span>
                             {isRead ? (
-                              <CheckCheck className="h-3.5 w-3.5 text-blue-500" />
+                              <CheckCheck className="h-3.5 w-3.5 text-info" />
                             ) : (
                               <Check className="h-3.5 w-3.5 text-slate-400" />
                             )}
@@ -1673,7 +1711,7 @@ export default function ChatPage() {
 
             {/* Edit Message Modal */}
             {editingMessage && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4">
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border w-full max-w-md space-y-4">
                   <div className="flex items-center justify-between border-b pb-2">
                     <h4 className="font-bold text-sm">Edit Message</h4>
@@ -1698,7 +1736,7 @@ export default function ChatPage() {
 
             {/* Forward Message Modal */}
             {forwardingMessage && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs p-4">
                 <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
                   <button onClick={() => setForwardingMessage(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
                     <X className="h-5 w-5" />
@@ -1733,7 +1771,7 @@ export default function ChatPage() {
 
             {/* Poll Creation Modal */}
             {pollModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs p-4">
                 <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
                   <button onClick={() => setPollModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
                     <X className="h-5 w-5" />
@@ -1963,7 +2001,7 @@ export default function ChatPage() {
                         }}
                         className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
                       >
-                        <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-full group-hover:scale-110 transition-all shadow-sm">
+                        <div className="p-2.5 bg-info/10 text-info rounded-full group-hover:scale-110 transition-all shadow-sm">
                           <FileImage className="h-4 w-4" />
                         </div>
                         <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 mt-1">Gallery</span>

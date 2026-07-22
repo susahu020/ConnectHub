@@ -35,7 +35,7 @@ async function handleTokenRefresh(): Promise<string | null> {
 
 async function request<T = any>(
   endpoint: string,
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
   body?: any,
   isMultipart = false
 ): Promise<T> {
@@ -144,6 +144,8 @@ export const api = {
   disable2FA: (token: string) => request('/auth/2fa/disable', 'POST', { token }),
   logout: () => request('/auth/logout', 'POST'),
   logoutAll: () => request('/auth/logout-all', 'POST'),
+  adminLogoutUser: (targetUserId: string) => request('/admin/logout-user', 'POST', { targetUserId }),
+  adminLogoutAllUsers: () => request('/admin/logout-all', 'POST'),
   extendSession: () => request('/auth/extend-session', 'POST'),
   inviteUser: (body: { email: string; role: string }) => request('/auth/invite', 'POST', body),
   verifyInvitation: (token: string) => request(`/auth/invite/verify?token=${token}`),
@@ -198,6 +200,10 @@ export const api = {
 
   // Meetings (REST source of truth backing the live socket signaling)
   createMeeting: (body?: { title?: string }) => request('/meetings', 'POST', body || {}),
+  scheduleMeeting: (body: { title?: string; scheduledFor: string; durationMins?: number; inviteeIds: string[] }) =>
+    request('/meetings/schedule', 'POST', body),
+  respondToMeetingInvite: (id: string, status: 'ACCEPTED' | 'DECLINED') =>
+    request(`/meetings/${id}/invite`, 'PATCH', { status }),
   getMeetings: () => request('/meetings'),
   getMeetingByCode: (code: string) => request(`/meetings/${encodeURIComponent(code)}`),
   startMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/start`, 'POST'),
@@ -257,6 +263,7 @@ export const api = {
   // Announcements
   getAnnouncements: (params: string) => request(`/announcements?${params}`),
   getAnnouncementDetails: (id: string) => request(`/announcements/${id}`),
+  getAnnouncementViewers: (id: string) => request(`/announcements/${id}/views`),
   createAnnouncement: (body: any) => request('/announcements', 'POST', body),
   deleteAnnouncement: (id: string) => request(`/announcements/${id}`, 'DELETE'),
   likeAnnouncement: (id: string) => request(`/announcements/${id}/like`, 'POST'),
@@ -323,6 +330,20 @@ export const api = {
   createDepartment: (body: any) => request('/admin/departments', 'POST', body),
   getDepartments: () => request('/admin/departments'),
   deleteDepartment: (id: string) => request(`/admin/departments/${id}`, 'DELETE'),
+  getEmailFeatureSettings: () => request('/admin/email-settings'),
+  updateEmailFeatureSettings: (body: Record<string, boolean>) => request('/admin/email-settings', 'PUT', body),
+  sendTestEmail: (to?: string) => request('/admin/email-settings/test', 'POST', to ? { to } : {}),
+  getOrganizationSettings: () => request('/organization/settings'),
+  updateOrganizationSettings: (body: Record<string, string | null>) => request('/admin/organization-settings', 'PUT', body),
+  uploadOrganizationLogo: (formData: FormData) => request('/admin/organization-settings/logo', 'POST', formData, true),
+  uploadOrganizationFavicon: (formData: FormData) => request('/admin/organization-settings/favicon', 'POST', formData, true),
+  getTeams: (departmentId?: string) => request(`/teams${departmentId ? `?departmentId=${departmentId}` : ''}`),
+  getTeamById: (id: string) => request(`/teams/${id}`),
+  createTeam: (body: { name: string; description?: string; departmentId: string }) => request('/teams', 'POST', body),
+  updateTeam: (id: string, body: { name?: string; description?: string; departmentId?: string }) => request(`/teams/${id}`, 'PUT', body),
+  deleteTeam: (id: string) => request(`/teams/${id}`, 'DELETE'),
+  addTeamMember: (teamId: string, userId: string, role?: string) => request(`/teams/${teamId}/members`, 'POST', { userId, role }),
+  removeTeamMember: (teamId: string, userId: string) => request(`/teams/${teamId}/members/${userId}`, 'DELETE'),
   getProjects: () => request('/projects'),
   createProject: (body: any) => request('/projects', 'POST', body),
   updateProject: (id: string, body: any) => request(`/projects/${id}`, 'PUT', body),

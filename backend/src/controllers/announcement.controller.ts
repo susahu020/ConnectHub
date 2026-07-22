@@ -48,6 +48,7 @@ export const createAnnouncement = async (req: AuthenticatedRequest, res: Respons
         message: `${req.user?.firstName} posted a new announcement: "${title}"`,
         type: 'ANNOUNCEMENT',
         relatedId: announcement.id,
+        emailFeature: 'ANNOUNCEMENT' as any,
       })),
       io,
     });
@@ -82,7 +83,11 @@ export const getAnnouncements = async (req: AuthenticatedRequest, res: Response,
       ],
     };
 
-    if (departmentId) {
+    // A department filter is only honored if it's the requester's own department,
+    // or they're a manager/admin — otherwise someone could pass an arbitrary
+    // departmentId to read announcements scoped to a team they're not on.
+    const canViewOtherDepartments = req.user?.role === 'ADMIN' || req.user?.role === 'MANAGER';
+    if (departmentId && (canViewOtherDepartments || departmentId === req.user?.departmentId)) {
       whereClause.departmentId = departmentId as string;
     } else {
       whereClause.AND.push({
@@ -149,17 +154,80 @@ export const getAnnouncementDetails = async (req: AuthenticatedRequest, res: Res
       return;
     }
 
-    // Increment view count asynchronously
-    await prisma.announcement.update({
-      where: { id },
-      data: { viewsCount: { increment: 1 } },
+    // Record a per-user read receipt (idempotent — viewing again doesn't
+    // create duplicate rows or inflate the counter). This is what lets the
+    // creator/admin see exactly who has and hasn't read a critical
+    // announcement, instead of only an anonymous aggregate count.
+    const existingView = await prisma.announcementView.findUnique({
+      where: { announcementId_userId: { announcementId: id, userId } },
     });
+
+    if (!existingView) {
+      await prisma.announcementView.create({
+        data: { announcementId: id, userId },
+      });
+      await prisma.announcement.update({
+        where: { id },
+        data: { viewsCount: { increment: 1 } },
+      });
+    }
 
     const isLiked = announcement.likes.some((like) => like.userId === userId);
 
     res.status(200).json({
       ...announcement,
       isLiked,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Read-receipt roster for an announcement: who has viewed it and when,
+ * plus who in the target audience (department, or everyone if org-wide)
+ * still hasn't. Restricted to the announcement's creator or an Admin,
+ * since it exposes individual read status.
+ */
+export const getAnnouncementViewers = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id!;
+
+    const announcement = await prisma.announcement.findUnique({
+      where: { id },
+      include: {
+        views: {
+          include: { user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true } } },
+          orderBy: { viewedAt: 'asc' },
+        },
+      },
+    });
+
+    if (!announcement) {
+      res.status(404).json({ message: 'Announcement not found.' });
+      return;
+    }
+
+    if (req.user?.role !== 'ADMIN' && announcement.createdById !== userId) {
+      res.status(403).json({ message: 'Forbidden. Only the creator or an Admin can view the read receipts.' });
+      return;
+    }
+
+    // Target audience: everyone in the department if it's a department
+    // announcement, otherwise everyone in the org.
+    const audience = await prisma.user.findMany({
+      where: announcement.departmentId ? { departmentId: announcement.departmentId } : {},
+      select: { id: true, firstName: true, lastName: true, avatarUrl: true, email: true },
+    });
+
+    const viewedUserIds = new Set(announcement.views.map((v: any) => v.userId));
+    const notViewed = audience.filter((u: any) => !viewedUserIds.has(u.id));
+
+    res.status(200).json({
+      viewed: announcement.views.map((v: any) => ({ ...v.user, viewedAt: v.viewedAt })),
+      notViewed,
+      totalAudience: audience.length,
     });
   } catch (error) {
     next(error);

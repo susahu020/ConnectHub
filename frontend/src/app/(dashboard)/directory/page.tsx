@@ -374,7 +374,7 @@ export default function DirectoryPage() {
 
       {/* Selected Colleague details dialog */}
       {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setSelectedUser(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
               <X className="h-5 w-5" />

@@ -246,7 +246,7 @@ export default function AnalyticsDashboard() {
                         const pct = taskCompletion.totalTasks > 0 ? ((count / taskCompletion.totalTasks) * 100).toFixed(0) : '0';
                         const colorMap: Record<string, string> = {
                           LOW: 'bg-slate-400',
-                          NORMAL: 'bg-blue-500',
+                          NORMAL: 'bg-info',
                           HIGH: 'bg-amber-500',
                           URGENT: 'bg-rose-500'
                         };
@@ -512,7 +512,7 @@ export default function AnalyticsDashboard() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
                     { label: 'TODO', count: taskCompletion.statusCounts.TODO, color: 'border-slate-200 bg-slate-500/10 text-slate-650' },
-                    { label: 'IN PROGRESS', count: taskCompletion.statusCounts.IN_PROGRESS, color: 'border-blue-200 bg-blue-500/10 text-blue-600' },
+                    { label: 'IN PROGRESS', count: taskCompletion.statusCounts.IN_PROGRESS, color: 'border-primary/20 bg-primary/10 text-primary' },
                     { label: 'REVIEW', count: taskCompletion.statusCounts.REVIEW, color: 'border-amber-200 bg-amber-500/10 text-amber-600' },
                     { label: 'COMPLETED', count: taskCompletion.statusCounts.COMPLETED, color: 'border-green-200 bg-green-500/10 text-green-600' }
                   ].map((stat, idx) => (

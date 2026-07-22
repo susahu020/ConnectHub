@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { toast } from 'react-hot-toast';
 import { Layers, Loader2, Eye, EyeOff } from 'lucide-react';
 import { api } from '../../../services/api';
+import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
 
 const resetPasswordSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -26,6 +27,7 @@ function ResetPasswordForm() {
   const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { settings: orgSettings } = useOrganizationSettings();
 
   useEffect(() => {
     const tokenParam = searchParams.get('token');
@@ -70,8 +72,12 @@ function ResetPasswordForm() {
 
       <div className="flex flex-col items-center space-y-2 text-center">
         <Link href="/" className="flex items-center space-x-2 text-2xl font-bold tracking-tight mb-2">
-          <Layers className="h-8 w-8 text-primary" />
-          <span>ConnectHub</span>
+          {orgSettings.logoUrl ? (
+            <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-8 w-8 rounded object-contain" />
+          ) : (
+            <Layers className="h-8 w-8 text-primary" />
+          )}
+          <span>{orgSettings.orgName}</span>
         </Link>
         <h2 className="text-2xl font-bold tracking-tight">Create New Password</h2>
         <p className="text-sm text-muted-foreground">

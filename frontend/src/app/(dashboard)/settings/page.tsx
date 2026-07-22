@@ -228,7 +228,7 @@ export default function SettingsPage() {
                   Role: {user.role}
                 </span>
                 {(user as any).department && (
-                  <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/20 text-blue-600 border border-blue-100 dark:border-blue-900/30 rounded-full text-[9px] font-black uppercase tracking-wider">
+                  <span className="px-2 py-0.5 bg-info/10 dark:bg-info/15 text-info-dark dark:text-info border border-info/20 rounded-full text-[9px] font-black uppercase tracking-wider">
                     {(user as any).department.name}
                   </span>
                 )}
@@ -521,7 +521,7 @@ export default function SettingsPage() {
 
       {/* 2FA Setup Walkthrough Modal */}
       {twoFactorOpen && twoFactorSetupData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-5 shadow-2xl relative animate-in fade-in duration-200">
             <button
               onClick={() => setTwoFactorOpen(false)}

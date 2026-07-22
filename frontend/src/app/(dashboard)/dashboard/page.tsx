@@ -403,13 +403,13 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-4">
-                        <div className="flex items-center space-x-4 p-3 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100/50 dark:border-blue-900/30 rounded-2xl transition-all duration-300 hover:shadow-md">
-                          <div className="p-3 bg-gradient-to-tr from-blue-500 to-indigo-600 text-white rounded-xl shadow-lg shadow-blue-500/20 shrink-0">
+                        <div className="flex items-center space-x-4 p-3 bg-info/5 dark:bg-info/10 border border-info/15 dark:border-info/20 rounded-2xl transition-all duration-300 hover:shadow-md">
+                          <div className="p-3 bg-gradient-to-tr from-info to-primary text-white rounded-xl shadow-lg shadow-info/20 shrink-0">
                             <MessageSquare className="h-5 w-5" />
                           </div>
                           <div>
                             <p className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider leading-none">Unread DMs</p>
-                            <p className="text-xl font-black leading-none mt-2 text-blue-600 dark:text-blue-400">{stats?.unreadMessages || 0}</p>
+                            <p className="text-xl font-black leading-none mt-2 text-info-dark dark:text-info">{stats?.unreadMessages || 0}</p>
                           </div>
                         </div>
 
@@ -762,8 +762,8 @@ export default function DashboardPage() {
                           <svg className="absolute inset-0 transform -rotate-90" viewBox="0 0 36 36">
                             <defs>
                               <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#3b82f6" />
-                                <stop offset="100%" stopColor="#8b5cf6" />
+                                <stop offset="0%" stopColor="#2F80ED" />
+                                <stop offset="100%" stopColor="#5750E8" />
                               </linearGradient>
                             </defs>
                             <path
@@ -784,7 +784,7 @@ export default function DashboardPage() {
                             />
                           </svg>
                           <div className="text-center">
-                            <span className="text-base font-black leading-none text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 dark:from-sky-400 dark:to-indigo-400">{productivityScore}%</span>
+                            <span className="text-base font-black leading-none text-transparent bg-clip-text bg-gradient-to-r from-info to-primary">{productivityScore}%</span>
                             <p className="text-[8px] text-muted-foreground uppercase font-bold leading-none mt-1">Score</p>
                           </div>
                         </div>

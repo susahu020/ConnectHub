@@ -29,10 +29,12 @@ import {
 import { useAuthStore } from '../lib/store';
 import { toast } from 'react-hot-toast';
 import { api } from '../services/api';
+import { useOrganizationSettings } from '../hooks/useOrganizationSettings';
 
 export default function LandingPage() {
   const { isAuthenticated } = useAuthStore();
   const { theme, setTheme } = useTheme();
+  const { settings: orgSettings } = useOrganizationSettings();
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
   const [mockupTab, setMockupTab] = useState<'tasks' | 'users' | 'chats'>('tasks');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
@@ -102,7 +104,7 @@ export default function LandingPage() {
         'Full administrative audit log tracing',
         'Export reports in PDF, CSV, Excel',
       ],
-      cta: 'Deploy ConnectHub Now',
+      cta: `Deploy ${orgSettings.orgName} Now`,
       popular: true,
     },
   ];
@@ -113,8 +115,12 @@ export default function LandingPage() {
       <header className="fixed top-0 left-0 right-0 z-50 glass border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" id="nav-logo-link" className="flex items-center space-x-2 text-xl font-bold tracking-tight">
-            <Layers className="h-6 w-6 text-primary" />
-            <span>ConnectHub</span>
+            {orgSettings.logoUrl ? (
+              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-6 w-6 rounded object-contain" />
+            ) : (
+              <Layers className="h-6 w-6 text-primary" />
+            )}
+            <span>{orgSettings.orgName}</span>
           </Link>
 
           <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-muted-foreground">
@@ -248,7 +254,7 @@ export default function LandingPage() {
                     </div>
                     <div className="space-y-1 text-slate-600 dark:text-slate-400">
                       <div className="flex items-center justify-between">
-                        <span className="truncate">✓ Design ConnectHub DB Schema</span>
+                        <span className="truncate">✓ Design {orgSettings.orgName} DB Schema</span>
                         <span className="text-[8px] bg-green-500/10 text-green-500 px-1 rounded font-bold shrink-0">COMPLETED</span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -314,7 +320,7 @@ export default function LandingPage() {
           <div className="text-center space-y-4 max-w-2xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Everything You Need in One Place</h2>
             <p className="text-muted-foreground text-lg">
-              No need to switch between Slack, Trello, and Google Drive anymore. ConnectHub incorporates everything you need to keep teams aligned.
+              No need to switch between Slack, Trello, and Google Drive anymore. {orgSettings.orgName} incorporates everything you need to keep teams aligned.
             </p>
           </div>
 
@@ -357,7 +363,7 @@ export default function LandingPage() {
                 Pioneering the Next Generation of Workspaces
               </h2>
               <p className="text-muted-foreground leading-relaxed text-sm">
-                ConnectHub was born out of a simple realization: modern teams waste too much time jumping between disjointed apps. By merging communication, project tracking, file storage, and analytics into a single high-velocity interface, we help organizations work smarter and faster.
+                {orgSettings.orgName} was born out of a simple realization: modern teams waste too much time jumping between disjointed apps. By merging communication, project tracking, file storage, and analytics into a single high-velocity interface, we help organizations work smarter and faster.
               </p>
               <p className="text-muted-foreground leading-relaxed text-sm">
                 Our secure-by-default architecture guarantees data integrity, while our elegant UI minimizes friction so teams can focus on what matters most: creating great results.
@@ -512,7 +518,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto px-6 space-y-12">
           <div className="text-center space-y-4">
             <h2 className="text-3xl font-bold">Frequently Asked Questions</h2>
-            <p className="text-muted-foreground">Have questions about ConnectHub? We have answers.</p>
+            <p className="text-muted-foreground">Have questions about {orgSettings.orgName}? We have answers.</p>
           </div>
 
           <div className="space-y-4">
@@ -528,7 +534,7 @@ export default function LandingPage() {
               </div>
               {activeFaq === 0 && (
                 <p className="text-muted-foreground text-xs leading-relaxed animate-fade-in pr-6">
-                  Yes! The entire ConnectHub stack (NextJS, Node API, PostgreSQL, Redis, Cloudinary) is engineered to run seamlessly on the free tiers of Vercel, Render, Supabase, and Upstash.
+                  Yes! The entire {orgSettings.orgName} stack (NextJS, Node API, PostgreSQL, Redis, Cloudinary) is engineered to run seamlessly on the free tiers of Vercel, Render, Supabase, and Upstash.
                 </p>
               )}
             </div>
@@ -545,7 +551,7 @@ export default function LandingPage() {
               </div>
               {activeFaq === 1 && (
                 <p className="text-muted-foreground text-xs leading-relaxed animate-fade-in pr-6">
-                  ConnectHub utilizes production-ready JWT authentication (rotating short-lived access tokens and refresh cookies), bcrypt password hashing, and Helmet headers to protect endpoints from cross-site vulnerabilities.
+                  {orgSettings.orgName} utilizes production-ready JWT authentication (rotating short-lived access tokens and refresh cookies), bcrypt password hashing, and Helmet headers to protect endpoints from cross-site vulnerabilities.
                 </p>
               )}
             </div>
@@ -595,7 +601,7 @@ export default function LandingPage() {
               <div className="space-y-6 text-left">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Contact Information</h3>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Our professional support team responds within 24 hours to help you optimize your ConnectHub deployment.
+                  Our professional support team responds within 24 hours to help you optimize your {orgSettings.orgName} deployment.
                 </p>
               </div>
 
@@ -748,19 +754,38 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white dark:bg-slate-950 border-t py-12">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-muted-foreground">
-          <div className="flex items-center space-x-2 text-foreground font-bold">
-            <Layers className="h-5 w-5 text-primary" />
-            <span>ConnectHub</span>
+      <footer className="bg-white dark:bg-slate-950 border-t py-8">
+        <div className="max-w-7xl mx-auto px-6 space-y-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center space-x-2 text-foreground font-bold">
+              {orgSettings.logoUrl ? (
+                <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-5 w-5 rounded object-contain" />
+              ) : (
+                <Layers className="h-5 w-5 text-primary" />
+              )}
+              <span>{orgSettings.orgName}</span>
+            </div>
+            <div>
+              &copy; {new Date().getFullYear()} {orgSettings.orgName}. Licensed under MIT.
+            </div>
+            <div className="flex space-x-6">
+              <a href="#" className="hover:underline">Privacy Policy</a>
+              <a href="#" className="hover:underline">Terms of Service</a>
+            </div>
           </div>
-          <div>
-            &copy; {new Date().getFullYear()} ConnectHub. Licensed under MIT.
-          </div>
-          <div className="flex space-x-6">
-            <a href="#" className="hover:underline">Privacy Policy</a>
-            <a href="#" className="hover:underline">Terms of Service</a>
-          </div>
+          {(orgSettings.website || orgSettings.address || orgSettings.supportEmail) && (
+            <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6 text-xs text-muted-foreground/80 border-t pt-4">
+              {orgSettings.website && (
+                <a href={orgSettings.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                  {orgSettings.website.replace(/^https?:\/\//, '')}
+                </a>
+              )}
+              {orgSettings.supportEmail && (
+                <a href={`mailto:${orgSettings.supportEmail}`} className="hover:underline">{orgSettings.supportEmail}</a>
+              )}
+              {orgSettings.address && <span>{orgSettings.address}</span>}
+            </div>
+          )}
         </div>
       </footer>
     </div>

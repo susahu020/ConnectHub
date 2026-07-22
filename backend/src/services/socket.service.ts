@@ -238,6 +238,20 @@ export const initSocket = (server: HttpServer) => {
       console.log(`Meeting started by host: ${meetingId}`);
     });
 
+    // Every participant joins this persistent, meeting-wide channel for the entire
+    // duration of the call (separate from `meeting_room:<roomKey>`, which is scoped
+    // to whichever specific room — main or a breakout room — they're currently in).
+    // Host controls that must reach everyone regardless of which breakout room
+    // they're in (end meeting, lock, recording notice, breakout room updates) use
+    // this channel instead.
+    socket.on('join_meeting_channel', ({ meetingId }) => {
+      socket.join(`meeting:${meetingId}`);
+    });
+
+    socket.on('leave_meeting_channel', ({ meetingId }) => {
+      socket.leave(`meeting:${meetingId}`);
+    });
+
     socket.on('request_to_join_meeting', async ({ meetingId, guestName }) => {
       if (lockedMeetings.has(meetingId)) {
         socket.emit('meeting_admission_result', { admit: false, meetingId, locked: true });
@@ -284,37 +298,57 @@ export const initSocket = (server: HttpServer) => {
       console.log(`Guest ${guestName} requested to join meeting ${meetingId}`);
     });
 
+    // Host-only moderation actions. All of these trust the caller only if the
+    // server's own record says they're the host of this meetingId — the
+    // client's local isHost flag is a UI convenience, not authorization.
+    const assertIsHost = (meetingId: string) => meetingHosts.get(meetingId) === userId;
+
     socket.on('admit_meeting_guest', ({ meetingId, guestSocketId, admit }) => {
+      if (!assertIsHost(meetingId)) return;
       // Send the decision directly to the guest's socket
       io.to(guestSocketId).emit('meeting_admission_result', { admit, meetingId });
       console.log(`Host decision for guest socket ${guestSocketId} in ${meetingId}: ${admit ? 'ADMITTED' : 'DENIED'}`);
     });
 
-    // Host-only moderation actions. All three trust the caller only if the
-    // server's own record says they're the host of this meetingId — the
-    // client's local isHost flag is a UI convenience, not authorization.
-    const assertIsHost = (meetingId: string) => meetingHosts.get(meetingId) === userId;
-
     socket.on('toggle_meeting_lock', ({ meetingId, locked }) => {
       if (!assertIsHost(meetingId)) return;
       if (locked) lockedMeetings.add(meetingId);
       else lockedMeetings.delete(meetingId);
-      io.to(`meeting_room:${meetingId}`).emit('meeting_lock_changed', { locked });
+      io.to(`meeting:${meetingId}`).emit('meeting_lock_changed', { locked });
     });
 
-    socket.on('force_mute_participant', ({ meetingId, targetSocketId }) => {
+    // Host creates/renames/removes breakout rooms. `rooms` is the full desired list
+    // (excluding "main", which always implicitly exists); broadcasting the whole
+    // list keeps every client's room picker in sync without diffing client-side.
+    socket.on('update_breakout_rooms', ({ meetingId, rooms }) => {
+      if (!assertIsHost(meetingId)) return;
+      io.to(`meeting:${meetingId}`).emit('breakout_rooms_updated', { rooms });
+    });
+
+    // Host closes all breakout rooms — every participant currently in one gets
+    // moved back to the main room automatically.
+    socket.on('close_breakout_rooms', ({ meetingId }) => {
+      if (!assertIsHost(meetingId)) return;
+      io.to(`meeting:${meetingId}`).emit('breakout_rooms_closed');
+    });
+
+    socket.on('force_mute_participant', ({ meetingId, room, targetSocketId }) => {
       if (!assertIsHost(meetingId)) return;
       io.to(targetSocketId).emit('force_muted');
     });
 
-    socket.on('remove_participant', ({ meetingId, targetSocketId }) => {
+    socket.on('remove_participant', ({ meetingId, room, targetSocketId }) => {
       if (!assertIsHost(meetingId)) return;
-      const list = meetingParticipants.get(meetingId);
+      // `room` is the roomKey the host is currently in (main or a breakout room) —
+      // that's where the target participant actually lives, which may differ from
+      // the base meetingId used purely for host authorization above.
+      const roomKey = room || meetingId;
+      const list = meetingParticipants.get(roomKey);
       if (list) {
-        meetingParticipants.set(meetingId, list.filter(p => p.socketId !== targetSocketId));
+        meetingParticipants.set(roomKey, list.filter(p => p.socketId !== targetSocketId));
       }
       io.to(targetSocketId).emit('removed_from_meeting');
-      socket.to(`meeting_room:${meetingId}`).emit('participant_left', { socketId: targetSocketId });
+      socket.to(`meeting_room:${roomKey}`).emit('participant_left', { socketId: targetSocketId });
     });
 
     socket.on('join_meeting_room', ({ meetingId }) => {
@@ -437,7 +471,8 @@ export const initSocket = (server: HttpServer) => {
     // Recording consent notice — broadcast to everyone in the room the moment
     // the host starts/stops, mirroring Meet/Teams' "this meeting is being recorded" banner.
     socket.on('recording_state', ({ meetingId, recording }) => {
-      socket.to(`meeting_room:${meetingId}`).emit('meeting_recording_state_changed', {
+      if (!assertIsHost(meetingId)) return;
+      socket.to(`meeting:${meetingId}`).emit('meeting_recording_state_changed', {
         recording,
         byName: `${user.firstName} ${user.lastName}`,
       });
@@ -464,19 +499,21 @@ export const initSocket = (server: HttpServer) => {
     });
 
     // Non-host participant asks the host for permission to present their screen.
-    socket.on('request_screen_share_permission', ({ meetingId, guestName }) => {
+    socket.on('request_screen_share_permission', ({ meetingId, room, guestName }) => {
       const hostUserId = meetingHosts.get(meetingId);
-      const payload = { meetingId, guestId: userId, guestName, socketId: socket.id };
+      const roomKey = room || meetingId;
+      const payload = { meetingId, socketId: socket.id, guestId: userId, guestName };
       // Broadcast to the room (covers the host's active tab) and, for the same
       // reliability reason as join requests, target the host's user room too.
-      socket.to(`meeting_room:${meetingId}`).emit('screen_share_permission_requested', payload);
+      socket.to(`meeting_room:${roomKey}`).emit('screen_share_permission_requested', payload);
       if (hostUserId && hostUserId !== userId) {
         io.to(`user:${hostUserId}`).emit('screen_share_permission_requested', payload);
       }
     });
 
     // Host's decision, routed back to just the requesting guest.
-    socket.on('screen_share_permission_result', ({ targetSocketId, approved }) => {
+    socket.on('screen_share_permission_result', ({ meetingId, targetSocketId, approved }) => {
+      if (!assertIsHost(meetingId)) return;
       io.to(targetSocketId).emit('screen_share_permission_result', { approved });
     });
 
@@ -490,11 +527,12 @@ export const initSocket = (server: HttpServer) => {
 
     // Terminate meeting for all participants
     socket.on('end_meeting', ({ meetingId }) => {
+      if (!assertIsHost(meetingId)) return;
       meetingParticipants.delete(meetingId);
       activeMeetings.delete(meetingId);
       meetingHosts.delete(meetingId);
-          lockedMeetings.delete(meetingId);
-      io.to(`meeting_room:${meetingId}`).emit('meeting_ended');
+      lockedMeetings.delete(meetingId);
+      io.to(`meeting:${meetingId}`).emit('meeting_ended');
       console.log(`Meeting ${meetingId} terminated for all participants by Host.`);
     });
 

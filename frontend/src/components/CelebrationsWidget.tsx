@@ -7,6 +7,7 @@ import { api } from '../services/api';
 import { useAuthStore } from '../lib/store';
 import { toast } from 'react-hot-toast';
 import { useSocket } from '../hooks/useSocket';
+import { useOrganizationSettings } from '../hooks/useOrganizationSettings';
 
 type WishType = 'birthday' | 'anniversary';
 
@@ -25,6 +26,7 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const { socket } = useSocket();
+  const { settings: orgSettings } = useOrganizationSettings();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [targetId, setTargetId] = useState('');
@@ -84,7 +86,7 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
   const openWishModal = (person: any, type: WishType) => {
     const template = type === 'birthday'
       ? `🎂 Happy Birthday, ${person.firstName} ${person.lastName}!\n\nWishing you a wonderful birthday filled with happiness, good health, and memorable moments. Thank you for your hard work, dedication, and the positive energy you bring to our team every day.\n\nMay this new year of your life bring continued success, personal growth, and countless opportunities.\n\nHave an amazing birthday and a fantastic year ahead! 🎉🎁`
-      : `🎉 Happy Work Anniversary, ${person.firstName} ${person.lastName}!\n\nToday, we celebrate your incredible journey with ConnectHub and thank you for your dedication, hard work, and valuable contributions.\n\nYour commitment, professionalism, and positive attitude have made a meaningful impact on our team and organization. We truly appreciate everything you do and look forward to achieving many more milestones together.\n\n✨ Congratulations on your ${person.years} year${person.years > 1 ? 's' : ''} with us!\n\nWe wish you continued success, growth, and happiness in the years ahead.\n\nHappy Work Anniversary! 🎊`;
+      : `🎉 Happy Work Anniversary, ${person.firstName} ${person.lastName}!\n\nToday, we celebrate your incredible journey with ${orgSettings.orgName} and thank you for your dedication, hard work, and valuable contributions.\n\nYour commitment, professionalism, and positive attitude have made a meaningful impact on our team and organization. We truly appreciate everything you do and look forward to achieving many more milestones together.\n\n✨ Congratulations on your ${person.years} year${person.years > 1 ? 's' : ''} with us!\n\nWe wish you continued success, growth, and happiness in the years ahead.\n\nHappy Work Anniversary! 🎊`;
     setTargetId(person.id);
     setTargetName(`${person.firstName} ${person.lastName}`);
     setWishType(type);
@@ -135,7 +137,7 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
           </div>
           {isSelf && todayFlag ? (
             <span
-              className="px-2.5 py-1.5 text-[9px] font-black rounded-xl shrink-0 bg-primary/10 text-primary"
+              className="px-2.5 py-1.5 text-[9px] font-black rounded-xl shrink-0 bg-warm/10 text-warm-dark dark:text-warm"
               title="Check the top of your dashboard for your wishes"
             >
               {type === 'birthday' ? "🎂 It's your day!" : "🎖️ It's your day!"}
@@ -146,7 +148,7 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
               onClick={() => openWishModal(person, type)}
               className={`px-2.5 py-1.5 text-[9px] font-black rounded-xl transition-all shrink-0 ${
                 todayFlag && !alreadySent
-                  ? 'text-white bg-primary hover:bg-primary-dark shadow-xs'
+                  ? 'text-white bg-warm hover:bg-warm-dark shadow-xs'
                   : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
               }`}
               title={alreadySent ? alreadySentTitle : (todayFlag ? sendTitle : activeOnDayTitle)}
@@ -210,7 +212,7 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
           <button
             type="submit"
             disabled={sendWishMutation.isPending}
-            className="w-full py-2.5 bg-primary text-white text-xs font-black rounded-xl hover:bg-primary-dark transition-all"
+            className="w-full py-2.5 bg-warm text-white text-xs font-black rounded-xl hover:bg-warm-dark transition-all"
           >
             {sendWishMutation.isPending ? 'Sending...' : 'Send Wishes'}
           </button>

@@ -772,7 +772,7 @@ export default function ProfilePage() {
                         </div>
                         <div className="flex justify-between py-1 border-b dark:border-slate-800">
                           <span className="text-muted-foreground">In Progress</span>
-                          <span className="text-blue-500 font-bold">{userTasks?.filter((t: any) => t.status === 'IN_PROGRESS').length || 0} tasks</span>
+                          <span className="text-primary font-bold">{userTasks?.filter((t: any) => t.status === 'IN_PROGRESS').length || 0} tasks</span>
                         </div>
                         <div className="flex justify-between py-1 border-b dark:border-slate-800">
                           <span className="text-muted-foreground">Completed</span>

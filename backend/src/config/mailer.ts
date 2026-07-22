@@ -1,11 +1,14 @@
 import nodemailer from 'nodemailer';
+import { getOrgName } from '../services/organization.service';
 
 let transporter: nodemailer.Transporter;
+let smtpConfigured = false;
 
 const initMailer = async () => {
   if (transporter) return transporter;
 
   const hasCredentials = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+  smtpConfigured = hasCredentials;
 
   if (hasCredentials) {
     const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
@@ -63,17 +66,22 @@ const initMailer = async () => {
 
 export const sendEmail = async (to: string, subject: string, text: string, html?: string) => {
   const mailTransporter = await initMailer();
-  
+
   try {
+    const fromName = process.env.SMTP_FROM || `"${await getOrgName()}" <${process.env.SMTP_USER}>`;
     const info = await mailTransporter.sendMail({
-      from: process.env.SMTP_FROM || `"ConnectHub" <${process.env.SMTP_USER}>`,
+      from: fromName,
       to,
       subject,
       text,
       html,
     });
 
-    return info;
+    // `mode` distinguishes a genuine SMTP send from the no-credentials
+    // jsonTransport stub, which "succeeds" without actually emailing
+    // anyone — existing callers ignore these extra fields, but the
+    // admin test-email endpoint relies on them to report real status.
+    return { ...info, success: true, mode: smtpConfigured ? 'smtp' : 'not-configured' };
   } catch (error: any) {
     console.error('🔴 Nodemailer failed to push through Gmail network pipeline:', error.message);
     
@@ -84,6 +92,6 @@ export const sendEmail = async (to: string, subject: string, text: string, html?
     console.log(`BODY: ${text}`);
     console.log('================================================================');
     
-    return { messageId: 'emergency-fallback-active-no-crash' };
+    return { messageId: 'emergency-fallback-active-no-crash', success: false, mode: 'fallback', error: error.message };
   }
 };

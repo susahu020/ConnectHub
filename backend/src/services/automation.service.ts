@@ -1,12 +1,17 @@
 import prisma from '../config/db';
+import { createNotification } from './notification.service';
 
 export class AutomationService {
   /**
    * Triggers a workflow event
    * @param triggerName The trigger type: "TASK_COMPLETED", "EMPLOYEE_JOINED", "DOCUMENT_UPLOADED"
    * @param payload Context info for the trigger
+   * @param io Optional Socket.IO server instance, so automation-generated
+   *           notifications get the same real-time delivery as every other
+   *           notification in the app instead of only appearing after a
+   *           manual refetch.
    */
-  static async trigger(triggerName: string, payload: any): Promise<void> {
+  static async trigger(triggerName: string, payload: any, io?: any): Promise<void> {
     try {
       console.log(`[Automation] Triggered: ${triggerName}`, payload);
 
@@ -21,13 +26,13 @@ export class AutomationService {
         try {
           switch (flow.action) {
             case 'NOTIFY_MANAGER':
-              await this.handleNotifyManager(payload);
+              await this.handleNotifyManager(payload, io);
               break;
             case 'ASSIGN_ONBOARDING_TASKS':
               await this.handleAssignOnboardingTasks(payload);
               break;
             case 'NOTIFY_TEAM':
-              await this.handleNotifyTeam(payload);
+              await this.handleNotifyTeam(payload, io);
               break;
             default:
               console.warn(`[Automation] Unrecognized action: ${flow.action}`);
@@ -42,7 +47,7 @@ export class AutomationService {
   }
 
   // Action: Notify Manager
-  private static async handleNotifyManager(payload: any): Promise<void> {
+  private static async handleNotifyManager(payload: any, io?: any): Promise<void> {
     const { taskTitle, assigneeId } = payload;
     if (!assigneeId) return;
 
@@ -53,14 +58,16 @@ export class AutomationService {
     });
 
     if (employee && employee.managerId) {
-      // Create a notification for the manager
-      await prisma.notification.create({
-        data: {
-          userId: employee.managerId,
-          title: 'Task Completed by Direct Report',
-          message: `${employee.firstName} ${employee.lastName} has completed the task: "${taskTitle}".`,
-          type: 'TASK_ASSIGNED', // Valid NotificationType enum value
-        },
+      // Routed through the shared notification service so this gets the
+      // same real-time socket push and (if the admin has it enabled) email
+      // as every other TASK_ASSIGNED-type notification in the app.
+      await createNotification({
+        userId: employee.managerId,
+        title: 'Task Completed by Direct Report',
+        message: `${employee.firstName} ${employee.lastName} has completed the task: "${taskTitle}".`,
+        type: 'TASK_ASSIGNED',
+        emailFeature: 'TASK_UPDATED',
+        io,
       });
       console.log(`[Automation] Notified manager (${employee.managerId}) about task completion by ${employee.firstName}`);
     }
@@ -94,7 +101,7 @@ export class AutomationService {
   }
 
   // Action: Notify Team
-  private static async handleNotifyTeam(payload: any): Promise<void> {
+  private static async handleNotifyTeam(payload: any, io?: any): Promise<void> {
     const { fileName, uploaderId } = payload;
     if (!uploaderId) return;
 
@@ -112,13 +119,13 @@ export class AutomationService {
       });
 
       for (const member of teamMembers) {
-        await prisma.notification.create({
-          data: {
-            userId: member.id,
-            title: 'New Document Shared',
-            message: `${uploader.firstName} ${uploader.lastName} uploaded a new document: "${fileName}".`,
-            type: 'SYSTEM', // Valid NotificationType enum value
-          },
+        await createNotification({
+          userId: member.id,
+          title: 'New Document Shared',
+          message: `${uploader.firstName} ${uploader.lastName} uploaded a new document: "${fileName}".`,
+          type: 'SYSTEM',
+          emailFeature: 'FILE_SHARED',
+          io,
         });
       }
       console.log(`[Automation] Notified ${teamMembers.length} department members about uploaded document: ${fileName}`);

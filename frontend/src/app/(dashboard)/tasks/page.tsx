@@ -757,7 +757,7 @@ export default function TasksPage() {
       {/* Workspace Quick Metrics Summary Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
         {[
-          { label: 'Total Tasks', value: filteredTasks.length, icon: '📋', color: 'bg-blue-50/50 dark:bg-blue-950/15 text-blue-600 border-blue-100 dark:border-blue-900/30' },
+          { label: 'Total Tasks', value: filteredTasks.length, icon: '📋', color: 'bg-info/5 dark:bg-info/10 text-info-dark dark:text-info border-info/15 dark:border-info/20' },
           { label: 'In Progress', value: filteredTasks.filter((t: any) => t.status === 'IN_PROGRESS').length, icon: '⚡', color: 'bg-primary/5 text-primary border-primary/10' },
           { label: 'Overdue Tasks', value: filteredTasks.filter((t: any) => t.status !== 'COMPLETED' && t.dueDate && new Date(t.dueDate) < new Date()).length, icon: '⚠️', color: 'bg-red-50/50 dark:bg-red-950/15 text-red-500 border-red-100 dark:border-red-900/30' },
           { label: 'Logged Hours', value: `${(filteredTasks.reduce((sum: number, t: any) => sum + (t.timeLogs?.reduce((s: number, l: any) => s + l.minutes, 0) || 0), 0) / 60).toFixed(1)} hrs`, icon: '⏱️', color: 'bg-emerald-50/50 dark:bg-emerald-950/15 text-emerald-500 border-emerald-100 dark:border-emerald-900/30' }
@@ -1181,7 +1181,7 @@ export default function TasksPage() {
                               {task.title}
                             </h4>
                             {task.sprintName && (
-                              <span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/20 text-blue-600 border border-blue-100 dark:border-blue-900/30 rounded text-[8px] font-extrabold uppercase">
+                              <span className="px-1.5 py-0.5 bg-info/10 dark:bg-info/15 text-info-dark dark:text-info border border-info/20 rounded text-[8px] font-extrabold uppercase">
                                 {task.sprintName}
                               </span>
                             )}
@@ -1416,7 +1416,7 @@ export default function TasksPage() {
 
       {/* 3. Project Creation Modal */}
       {projectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-5 shadow-2xl relative">
             <button onClick={() => setProjectModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
               <X className="h-5 w-5" />
@@ -1647,7 +1647,7 @@ export default function TasksPage() {
 
       {/* 5. Task Details Dialog Drawer */}
       {selectedTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button onClick={() => setSelectedTask(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
               <X className="h-5 w-5" />

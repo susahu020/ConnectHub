@@ -245,8 +245,8 @@ export default function GroupsPage() {
     }
     if (content.startsWith('[ANNOUNCEMENT]')) {
       return {
-        borderClass: 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-950 dark:text-blue-105',
-        badge: <span className="px-1.5 py-0.5 bg-blue-600 text-white rounded-[4px] text-[7px] font-black uppercase tracking-wider mb-1 inline-block">Announcement</span>,
+        borderClass: 'border-info bg-info/5 dark:bg-info/10 text-info-dark dark:text-info',
+        badge: <span className="px-1.5 py-0.5 bg-info text-white rounded-[4px] text-[7px] font-black uppercase tracking-wider mb-1 inline-block">Announcement</span>,
         cleanContent: content.replace('[ANNOUNCEMENT]', '').trim()
       };
     }
@@ -982,7 +982,7 @@ export default function GroupsPage() {
                           {group.avatarUrl ? (
                             <img src={group.avatarUrl} alt="" className="h-full w-full object-cover" />
                           ) : (
-                            <div className="h-full w-full bg-gradient-to-br from-primary/80 to-blue-650/80 text-white font-extrabold flex items-center justify-center text-sm uppercase">
+                            <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-white font-extrabold flex items-center justify-center text-sm uppercase">
                               {group.name ? group.name[0] : '#'}
                             </div>
                           )}
@@ -1110,7 +1110,7 @@ export default function GroupsPage() {
                   {activeGroup.avatarUrl ? (
                     <img src={activeGroup.avatarUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-primary/80 to-blue-650/80 text-white font-extrabold flex items-center justify-center text-sm uppercase">
+                    <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-white font-extrabold flex items-center justify-center text-sm uppercase">
                       {activeGroup.name ? activeGroup.name[0] : '#'}
                     </div>
                   )}
@@ -1221,7 +1221,7 @@ export default function GroupsPage() {
                         }}
                         className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center space-x-1.5 font-bold"
                       >
-                        <Edit3 className="h-3.5 w-3.5 text-blue-500" />
+                        <Edit3 className="h-3.5 w-3.5 text-info" />
                         <span>Edit Channel</span>
                       </button>
                     )}
@@ -1275,7 +1275,7 @@ export default function GroupsPage() {
                       {activeGroup.avatarUrl ? (
                         <img src={activeGroup.avatarUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="h-full w-full bg-gradient-to-br from-primary/80 to-blue-650/80 text-white font-extrabold flex items-center justify-center text-lg uppercase">
+                        <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-white font-extrabold flex items-center justify-center text-lg uppercase">
                           {activeGroup.name ? activeGroup.name[0] : '#'}
                         </div>
                       )}
@@ -1488,7 +1488,7 @@ export default function GroupsPage() {
 
             {/* Edit Message Modal */}
             {editingMessage && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4">
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border w-full max-w-md space-y-4">
                   <div className="flex items-center justify-between border-b pb-2">
                     <h4 className="font-bold text-sm">Edit Message</h4>
@@ -1513,7 +1513,7 @@ export default function GroupsPage() {
 
             {/* Forward Message Modal */}
             {forwardingMessage && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs p-4">
                 <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
                   <button onClick={() => setForwardingMessage(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
                     <X className="h-5 w-5" />
@@ -1548,7 +1548,7 @@ export default function GroupsPage() {
 
             {/* Poll Launch Modal */}
             {pollModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs p-4">
                 <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
                   <button onClick={() => setPollModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
                     <X className="h-5 w-5" />
@@ -1693,7 +1693,7 @@ export default function GroupsPage() {
                           }}
                           className="w-full flex items-center space-x-2.5 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all"
                         >
-                          <div className="h-7 w-7 bg-blue-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                          <div className="h-7 w-7 bg-info text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
                             <FileImage className="h-3.5 w-3.5" />
                           </div>
                           <span className="font-extrabold">Photos & videos</span>
@@ -1909,7 +1909,7 @@ export default function GroupsPage() {
                     {activeGroup.avatarUrl ? (
                       <img src={activeGroup.avatarUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-primary/80 to-blue-650/80 text-white font-extrabold flex items-center justify-center text-lg uppercase">
+                      <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-white font-extrabold flex items-center justify-center text-lg uppercase">
                         {activeGroup.name ? activeGroup.name[0] : '#'}
                       </div>
                     )}
@@ -2186,7 +2186,7 @@ export default function GroupsPage() {
 
       {/* Group Create Modal */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button onClick={() => { setCreateModalOpen(false); setCreateSearchQuery(''); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
@@ -2422,7 +2422,7 @@ export default function GroupsPage() {
 
       {/* Edit Channel Modal */}
       {editModalOpen && activeGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button onClick={() => setEditModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
@@ -2554,7 +2554,7 @@ export default function GroupsPage() {
 
       {/* Add Member Modal */}
       {addMemberOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button onClick={() => { setAddMemberOpen(false); setMemberSearchQuery(''); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
@@ -2638,7 +2638,7 @@ export default function GroupsPage() {
 
       {/* Camera Capture Modal */}
       {cameraModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-xs">
             <button onClick={() => setCameraModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
@@ -2665,7 +2665,7 @@ export default function GroupsPage() {
 
       {/* Quiz Modal */}
       {quizModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-xs">
             <button onClick={() => setQuizModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
@@ -2732,7 +2732,7 @@ export default function GroupsPage() {
 
       {/* Sticker Picker popover Modal */}
       {stickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-slate-900 border p-5 rounded-3xl w-full max-w-xs space-y-4 shadow-2xl relative text-xs">
             <button onClick={() => setStickerOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
@@ -2766,7 +2766,7 @@ export default function GroupsPage() {
 
       {/* Voters List Modal */}
       {votersModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-xs">
             <button onClick={() => { setVotersModalOpen(false); setSelectedVotersList([]); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
@@ -2803,7 +2803,7 @@ export default function GroupsPage() {
 
       {/* Channel Analytics Modal */}
       {analyticsModalOpen && activeGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-lg space-y-4 shadow-2xl relative text-xs text-left">
             <button onClick={() => setAnalyticsModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />

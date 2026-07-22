@@ -199,7 +199,7 @@ export default function OrgChart() {
                   </div>
 
                   <h3 className="text-base font-black leading-tight">{ceo.firstName} {ceo.lastName}</h3>
-                  <p className="text-[10px] uppercase font-black text-blue-105 tracking-widest mt-1">
+                  <p className="text-[10px] uppercase font-black text-primary tracking-widest mt-1">
                     {ceo.designation || 'Chief Executive Officer'}
                   </p>
                   

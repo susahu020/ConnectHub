@@ -4,65 +4,104 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* ConnectHub — "Slate & Signal" design system */
+    --background: 225 28.6% 97.3%;
+    --foreground: 228 21.7% 9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 228 21.7% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 228 21.7% 9%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 242.8 76.8% 61.2%;
+    --primary-foreground: 0 0% 100%;
+    --primary-dark: 242.7 67.8% 54.9%;
+    --primary-light: 243.3 82.9% 70.2%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222 47% 11.2%;
+    --secondary: 228 21.7% 95.5%;
+    --secondary-foreground: 228 21.7% 9%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 228 21.7% 95.5%;
+    --muted-foreground: 220 8.9% 46.1%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222 47% 11.2%;
+    --accent: 243.8 72.7% 95.7%;
+    --accent-foreground: 242.7 67.8% 54.9%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 7.2 67.1% 51.2%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 89.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --success: 162.9 78.3% 32.5%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 36.9 85.6% 38%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 220 19.1% 90.8%;
+    --input: 220 19.1% 88%;
+    --ring: 242.8 76.8% 61.2%;
+
+    /* Reserved for celebration moments (birthdays, anniversaries, kudos) — a
+       deliberate warm exception, not used for ordinary UI chrome or actions. */
+    --warm: 30.4 63.4% 54.3%;
+    --warm-dark: 30 60% 44%;
+    --warm-foreground: 0 0% 100%;
+
+    /* Distinct from --primary on purpose — for informational badges/labels
+       (meeting types, notices) that shouldn't visually read as a brand action. */
+    --info: 214.4 84.1% 55.7%;
+    --info-dark: 214.5 74.2% 44.1%;
+    --info-light: 213.6 88.2% 66.7%;
+    --info-foreground: 0 0% 100%;
 
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 222.9 21.2% 6.5%;
+    --foreground: 222.9 22.6% 93.9%;
 
-    --card: 222.2 84% 6.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 225 21.4% 11%;
+    --card-foreground: 222.9 22.6% 93.9%;
 
-    --popover: 222.2 84% 6.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 225 21.4% 11%;
+    --popover-foreground: 222.9 22.6% 93.9%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 243.3 82.9% 70.2%;
+    --primary-foreground: 225 21.4% 11%;
+    --primary-dark: 242.8 76.8% 61.2%;
+    --primary-light: 243.6 90% 78%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 222.9 19.4% 14.1%;
+    --secondary-foreground: 222.9 22.6% 93.9%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 222.9 19.4% 14.1%;
+    --muted-foreground: 222.5 11.5% 59.2%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 229.7 29.3% 19.4%;
+    --accent-foreground: 243.3 82.9% 70.2%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 6.3 59.7% 31.2%;
+    --destructive-foreground: 222.9 22.6% 93.9%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --success: 162.9 60% 42%;
+    --success-foreground: 222.9 21.2% 6.5%;
+
+    --warning: 36.9 70% 52%;
+    --warning-foreground: 222.9 21.2% 6.5%;
+
+    --border: 221.2 17.4% 18%;
+    --input: 221.2 17.4% 18%;
+    --ring: 243.3 82.9% 70.2%;
+
+    --warm: 30.4 70% 62%;
+    --warm-dark: 30.4 63.4% 54.3%;
+    --warm-foreground: 222.9 21.2% 6.5%;
+
+    --info: 214 87.2% 69.4%;
+    --info-dark: 214.4 84.1% 55.7%;
+    --info-light: 213.6 90% 78%;
+    --info-foreground: 222.9 21.2% 6.5%;
   }
 }
 
@@ -75,6 +114,10 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.01em;
   }
 }
 

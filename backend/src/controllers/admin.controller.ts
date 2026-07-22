@@ -2,6 +2,23 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import bcrypt from 'bcrypt';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { invalidateEmailFeatureSettingsCache } from '../services/notification.service';
+import { sendEmail } from '../config/mailer';
+import { getOrganizationSettings } from '../services/organization.service';
+
+// The set of columns an admin is allowed to toggle via updateEmailFeatureSettings.
+// Keeping an explicit whitelist means an unexpected key in the request body
+// (e.g. `id`, `updatedAt`) can never be written to the row.
+const EMAIL_FEATURE_KEYS = [
+  'newMessageEmail',
+  'groupMessageEmail',
+  'groupCreationEmail',
+  'taskAssignedEmail',
+  'taskUpdatedEmail',
+  'announcementEmail',
+  'meetingInviteEmail',
+  'fileSharedEmail',
+] as const;
 
 export const getAuditLogs = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -41,9 +58,16 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response, n
     const { userId } = req.params;
     const { role } = req.body;
 
+    // Keep the granular RBAC role in sync with the legacy role dropdown, so
+    // checkPermission-gated routes (tasks, projects, groups, files, invites)
+    // actually reflect the role this admin just assigned instead of whatever
+    // customRoleId happened to be set (or unset) before.
+    const customRoleName = role === 'ADMIN' ? 'Admin' : role === 'MANAGER' ? 'Manager' : 'Employee';
+    const roleRecord = await prisma.customRole.findUnique({ where: { name: customRoleName } });
+
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { role },
+      data: { role, customRoleId: roleRecord?.id },
     });
 
     await prisma.auditLog.create({
@@ -353,6 +377,130 @@ export const adminChangeUserPassword = async (req: AuthenticatedRequest, res: Re
     });
 
     res.status(200).json({ message: 'User password changed successfully.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get the platform-wide email-notification feature toggles.
+ * Creates the (all-enabled) singleton row on first access.
+ */
+export const getEmailFeatureSettings = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    let settings = await prisma.emailFeatureSettings.findFirst();
+    if (!settings) {
+      settings = await prisma.emailFeatureSettings.create({ data: {} });
+    }
+
+    res.status(200).json(settings);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update one or more email-notification feature toggles. Accepts a partial
+ * object of { [featureKey]: boolean }; only whitelisted keys are applied.
+ */
+export const updateEmailFeatureSettings = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const updates: Record<string, boolean> = {};
+    for (const key of EMAIL_FEATURE_KEYS) {
+      if (typeof req.body[key] === 'boolean') {
+        updates[key] = req.body[key];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ message: 'No valid email feature toggles were provided.' });
+      return;
+    }
+
+    let existing = await prisma.emailFeatureSettings.findFirst();
+    if (!existing) {
+      existing = await prisma.emailFeatureSettings.create({ data: {} });
+    }
+
+    const settings = await prisma.emailFeatureSettings.update({
+      where: { id: existing.id },
+      data: { ...updates, updatedById: req.user?.id },
+    });
+
+    // Make sure the notification service picks up the change immediately
+    // instead of serving a stale cached copy for up to CACHE_TTL_MS.
+    invalidateEmailFeatureSettingsCache();
+
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user?.id,
+        action: 'UPDATE_EMAIL_FEATURE_SETTINGS',
+        details: `Updated email notification settings: ${JSON.stringify(updates)}`,
+      },
+    });
+
+    res.status(200).json(settings);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Admin: send a real test email through the current SMTP configuration so
+ * the admin can verify email delivery is actually working, on demand,
+ * without needing to trigger a real business event (message, task, etc.)
+ * or wait for one to happen. Defaults to the requesting admin's own email
+ * if no target is given.
+ */
+export const sendTestEmail = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const targetEmail = (req.body?.to && String(req.body.to).trim()) || req.user?.email;
+
+    if (!targetEmail) {
+      res.status(400).json({ message: 'No target email address available.' });
+      return;
+    }
+
+    const orgSettings = await getOrganizationSettings();
+    const orgName = orgSettings.orgName || 'ConnectHub';
+    const sentAt = new Date().toLocaleString();
+
+    const subject = `${orgName} - Test Email`;
+    const text = `This is a test email sent from the ${orgName} Admin Panel at ${sentAt} to verify your email notification configuration is working correctly.`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px;">
+        <h2 style="color: #4f46e5; margin-top: 0;">✅ Test Email</h2>
+        <p>This is a test email sent from the <strong>${orgName}</strong> Admin Panel to verify your email notification configuration is working correctly.</p>
+        <p style="font-size: 12px; color: #64748b;">Sent at ${sentAt} by ${req.user?.firstName || 'an admin'}.</p>
+        <p style="font-size: 12px; color: #64748b;">If you received this, outbound email delivery is working.</p>
+      </div>
+    `;
+
+    const result: any = await sendEmail(targetEmail, subject, text, html);
+
+    if (result?.mode === 'not-configured') {
+      res.status(200).json({
+        success: false,
+        mode: 'not-configured',
+        message: 'SMTP is not configured (missing SMTP_USER/SMTP_PASS). The email was not actually sent — the mailer is running in console/JSON fallback mode.',
+      });
+      return;
+    }
+
+    if (result?.mode === 'fallback' || result?.success === false) {
+      res.status(200).json({
+        success: false,
+        mode: 'fallback',
+        message: `SMTP send failed: ${result?.error || 'unknown error'}. Check SMTP_HOST/SMTP_USER/SMTP_PASS and server logs for details.`,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      mode: 'smtp',
+      message: `Test email sent successfully to ${targetEmail}.`,
+    });
   } catch (error) {
     next(error);
   }

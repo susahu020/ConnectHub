@@ -163,6 +163,7 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response, next
         message: content ? (content.length > 50 ? `${content.substring(0, 50)}...` : content) : (voiceNoteUrl ? 'Sent a voice note' : 'Sent an attachment'),
         type: 'MESSAGE',
         relatedId: message.id,
+        emailFeature: 'NEW_MESSAGE',
         io,
       });
     } else if (groupId) {
@@ -197,6 +198,7 @@ export const sendMessage = async (req: AuthenticatedRequest, res: Response, next
           message: `${req.user?.firstName}: ${content ? (content.length > 50 ? `${content.substring(0, 50)}...` : content) : (voiceNoteUrl ? 'Sent a voice note' : 'Sent an attachment')}`,
           type: (isMentioned ? 'MENTION' : 'MESSAGE') as any,
           relatedId: message.id,
+          emailFeature: 'GROUP_MESSAGE' as any,
         };
       });
 
@@ -342,6 +344,28 @@ export const addReaction = async (req: AuthenticatedRequest, res: Response, next
     const { emoji } = req.body;
     const userId = req.user?.id!;
 
+    const existingMessage = await prisma.message.findUnique({ where: { id: messageId } });
+    if (!existingMessage) {
+      res.status(404).json({ message: 'Message not found.' });
+      return;
+    }
+
+    if (existingMessage.receiverId) {
+      const isParticipant = existingMessage.senderId === userId || existingMessage.receiverId === userId;
+      if (!isParticipant) {
+        res.status(403).json({ message: 'You can only react to messages in your own conversations.' });
+        return;
+      }
+    } else if (existingMessage.groupId) {
+      const membership = await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId: existingMessage.groupId, userId } },
+      });
+      if (!membership) {
+        res.status(403).json({ message: 'You can only react to messages in groups you belong to.' });
+        return;
+      }
+    }
+
     const reaction = await prisma.messageReaction.create({
       data: {
         messageId,
@@ -352,6 +376,17 @@ export const addReaction = async (req: AuthenticatedRequest, res: Response, next
         user: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+
+    const io = req.app.get('io');
+    if (io) {
+      const payload = { messageId, reaction };
+      if (existingMessage.receiverId) {
+        io.to(`user:${existingMessage.receiverId}`).emit('reaction_added', payload);
+        io.to(`user:${existingMessage.senderId}`).emit('reaction_added', payload);
+      } else if (existingMessage.groupId) {
+        io.to(`group:${existingMessage.groupId}`).emit('reaction_added', payload);
+      }
+    }
 
     res.status(201).json(reaction);
   } catch (error) {
@@ -365,6 +400,12 @@ export const removeReaction = async (req: AuthenticatedRequest, res: Response, n
     const { emoji } = req.body;
     const userId = req.user?.id!;
 
+    const existingMessage = await prisma.message.findUnique({ where: { id: messageId } });
+    if (!existingMessage) {
+      res.status(404).json({ message: 'Message not found.' });
+      return;
+    }
+
     await prisma.messageReaction.deleteMany({
       where: {
         messageId,
@@ -372,6 +413,17 @@ export const removeReaction = async (req: AuthenticatedRequest, res: Response, n
         emoji,
       },
     });
+
+    const io = req.app.get('io');
+    if (io) {
+      const payload = { messageId, userId, emoji };
+      if (existingMessage.receiverId) {
+        io.to(`user:${existingMessage.receiverId}`).emit('reaction_removed', payload);
+        io.to(`user:${existingMessage.senderId}`).emit('reaction_removed', payload);
+      } else if (existingMessage.groupId) {
+        io.to(`group:${existingMessage.groupId}`).emit('reaction_removed', payload);
+      }
+    }
 
     res.status(200).json({ message: 'Reaction removed successfully.', messageId, emoji });
   } catch (error) {
@@ -567,11 +619,30 @@ export const getRecentChats = async (req: AuthenticatedRequest, res: Response, n
 export const pinMessage = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id!;
     const existingMessage = await prisma.message.findUnique({ where: { id } });
 
     if (!existingMessage) {
       res.status(404).json({ message: 'Message not found.' });
       return;
+    }
+
+    // Only someone actually in this conversation can pin/unpin its messages —
+    // a DM participant, or a member of the group it belongs to.
+    if (existingMessage.receiverId) {
+      const isParticipant = existingMessage.senderId === userId || existingMessage.receiverId === userId;
+      if (!isParticipant) {
+        res.status(403).json({ message: 'You can only pin messages in your own conversations.' });
+        return;
+      }
+    } else if (existingMessage.groupId) {
+      const membership = await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId: existingMessage.groupId, userId } },
+      });
+      if (!membership) {
+        res.status(403).json({ message: 'You can only pin messages in groups you belong to.' });
+        return;
+      }
     }
 
     const updated = await prisma.message.update({
@@ -729,6 +800,25 @@ export const votePoll = async (req: AuthenticatedRequest, res: Response, next: N
       return;
     }
 
+    const pollMessage = await prisma.message.findUnique({ where: { id: option.poll.messageId } });
+    if (pollMessage) {
+      if (pollMessage.receiverId) {
+        const isParticipant = pollMessage.senderId === userId || pollMessage.receiverId === userId;
+        if (!isParticipant) {
+          res.status(403).json({ message: 'You can only vote in polls from your own conversations.' });
+          return;
+        }
+      } else if (pollMessage.groupId) {
+        const membership = await prisma.groupMember.findUnique({
+          where: { groupId_userId: { groupId: pollMessage.groupId, userId } },
+        });
+        if (!membership) {
+          res.status(403).json({ message: 'You can only vote in polls from groups you belong to.' });
+          return;
+        }
+      }
+    }
+
     // Check if user already voted for this option
     const existingVote = await prisma.messagePollVote.findUnique({
       where: {
@@ -815,6 +905,22 @@ export const forwardMessage = async (req: AuthenticatedRequest, res: Response, n
     if (!sourceMessage) {
       res.status(404).json({ message: 'Source message not found.' });
       return;
+    }
+
+    if (sourceMessage.receiverId) {
+      const isParticipant = sourceMessage.senderId === senderId || sourceMessage.receiverId === senderId;
+      if (!isParticipant) {
+        res.status(403).json({ message: 'You can only forward messages from your own conversations.' });
+        return;
+      }
+    } else if (sourceMessage.groupId) {
+      const membership = await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId: sourceMessage.groupId, userId: senderId } },
+      });
+      if (!membership) {
+        res.status(403).json({ message: 'You can only forward messages from groups you belong to.' });
+        return;
+      }
     }
 
     const createdMessages: any[] = [];

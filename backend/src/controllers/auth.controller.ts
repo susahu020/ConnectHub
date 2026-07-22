@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { sendEmail } from '../config/mailer';
+import { getOrgName, getOrganizationSettings } from '../services/organization.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { generateSecret, verifyTOTP, generateBackupCodes } from '../utils/twoFactor';
 import {
@@ -60,9 +61,18 @@ export const register = async (req: Request, res: Response, next: NextFunction):
       return;
     }
 
+    // Resolve the matching CustomRole so the granular RBAC permission checks
+    // (checkPermission middleware on task/project/group/file/etc. routes) actually
+    // work for this account, the same way the invitation-acceptance flow already
+    // does it. Without this, a self-registered user has no customRoleId, and
+    // hasPermission() denies everything by default for non-legacy-admins.
+    const customRoleName = role === 'ADMIN' ? 'Admin' : 'Employee';
+    const roleRecord = await prisma.customRole.findUnique({ where: { name: customRoleName } });
+
     const passwordHash = await bcrypt.hash(password, 10);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    const orgSettingsForTimezone = await getOrganizationSettings();
 
     const user = await prisma.user.create({
       data: {
@@ -73,6 +83,8 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         phone,
         designation,
         role,
+        customRoleId: roleRecord?.id || null,
+        timezone: orgSettingsForTimezone.defaultTimezone || 'UTC',
         settings: {
           create: {}, // Initialize default settings
         },
@@ -86,11 +98,12 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     });
 
     // Send Verification Email
-    const subject = 'ConnectHub - Verify Your Email';
-    const text = `Welcome to ConnectHub! Your email verification OTP is ${otp}. It will expire in 15 minutes.`;
+    const orgName = await getOrgName();
+    const subject = `${orgName} - Verify Your Email`;
+    const text = `Welcome to ${orgName}! Your email verification OTP is ${otp}. It will expire in 15 minutes.`;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-        <h2 style="color: #4f46e5; text-align: center;">Welcome to ConnectHub</h2>
+        <h2 style="color: #4f46e5; text-align: center;">Welcome to ${orgName}</h2>
         <p>Hi ${firstName},</p>
         <p>Thank you for registering. Please verify your email address using the one-time password (OTP) below:</p>
         <div style="background-color: #f8fafc; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 4px; border-radius: 6px; margin: 20px 0; color: #1e293b;">
@@ -98,7 +111,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         </div>
         <p>This code is valid for 15 minutes. If you did not request this, please ignore this email.</p>
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-        <p style="font-size: 12px; color: #64748b; text-align: center;">ConnectHub Inc. - Enterprise Communication Platform</p>
+        <p style="font-size: 12px; color: #64748b; text-align: center;">${orgName} Inc. - Enterprise Communication Platform</p>
       </div>
     `;
 
@@ -251,7 +264,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
       await sendEmail(
         email,
-        'ConnectHub - Verify Your Email',
+        `${await getOrgName()} - Verify Your Email`,
         `Please verify your email using OTP: ${otp}`,
         `<p>Please verify your email using OTP: <strong>${otp}</strong></p>`
       ).catch(e => console.error(e));
@@ -671,7 +684,8 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
-    const subject = 'ConnectHub - Reset Your Password';
+    const orgNameForReset = await getOrgName();
+    const subject = `${orgNameForReset} - Reset Your Password`;
     const text = `Reset your password by visiting: ${resetUrl}`;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -685,7 +699,7 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
         <p style="word-break: break-all; font-size: 14px; color: #64748b;">${resetUrl}</p>
         <p>This link is valid for 1 hour. If you did not request this, please ignore this email.</p>
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-        <p style="font-size: 12px; color: #64748b; text-align: center;">ConnectHub Inc.</p>
+        <p style="font-size: 12px; color: #64748b; text-align: center;">${orgNameForReset} Inc.</p>
       </div>
     `;
 
@@ -947,8 +961,9 @@ export const setup2FA = async (req: AuthenticatedRequest, res: Response, next: N
     }
 
     const secret = generateSecret();
-    const label = `ConnectHub:${user.email}`;
-    const otpauthUrl = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=ConnectHub`;
+    const orgNameFor2FA = await getOrgName();
+    const label = `${orgNameFor2FA}:${user.email}`;
+    const otpauthUrl = `otpauth://totp/${encodeURIComponent(label)}?secret=${secret}&issuer=${encodeURIComponent(orgNameFor2FA)}`;
 
     await prisma.user.update({
       where: { id: userId },
@@ -1071,10 +1086,11 @@ export const sendContactMessage = async (req: Request, res: Response, next: Next
       return;
     }
 
+    const orgSettings = await getOrganizationSettings();
     const adminUser = await prisma.user.findFirst({
       where: { role: 'ADMIN' },
     });
-    const adminEmail = adminUser?.email || process.env.SMTP_USER || 'susahu02@gmail.com';
+    const adminEmail = orgSettings.supportEmail || adminUser?.email || process.env.SMTP_USER || 'susahu02@gmail.com';
 
     const subject = `New Contact Form Message from ${name}`;
     const text = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
@@ -1088,7 +1104,7 @@ export const sendContactMessage = async (req: Request, res: Response, next: Next
           <p style="white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #4b5563;">${message}</p>
         </div>
         <p style="font-size: 11px; color: #9ca3af; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
-          This message was sent from the ConnectHub contact form.
+          This message was sent from the ${orgSettings.orgName} contact form.
         </p>
       </div>
     `;

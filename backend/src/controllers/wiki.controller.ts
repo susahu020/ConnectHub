@@ -2,19 +2,36 @@ import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
+// An unpublished (draft) page is only visible to its author and admins — everyone
+// else should not be able to list it, open it directly by id, or edit/delete it.
+const canAccessPage = (page: { isPublished: boolean; authorId: string }, userId: string, role?: string) =>
+  page.isPublished || page.authorId === userId || role === 'ADMIN';
+
 // 1. GET /api/wiki — List pages
 export const getWikiPages = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { category, search } = req.query || {};
-    
-    const whereClause: any = {};
+    const userId = req.user!.id;
+    const role = req.user?.role;
+
+    const whereClause: any = {
+      OR: [
+        { isPublished: true },
+        { authorId: userId },
+        ...(role === 'ADMIN' ? [{ isPublished: false }] : []),
+      ],
+    };
     if (category) {
       whereClause.category = category as string;
     }
     if (search) {
-      whereClause.OR = [
-        { title: { contains: search as string, mode: 'insensitive' } },
-        { content: { contains: search as string, mode: 'insensitive' } },
+      whereClause.AND = [
+        {
+          OR: [
+            { title: { contains: search as string, mode: 'insensitive' } },
+            { content: { contains: search as string, mode: 'insensitive' } },
+          ],
+        },
       ];
     }
 
@@ -51,6 +68,10 @@ export const getWikiPage = async (req: AuthenticatedRequest, res: Response, next
 
     if (!page) {
       return res.status(404).json({ message: 'Wiki page not found.' });
+    }
+
+    if (!canAccessPage(page, req.user!.id, req.user?.role)) {
+      return res.status(403).json({ message: 'This page is still a draft — only its author and admins can view it.' });
     }
 
     res.json(page);
@@ -96,7 +117,10 @@ export const createWikiPage = async (req: AuthenticatedRequest, res: Response, n
   }
 };
 
-// 4. PUT /api/wiki/:id — Update page
+// 4. PUT /api/wiki/:id — Update page. Editing a *published* page is intentionally
+// collaborative (any employee can improve shared docs, like Confluence/Notion).
+// Drafts are the exception — only the author/admin can even see them, so only
+// they can edit them either.
 export const updateWikiPage = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
@@ -110,6 +134,10 @@ export const updateWikiPage = async (req: AuthenticatedRequest, res: Response, n
 
     if (!page) {
       return res.status(404).json({ message: 'Wiki page not found.' });
+    }
+
+    if (!canAccessPage(page, changedById, req.user?.role)) {
+      return res.status(403).json({ message: 'This page is still a draft — only its author and admins can edit it.' });
     }
 
     const updated = await prisma.wikiPage.update({
@@ -142,7 +170,9 @@ export const updateWikiPage = async (req: AuthenticatedRequest, res: Response, n
   }
 };
 
-// 5. DELETE /api/wiki/:id — Delete page
+// 5. DELETE /api/wiki/:id — Delete page. Unlike editing, deletion is permanent
+// (there's no wiki recycle bin) — restricted to the author or an admin so a
+// collaborative wiki can't be wiped by anyone who happens across a link.
 export const deleteWikiPage = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
@@ -150,6 +180,10 @@ export const deleteWikiPage = async (req: AuthenticatedRequest, res: Response, n
 
     if (!page) {
       return res.status(404).json({ message: 'Wiki page not found.' });
+    }
+
+    if (page.authorId !== req.user!.id && req.user?.role !== 'ADMIN') {
+      return res.status(403).json({ message: 'Only the page author or an admin can delete this page.' });
     }
 
     await prisma.wikiPage.delete({ where: { id } });
@@ -172,6 +206,10 @@ export const rollbackWikiPage = async (req: AuthenticatedRequest, res: Response,
 
     if (!page) {
       return res.status(404).json({ message: 'Wiki page not found.' });
+    }
+
+    if (!canAccessPage(page, changedById, req.user?.role)) {
+      return res.status(403).json({ message: 'This page is still a draft — only its author and admins can roll it back.' });
     }
 
     const versionRecord = page.versions.find(v => v.id === versionId);

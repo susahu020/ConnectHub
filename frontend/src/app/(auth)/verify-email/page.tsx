@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { Layers, Loader2 } from 'lucide-react';
 import { api } from '../../../services/api';
+import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
 
 function VerifyEmailForm() {
   const router = useRouter();
@@ -13,6 +14,7 @@ function VerifyEmailForm() {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const { settings: orgSettings } = useOrganizationSettings();
 
   useEffect(() => {
     const emailParam = searchParams.get('email');
@@ -56,8 +58,12 @@ function VerifyEmailForm() {
 
       <div className="flex flex-col items-center space-y-2 text-center">
         <Link href="/" className="flex items-center space-x-2 text-2xl font-bold tracking-tight mb-2">
-          <Layers className="h-8 w-8 text-primary" />
-          <span>ConnectHub</span>
+          {orgSettings.logoUrl ? (
+            <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-8 w-8 rounded object-contain" />
+          ) : (
+            <Layers className="h-8 w-8 text-primary" />
+          )}
+          <span>{orgSettings.orgName}</span>
         </Link>
         <h2 className="text-2xl font-bold tracking-tight">Verify Your Email</h2>
         <p className="text-sm text-muted-foreground">

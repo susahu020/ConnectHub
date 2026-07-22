@@ -34,6 +34,7 @@ import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../../../hooks/useSocket';
 import CelebrationsWidget from '../../../components/CelebrationsWidget';
+import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
 
 type TabType = 'leave' | 'attendance' | 'holidays' | 'expenses' | 'payslips' | 'shifts' | 'recognition';
 
@@ -41,6 +42,7 @@ export default function HRPortal() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const { socket } = useSocket();
+  const { settings: orgSettings } = useOrganizationSettings();
   const [activeTab, setActiveTab] = useState<TabType>('leave');
   
   // Modals state
@@ -441,7 +443,7 @@ export default function HRPortal() {
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Available Leaves</span>
-            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500">
+            <div className="p-2 rounded-xl bg-info/10 text-info">
               <Calendar className="h-5 w-5" />
             </div>
           </div>
@@ -1701,7 +1703,7 @@ export default function HRPortal() {
             <div className="border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4 bg-slate-50 dark:bg-slate-900/50">
               <div className="flex justify-between items-start border-b pb-3">
                 <div>
-                  <h4 className="text-base font-black text-slate-900 dark:text-white">ConnectHub Enterprise</h4>
+                  <h4 className="text-base font-black text-slate-900 dark:text-white">{orgSettings.orgName} Enterprise</h4>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Statement of Earnings</p>
                 </div>
                 <div className="text-right">

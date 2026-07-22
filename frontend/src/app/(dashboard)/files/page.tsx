@@ -29,11 +29,13 @@ import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
 import { resolveFileUrl } from '../../../lib/utils';
 import { useConfirm } from '../../../context/ConfirmContext';
+import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
 
 export default function FilesPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
+  const { settings: orgSettings } = useOrganizationSettings();
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,9 +55,15 @@ export default function FilesPage() {
   const [scanning, setScanning] = useState(false);
   const [ocrText, setOcrText] = useState<string | null>(null);
   const [ocring, setOcring] = useState(false);
-  const [watermarkText, setWatermarkText] = useState('ConnectHub CONFIDENTIAL');
+  const [watermarkText, setWatermarkText] = useState('');
   const [watermarkResult, setWatermarkResult] = useState<any>(null);
   const [watermarking, setWatermarking] = useState(false);
+
+  useEffect(() => {
+    if (!watermarkText) {
+      setWatermarkText(orgSettings.defaultWatermarkText);
+    }
+  }, [orgSettings.defaultWatermarkText]);
 
   const handleBulkDownload = async () => {
     if (selectedFileIds.length === 0) return;
@@ -502,7 +510,7 @@ export default function FilesPage() {
           {/* Drive Storage Summary Metrics Row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
             {[
-              { label: 'Total Folders', value: explorer?.folders?.length || 0, icon: '📁', color: 'bg-blue-50/50 dark:bg-blue-950/15 text-blue-600 border-blue-100 dark:border-blue-900/30' },
+              { label: 'Total Folders', value: explorer?.folders?.length || 0, icon: '📁', color: 'bg-info/5 dark:bg-info/10 text-info-dark dark:text-info border-info/15 dark:border-info/20' },
               { label: 'Total Files', value: explorer?.files?.length || 0, icon: '📄', color: 'bg-primary/5 text-primary border-primary/10' },
               { label: 'Storage Used', value: `${((explorer?.files?.reduce((acc: number, f: any) => acc + (f.size || 0), 0) || 0) / 1024 / 1024).toFixed(1)} MB`, icon: '💾', color: 'bg-emerald-50/50 dark:bg-emerald-950/15 text-emerald-500 border-emerald-100 dark:border-emerald-900/30' },
               { label: 'File Type Filter', value: fileTypeFilter === 'ALL' ? 'All Types' : fileTypeFilter, icon: '🔍', color: 'bg-amber-50/50 dark:bg-amber-950/15 text-amber-500 border-amber-100 dark:border-amber-900/30' }
@@ -757,7 +765,7 @@ export default function FilesPage() {
 
       {/* Create Folder Modal */}
       {createFolderOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative animate-in fade-in duration-200">
             <button onClick={() => setCreateFolderOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
               <X className="h-5 w-5" />
@@ -788,7 +796,7 @@ export default function FilesPage() {
 
       {/* Move Directory Item Modal */}
       {movingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative animate-in fade-in duration-200">
             <button onClick={() => setMovingItem(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
               <X className="h-5 w-5" />
@@ -821,7 +829,7 @@ export default function FilesPage() {
 
       {/* Share Expiring Link Modal */}
       {sharingFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative animate-in fade-in duration-200">
             <button
               onClick={() => {
@@ -1031,7 +1039,7 @@ export default function FilesPage() {
                       <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm space-y-4 max-w-2xl mx-auto relative overflow-hidden font-sans">
                         <div className="flex items-center justify-between border-b pb-3">
                           <div className="flex items-center space-x-2">
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[8px] font-black rounded uppercase">
+                            <span className="px-2 py-0.5 bg-info/15 text-info-dark text-[8px] font-black rounded uppercase">
                               {previewFile.fileType} READER
                             </span>
                             <span className="text-[10px] text-slate-400 font-semibold">{previewFile.name}</span>
@@ -1239,7 +1247,7 @@ export default function FilesPage() {
                           value={watermarkText}
                           onChange={(e) => setWatermarkText(e.target.value)}
                           className="flex-1 px-3 py-2 border rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
-                          placeholder="ConnectHub CONFIDENTIAL"
+                          placeholder={orgSettings.defaultWatermarkText}
                         />
                         <button
                           onClick={() => handleApplyWatermark(previewFile.id)}

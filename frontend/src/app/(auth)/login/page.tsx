@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import { Layers, Loader2, Eye, EyeOff, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
+import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -21,6 +22,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const { settings: orgSettings } = useOrganizationSettings();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -49,7 +51,7 @@ export default function LoginPage() {
         toast.success('Credentials verified. Two-Factor Authentication required.');
       } else {
         setAuth(response.user, response.accessToken);
-        toast.success('Welcome back to ConnectHub!');
+        toast.success(`Welcome back to ${orgSettings.orgName}!`);
         router.push('/dashboard');
       }
     } catch (error: any) {
@@ -76,7 +78,7 @@ export default function LoginPage() {
       });
 
       setAuth(response.user, response.accessToken);
-      toast.success('Verification successful. Welcome to ConnectHub!');
+      toast.success(`Verification successful. Welcome to ${orgSettings.orgName}!`);
       router.push('/dashboard');
     } catch (error: any) {
       toast.error(error.message || 'Invalid or expired 2FA code.');
@@ -94,11 +96,15 @@ export default function LoginPage() {
 
         <div className="flex flex-col items-center space-y-2 text-center">
           <Link href="/" className="flex items-center space-x-2 text-2xl font-bold tracking-tight mb-2">
-            <Layers className="h-8 w-8 text-primary" />
-            <span>ConnectHub</span>
+            {orgSettings.logoUrl ? (
+              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-8 w-8 rounded object-contain" />
+            ) : (
+              <Layers className="h-8 w-8 text-primary" />
+            )}
+            <span>{orgSettings.orgName}</span>
           </Link>
           <h2 className="text-2xl font-bold tracking-tight">
-            {require2fa ? 'Two-Factor Verification' : 'Sign In to ConnectHub'}
+            {require2fa ? 'Two-Factor Verification' : `Sign In to ${orgSettings.orgName}`}
           </h2>
           <p className="text-sm text-muted-foreground leading-normal">
             {require2fa 
