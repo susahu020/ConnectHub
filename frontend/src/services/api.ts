@@ -1,6 +1,6 @@
 import { useAuthStore } from '../lib/store';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
@@ -138,6 +138,26 @@ export const api = {
   forgotPassword: (body: any) => request('/auth/forgot-password', 'POST', body),
   resetPassword: (body: any) => request('/auth/reset-password', 'POST', body),
   changePassword: (body: any) => request('/auth/change-password', 'POST', body),
+  deleteMyAccount: (currentPassword: string) => request('/users/me', 'DELETE', { currentPassword }),
+  exportMyData: async (): Promise<void> => {
+    const store = useAuthStore.getState();
+    const response = await fetch(`${API_BASE_URL}/users/me/export`, {
+      headers: store.token ? { Authorization: `Bearer ${store.token}` } : {},
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to export your data. Please try again.');
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `my-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
   verifyLogin2FA: (body: { tempToken: string; code: string }) => request('/auth/2fa/verify-login', 'POST', body),
   setup2FA: () => request('/auth/2fa/setup', 'POST'),
   activate2FA: (token: string) => request('/auth/2fa/activate', 'POST', { token }),
@@ -333,8 +353,11 @@ export const api = {
   getEmailFeatureSettings: () => request('/admin/email-settings'),
   updateEmailFeatureSettings: (body: Record<string, boolean>) => request('/admin/email-settings', 'PUT', body),
   sendTestEmail: (to?: string) => request('/admin/email-settings/test', 'POST', to ? { to } : {}),
+  sendFeatureTestEmail: (feature: string, to?: string) => request(`/admin/email-settings/test/${feature}`, 'POST', to ? { to } : {}),
+  getSystemHealth: () => request('/admin/system-health'),
+  sendTestHealthAlert: (webhookUrl?: string) => request('/admin/system-health/test-alert', 'POST', webhookUrl ? { webhookUrl } : {}),
   getOrganizationSettings: () => request('/organization/settings'),
-  updateOrganizationSettings: (body: Record<string, string | null>) => request('/admin/organization-settings', 'PUT', body),
+  updateOrganizationSettings: (body: Record<string, string | null | string[] | boolean>) => request('/admin/organization-settings', 'PUT', body),
   uploadOrganizationLogo: (formData: FormData) => request('/admin/organization-settings/logo', 'POST', formData, true),
   uploadOrganizationFavicon: (formData: FormData) => request('/admin/organization-settings/favicon', 'POST', formData, true),
   getTeams: (departmentId?: string) => request(`/teams${departmentId ? `?departmentId=${departmentId}` : ''}`),

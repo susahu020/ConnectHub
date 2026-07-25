@@ -6,18 +6,28 @@ import { api } from '../../../services/api';
 import { useTheme } from 'next-themes';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { AccountSummaryBanner } from '../../../components/settings/AccountSummaryBanner';
 import { PreferencesCard } from '../../../components/settings/PreferencesCard';
 import { PasswordCard } from '../../../components/settings/PasswordCard';
 import { TwoFactorCard } from '../../../components/settings/TwoFactorCard';
+import { PrivacyDataCard } from '../../../components/settings/PrivacyDataCard';
 import { ActiveSessionsPanel } from '../../../components/settings/ActiveSessionsPanel';
 import { TwoFactorSetupModal } from '../../../components/settings/TwoFactorSetupModal';
+import { DeleteAccountModal } from '../../../components/settings/DeleteAccountModal';
 
 export default function SettingsPage() {
-  const { user, updateUser } = useAuthStore();
+  const { user, updateUser, logout } = useAuthStore();
   const confirm = useConfirm();
   const { setTheme: setActiveTheme } = useTheme();
+  const router = useRouter();
+
+  // Privacy & Data state
+  const [exportingData, setExportingData] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteAccountPassword, setDeleteAccountPassword] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Password edit state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -197,6 +207,37 @@ export default function SettingsPage() {
     }
   };
 
+  const handleExportData = async () => {
+    setExportingData(true);
+    try {
+      await api.exportMyData();
+      toast.success('Your data export has started downloading.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to export your data.');
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteAccountPassword) {
+      toast.error('Enter your password to confirm.');
+      return;
+    }
+    setDeletingAccount(true);
+    try {
+      await api.deleteMyAccount(deleteAccountPassword);
+      toast.success('Your account has been deleted.');
+      logout();
+      router.push('/login');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete your account.');
+    } finally {
+      setDeletingAccount(false);
+      setDeleteAccountPassword('');
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
@@ -240,6 +281,12 @@ export default function SettingsPage() {
             onDisableSubmit={handleDisable2FA}
             onInitSetup={handleInit2FA}
           />
+
+          <PrivacyDataCard
+            exportingData={exportingData}
+            onExportData={handleExportData}
+            onOpenDeleteAccount={() => setDeleteAccountOpen(true)}
+          />
         </div>
 
         <ActiveSessionsPanel
@@ -259,6 +306,19 @@ export default function SettingsPage() {
           enabling={enabling}
           onSubmit={handleActivate2FA}
           onClose={() => setTwoFactorOpen(false)}
+        />
+      )}
+
+      {deleteAccountOpen && (
+        <DeleteAccountModal
+          password={deleteAccountPassword}
+          onPasswordChange={setDeleteAccountPassword}
+          deleting={deletingAccount}
+          onClose={() => {
+            setDeleteAccountOpen(false);
+            setDeleteAccountPassword('');
+          }}
+          onConfirm={handleDeleteAccount}
         />
       )}
     </div>

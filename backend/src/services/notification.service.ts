@@ -16,7 +16,8 @@ export type EmailFeatureKey =
   | 'TASK_UPDATED'
   | 'ANNOUNCEMENT'
   | 'MEETING_INVITE'
-  | 'FILE_SHARED';
+  | 'FILE_SHARED'
+  | 'BIRTHDAY_WISH';
 
 const FEATURE_COLUMN_MAP: Record<EmailFeatureKey, string> = {
   NEW_MESSAGE: 'newMessageEmail',
@@ -27,6 +28,7 @@ const FEATURE_COLUMN_MAP: Record<EmailFeatureKey, string> = {
   ANNOUNCEMENT: 'announcementEmail',
   MEETING_INVITE: 'meetingInviteEmail',
   FILE_SHARED: 'fileSharedEmail',
+  BIRTHDAY_WISH: 'birthdayWishEmail',
 };
 
 let cachedSettings: any | null = null;
@@ -59,7 +61,7 @@ export const invalidateEmailFeatureSettingsCache = () => {
   cachedAt = 0;
 };
 
-const isEmailFeatureEnabled = async (feature?: EmailFeatureKey): Promise<boolean> => {
+export const isEmailFeatureEnabled = async (feature?: EmailFeatureKey): Promise<boolean> => {
   if (!feature) return true; // ungated features (e.g. future REMINDER emails) default to on
   const settings = await getEmailFeatureSettings();
   const column = FEATURE_COLUMN_MAP[feature];
@@ -78,6 +80,28 @@ interface NotificationParams {
   // switch (the email will still respect the user's personal preference).
   emailFeature?: EmailFeatureKey;
 }
+
+// Shared by real notification emails and the admin "send test email" tool
+// (see admin.controller.ts sendFeatureTestEmail) so a test send shows the
+// admin exactly what a real recipient's email looks like.
+export const buildNotificationEmail = (title: string, message: string, orgName: string) => {
+  const subject = `[${orgName}] ${title}`;
+  const text = `${message}\n\nThis is an automated notification from ${orgName}. You can manage your notification preferences in your User Settings.`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e1e1e1; border-radius: 8px;">
+      <h2 style="color: #2563eb; margin-top: 0; font-size: 20px;">${orgName} Notification</h2>
+      <hr style="border: 0; border-top: 1px solid #eaeaea; margin: 20px 0;">
+      <p style="font-size: 15px; line-height: 1.6; font-weight: bold; color: #111;">${title}</p>
+      <p style="font-size: 14px; line-height: 1.6; color: #555;">${message}</p>
+      <hr style="border: 0; border-top: 1px solid #eaeaea; margin: 20px 0;">
+      <p style="font-size: 11px; color: #888; line-height: 1.5;">
+        This is an automated notification from ${orgName}. To change how you receive these updates, visit your 
+        <a href="http://localhost:3000/settings" style="color: #2563eb; text-decoration: none; font-weight: bold;">Account Settings</a>.
+      </p>
+    </div>
+  `;
+  return { subject, text, html };
+};
 
 export const createNotification = async (params: NotificationParams) => {
   const { userId, title, message, type, relatedId, io, emailFeature } = params;
@@ -113,21 +137,7 @@ export const createNotification = async (params: NotificationParams) => {
       const emailEnabled = userWantsEmail && adminAllowsEmail;
       if (emailEnabled && userWithSettings.email) {
         const orgName = await getOrgName();
-        const emailSubject = `[${orgName}] ${title}`;
-        const emailText = `${message}\n\nThis is an automated notification from ${orgName}. You can manage your notification preferences in your User Settings.`;
-        const emailHtml = `
-          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e1e1e1; border-radius: 8px;">
-            <h2 style="color: #2563eb; margin-top: 0; font-size: 20px;">${orgName} Notification</h2>
-            <hr style="border: 0; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="font-size: 15px; line-height: 1.6; font-weight: bold; color: #111;">${title}</p>
-            <p style="font-size: 14px; line-height: 1.6; color: #555;">${message}</p>
-            <hr style="border: 0; border-top: 1px solid #eaeaea; margin: 20px 0;">
-            <p style="font-size: 11px; color: #888; line-height: 1.5;">
-              This is an automated notification from ${orgName}. To change how you receive these updates, visit your 
-              <a href="http://localhost:3000/settings" style="color: #2563eb; text-decoration: none; font-weight: bold;">Account Settings</a>.
-            </p>
-          </div>
-        `;
+        const { subject: emailSubject, text: emailText, html: emailHtml } = buildNotificationEmail(title, message, orgName);
         
         // Dispatch email asynchronously
         sendEmail(userWithSettings.email, emailSubject, emailText, emailHtml).catch((err) => {

@@ -34,7 +34,16 @@ import {
   Image as ImageIcon,
   LogOut,
   ShieldOff,
-  Upload
+  Upload,
+  Cake,
+  HeartPulse,
+  Server,
+  Database,
+  Cpu,
+  HardDrive,
+  RefreshCw,
+  Send,
+  Clock
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
@@ -81,15 +90,16 @@ const COMMON_TIMEZONES: string[] = [
   'Pacific/Auckland',
 ];
 
-const EMAIL_FEATURES: { key: string; label: string; description: string; icon: any }[] = [
-  { key: 'newMessageEmail', label: 'New Direct Message', description: 'Email a user when they receive a new 1:1 chat message.', icon: MessageSquare },
-  { key: 'groupMessageEmail', label: 'Group Message & Mentions', description: 'Email group members on new group messages and @mentions.', icon: UsersRound },
-  { key: 'groupCreationEmail', label: 'Group Creation', description: 'Email users when they are added to a newly created group.', icon: UserPlus },
-  { key: 'taskAssignedEmail', label: 'Task Assigned', description: 'Email the assignee when a new task is assigned to them.', icon: ClipboardCheck },
-  { key: 'taskUpdatedEmail', label: 'Task Updated', description: 'Email the assignee when someone else updates their task.', icon: ClipboardPen },
-  { key: 'announcementEmail', label: 'Announcement Posted', description: 'Email employees when a new company announcement is posted.', icon: Megaphone },
-  { key: 'meetingInviteEmail', label: 'Meeting Invite', description: 'Email invitees when they are invited to a scheduled meeting.', icon: Video },
-  { key: 'fileSharedEmail', label: 'File / Document Shared', description: 'Email a user when a document is shared directly with them.', icon: FileText },
+const EMAIL_FEATURES: { key: string; testKey: string; label: string; description: string; icon: any }[] = [
+  { key: 'newMessageEmail', testKey: 'NEW_MESSAGE', label: 'New Direct Message', description: 'Email a user when they receive a new 1:1 chat message.', icon: MessageSquare },
+  { key: 'groupMessageEmail', testKey: 'GROUP_MESSAGE', label: 'Group Message & Mentions', description: 'Email group members on new group messages and @mentions.', icon: UsersRound },
+  { key: 'groupCreationEmail', testKey: 'GROUP_CREATION', label: 'Group Creation', description: 'Email users when they are added to a newly created group.', icon: UserPlus },
+  { key: 'taskAssignedEmail', testKey: 'TASK_ASSIGNED', label: 'Task Assigned', description: 'Email the assignee when a new task is assigned to them.', icon: ClipboardCheck },
+  { key: 'taskUpdatedEmail', testKey: 'TASK_UPDATED', label: 'Task Updated', description: 'Email the assignee when someone else updates their task.', icon: ClipboardPen },
+  { key: 'announcementEmail', testKey: 'ANNOUNCEMENT', label: 'Announcement Posted', description: 'Email employees when a new company announcement is posted.', icon: Megaphone },
+  { key: 'meetingInviteEmail', testKey: 'MEETING_INVITE', label: 'Meeting Invite', description: 'Email invitees when they are invited to a scheduled meeting.', icon: Video },
+  { key: 'fileSharedEmail', testKey: 'FILE_SHARED', label: 'File / Document Shared', description: 'Email a user when a document is shared directly with them.', icon: FileText },
+  { key: 'birthdayWishEmail', testKey: 'BIRTHDAY_WISH', label: 'Birthday Wish', description: 'Automatically email a user a birthday wish on their birthday.', icon: Cake },
 ];
 
 export default function AdminPage() {
@@ -98,7 +108,7 @@ export default function AdminPage() {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'roles' | 'logs' | 'system' | 'email' | 'org' | 'teams'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'departments' | 'roles' | 'logs' | 'system' | 'email' | 'org' | 'teams' | 'health'>('users');
 
   // Search & Filter system items
   const [userSearch, setUserSearch] = useState('');
@@ -149,6 +159,9 @@ export default function AdminPage() {
   const [editLocation, setEditLocation] = useState('');
   const [editSystemRole, setEditSystemRole] = useState<'ADMIN' | 'MANAGER' | 'EMPLOYEE'>('EMPLOYEE');
   const [editCustomRole, setEditCustomRole] = useState('');
+  const [editManagerId, setEditManagerId] = useState('');
+  const [editDepartmentId, setEditDepartmentId] = useState('');
+  const [editJoiningDate, setEditJoiningDate] = useState('');
 
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [selectedPasswordUser, setSelectedPasswordUser] = useState<any>(null);
@@ -197,6 +210,13 @@ export default function AdminPage() {
     queryFn: () => api.getSystemMetrics(),
     enabled: user?.role === 'ADMIN' && activeTab === 'system',
     refetchInterval: 5000,
+  });
+
+  const { data: health, refetch: refetchHealth, isFetching: fetchingHealth, dataUpdatedAt: healthUpdatedAt } = useQuery({
+    queryKey: ['admin-system-health'],
+    queryFn: () => api.getSystemHealth(),
+    enabled: user?.role === 'ADMIN' && activeTab === 'health',
+    refetchInterval: 15000,
   });
 
   const { data: emailFeatureSettings, isLoading: loadingEmailSettings } = useQuery({
@@ -333,9 +353,36 @@ export default function AdminPage() {
     sendTestEmailMutation.mutate(testEmailTarget.trim() || undefined);
   };
 
+  // Per-feature test send — verifies one specific email template (using the
+  // same target address as the general test box above) rather than just SMTP
+  // connectivity in general.
+  const [featureTestResults, setFeatureTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
+  const sendFeatureTestEmailMutation = useMutation({
+    mutationFn: ({ testKey, to }: { testKey: string; to?: string }) => api.sendFeatureTestEmail(testKey, to),
+    onSuccess: (data, variables) => {
+      setFeatureTestResults((prev) => ({ ...prev, [variables.testKey]: { success: data.success, message: data.message } }));
+      if (data.success) {
+        toast.success('Sample email sent.');
+      } else {
+        toast.error('Sample email did not go through.');
+      }
+    },
+    onError: (err: any, variables) => {
+      const message = err?.message || 'Request failed unexpectedly.';
+      setFeatureTestResults((prev) => ({ ...prev, [variables.testKey]: { success: false, message } }));
+      toast.error('Failed to send sample email.');
+    },
+  });
+
+  const handleSendFeatureTest = (testKey: string) => {
+    sendFeatureTestEmailMutation.mutate({ testKey, to: testEmailTarget.trim() || undefined });
+  };
+
   // Organization Settings — local editable form state, synced from the
   // fetched row whenever it (re)loads.
   const [orgForm, setOrgForm] = useState<Record<string, string>>({});
+  const [allowedDomainsInput, setAllowedDomainsInput] = useState('');
+  const [ssoGoogleEnabled, setSsoGoogleEnabled] = useState(true);
   useEffect(() => {
     if (orgSettingsData) {
       setOrgForm({
@@ -349,12 +396,16 @@ export default function AdminPage() {
         address: orgSettingsData.address || '',
         defaultWatermarkText: orgSettingsData.defaultWatermarkText || '',
         defaultTimezone: orgSettingsData.defaultTimezone || '',
+        registrationMode: orgSettingsData.registrationMode || 'INVITE_ONLY',
+        alertWebhookUrl: orgSettingsData.alertWebhookUrl || '',
       });
+      setAllowedDomainsInput((orgSettingsData.allowedDomains || []).join(', '));
+      setSsoGoogleEnabled(orgSettingsData.ssoGoogleEnabled !== false);
     }
   }, [orgSettingsData]);
 
   const updateOrgSettingsMutation = useMutation({
-    mutationFn: (updates: Record<string, string | null>) => api.updateOrganizationSettings(updates),
+    mutationFn: (updates: Record<string, string | null | string[] | boolean>) => api.updateOrganizationSettings(updates),
     onSuccess: (data) => {
       // Keep the admin form's own cache entry in sync, and also update the
       // shared ['organization-settings'] key that every page in the app
@@ -363,14 +414,32 @@ export default function AdminPage() {
       queryClient.setQueryData(['organization-settings'], data);
       toast.success('Organization settings updated.');
     },
-    onError: () => {
-      toast.error('Failed to update organization settings.');
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to update organization settings.');
     },
   });
 
   const handleSaveOrgSettings = () => {
-    updateOrgSettingsMutation.mutate(orgForm);
+    const allowedDomains = allowedDomainsInput
+      .split(',')
+      .map((d) => d.trim())
+      .filter(Boolean);
+    updateOrgSettingsMutation.mutate({ ...orgForm, allowedDomains, ssoGoogleEnabled });
   };
+
+  const sendTestAlertMutation = useMutation({
+    mutationFn: (webhookUrl?: string) => api.sendTestHealthAlert(webhookUrl),
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(data.message || 'Test alert sent.');
+      } else {
+        toast.error(data.message || 'Could not send test alert.');
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to send test alert.');
+    },
+  });
 
   // Logo/Favicon — uploaded immediately on file selection (not deferred to
   // the Save button), matching how avatar uploads work elsewhere in the
@@ -674,7 +743,10 @@ export default function AdminPage() {
         designation: editDesignation,
         location: editLocation,
         role: editSystemRole,
-        customRoleId: editCustomRole || null
+        customRoleId: editCustomRole || null,
+        managerId: editManagerId || null,
+        departmentId: editDepartmentId || null,
+        joiningDate: editJoiningDate || null
       });
       toast.success('User details updated successfully.');
       setEditUserOpen(false);
@@ -710,8 +782,9 @@ export default function AdminPage() {
   const handleChangePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPasswordUser) return;
-    if (adminNewPassword.length < 6) {
-      toast.error('Password must be at least 6 characters.');
+    const classCount = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^a-zA-Z0-9]/].filter((re) => re.test(adminNewPassword)).length;
+    if (adminNewPassword.length < 8 || classCount < 3) {
+      toast.error('Password must be at least 8 characters with at least 3 of: uppercase, lowercase, numbers, symbols.');
       return;
     }
     try {
@@ -876,6 +949,16 @@ export default function AdminPage() {
         </button>
 
         <button
+          onClick={() => setActiveTab('health')}
+          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
+            activeTab === 'health' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
+          }`}
+        >
+          <HeartPulse className="h-4 w-4" />
+          <span>System Health</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('email')}
           className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
             activeTab === 'email' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
@@ -978,6 +1061,9 @@ export default function AdminPage() {
                             setEditLocation(u.location || '');
                             setEditSystemRole(u.role);
                             setEditCustomRole(u.customRoleId || '');
+                            setEditManagerId(u.managerId || '');
+                            setEditDepartmentId(u.departmentId || '');
+                            setEditJoiningDate(u.joiningDate ? String(u.joiningDate).split('T')[0] : '');
                             setEditUserOpen(true);
                           }}
                           className="text-[10px] font-bold px-2.5 py-1 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-650 dark:text-slate-300"
@@ -1532,6 +1618,186 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* System Health Workspace */}
+        {activeTab === 'health' && (
+          <div className="space-y-6 animate-in fade-in duration-200 text-xs">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="font-bold text-sm text-foreground">System Health</h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {healthUpdatedAt ? `Last checked ${new Date(healthUpdatedAt).toLocaleTimeString()} · auto-refreshes every 15s.` : 'Checking...'}
+                </p>
+              </div>
+              <button
+                onClick={() => refetchHealth()}
+                disabled={fetchingHealth}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-50 border rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3 w-3 ${fetchingHealth ? 'animate-spin' : ''}`} />
+                Refresh Now
+              </button>
+            </div>
+
+            {!health ? (
+              <div className="flex items-center justify-center py-20 text-slate-450">
+                <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
+                <span>Running health checks...</span>
+              </div>
+            ) : (
+              <>
+                {/* Overall status banner */}
+                {(() => {
+                  const statusStyles: Record<string, string> = {
+                    healthy: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+                    degraded: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+                    down: 'bg-red-500/10 text-red-600 border-red-500/20',
+                  };
+                  const statusLabel: Record<string, string> = {
+                    healthy: 'All Systems Operational',
+                    degraded: 'Degraded — Some Issues Detected',
+                    down: 'Critical — Immediate Attention Needed',
+                  };
+                  return (
+                    <div className={`flex items-center gap-3 border rounded-2xl px-5 py-4 ${statusStyles[health.status]}`}>
+                      <HeartPulse className="h-6 w-6 shrink-0" />
+                      <div>
+                        <p className="font-black text-sm">{statusLabel[health.status]}</p>
+                        <p className="text-[10px] opacity-80 mt-0.5">
+                          Uptime: {Math.floor(health.uptimeSeconds / 3600)}h {Math.floor((health.uptimeSeconds % 3600) / 60)}m · Node {health.nodeVersion}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Quick stats */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  {[
+                    { label: 'Total Users', value: health.quickStats?.totalUsers },
+                    { label: 'Active Today', value: health.quickStats?.activeToday },
+                    { label: 'Open Tasks', value: health.quickStats?.openTasks },
+                    { label: 'Pending Leave', value: health.quickStats?.pendingLeaveRequests },
+                    { label: 'Pending Expenses', value: health.quickStats?.pendingExpenseClaims },
+                  ].map((stat) => (
+                    <div key={stat.label} className="border rounded-2xl p-3.5 bg-slate-50/40 dark:bg-slate-800/30 text-center">
+                      <p className="text-lg font-black text-foreground">{stat.value ?? '—'}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Individual feature/dependency checks */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[
+                    { key: 'database', label: 'Database (PostgreSQL)', icon: Database },
+                    { key: 'redis', label: 'Redis Cache / Queue', icon: Server },
+                    { key: 'email', label: 'Email (SMTP)', icon: Mail },
+                    { key: 'storage', label: 'File Storage', icon: HardDrive },
+                    { key: 'realtime', label: 'Realtime (Socket.io)', icon: Activity },
+                    { key: 'memory', label: 'Memory & Resources', icon: Cpu },
+                  ].map(({ key, label, icon: Icon }) => {
+                    const check = health.checks?.[key];
+                    if (!check) return null;
+                    const dotColor = check.status === 'healthy' ? 'bg-emerald-500' : check.status === 'degraded' ? 'bg-amber-500' : 'bg-red-500';
+                    const textColor = check.status === 'healthy' ? 'text-emerald-600' : check.status === 'degraded' ? 'text-amber-600' : 'text-red-600';
+                    return (
+                      <div key={key} className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-3.5 w-3.5 text-slate-400" />
+                            <span className="font-bold text-xs">{label}</span>
+                          </div>
+                          <span className={`flex items-center gap-1 text-[9px] font-black uppercase ${textColor}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
+                            {check.status}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-normal">{check.message}</p>
+                        {typeof check.latencyMs === 'number' && (
+                          <p className="text-[9px] text-slate-400 font-bold">Latency: {check.latencyMs}ms</p>
+                        )}
+                        {key === 'memory' && (
+                          <p className="text-[9px] text-slate-400 font-bold">
+                            Heap: {check.heapUsedMB}/{check.heapTotalMB}MB · System: {check.systemUsedPercent}% used
+                          </p>
+                        )}
+                        {key === 'realtime' && typeof check.connectedClients === 'number' && (
+                          <p className="text-[9px] text-slate-400 font-bold">{check.connectedClients} client(s) connected</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Background jobs */}
+                <div className="border rounded-2xl overflow-hidden">
+                  <div className="px-4 py-3 border-b bg-slate-50/60 dark:bg-slate-800/40 flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-slate-400" />
+                    <span className="font-bold text-xs">Background Jobs</span>
+                  </div>
+                  <table className="w-full text-[10px]">
+                    <thead className="bg-slate-50/40 dark:bg-slate-800/20 text-slate-400 uppercase text-[9px]">
+                      <tr>
+                        <th className="text-left px-4 py-2 font-bold">Job</th>
+                        <th className="text-left px-4 py-2 font-bold">Last Run</th>
+                        <th className="text-left px-4 py-2 font-bold">Result</th>
+                        <th className="text-left px-4 py-2 font-bold">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(health.checks?.backgroundJobs?.jobs || []).map((job: any) => (
+                        <tr key={job.name}>
+                          <td className="px-4 py-2 font-bold">{job.name}</td>
+                          <td className="px-4 py-2 text-slate-400">{job.lastRunAt ? new Date(job.lastRunAt).toLocaleTimeString() : 'Never run yet'}</td>
+                          <td className="px-4 py-2">
+                            {job.lastSuccess === null ? (
+                              <span className="text-slate-400">—</span>
+                            ) : job.lastSuccess ? (
+                              <span className="text-emerald-600 font-bold flex items-center gap-1"><CheckCircle className="h-3 w-3" /> {job.lastResultSummary || 'OK'}</span>
+                            ) : (
+                              <span className="text-red-600 font-bold flex items-center gap-1"><XCircle className="h-3 w-3" /> {job.lastError || 'Failed'}</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-slate-400">{job.lastDurationMs != null ? `${job.lastDurationMs}ms` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Recent errors */}
+                <div className="border rounded-2xl overflow-hidden">
+                  <div className="px-4 py-3 border-b bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="font-bold text-xs">Recent Errors</span>
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-bold">
+                      {health.checks?.errors?.errorsLast5Min ?? 0} in last 5 min · {health.checks?.errors?.totalErrors ?? 0} total this session
+                    </span>
+                  </div>
+                  {(health.checks?.errors?.recentErrors || []).length === 0 ? (
+                    <p className="px-4 py-8 text-center text-slate-400">No recent errors. 🎉</p>
+                  ) : (
+                    <div className="divide-y max-h-64 overflow-y-auto">
+                      {health.checks.errors.recentErrors.map((err: any, i: number) => (
+                        <div key={i} className="px-4 py-2.5 flex items-start gap-3">
+                          <span className="text-[9px] font-black text-red-500 shrink-0 mt-0.5">{err.statusCode}</span>
+                          <div className="min-w-0">
+                            <p className="font-bold text-foreground truncate">{err.method} {err.path}</p>
+                            <p className="text-slate-400 truncate">{err.message}</p>
+                          </div>
+                          <span className="text-[9px] text-slate-400 shrink-0 ml-auto">{new Date(err.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Email Notifications Workspace */}
         {activeTab === 'email' && (
           <div className="space-y-6 animate-in fade-in duration-200 text-xs">
@@ -1605,38 +1871,59 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                {EMAIL_FEATURES.map(({ key, label, description, icon: Icon }) => {
+                {EMAIL_FEATURES.map(({ key, testKey, label, description, icon: Icon }) => {
                   const isEnabled = emailFeatureSettings ? !!emailFeatureSettings[key] : true;
+                  const isTesting = sendFeatureTestEmailMutation.isPending && sendFeatureTestEmailMutation.variables?.testKey === testKey;
+                  const testResult = featureTestResults[testKey];
                   return (
                     <div
                       key={key}
-                      className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 flex items-start justify-between gap-4"
+                      className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-2.5"
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                          <Icon className="h-4 w-4" />
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                          <div className="h-8 w-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-xs text-foreground">{label}</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">{description}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-xs text-foreground">{label}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">{description}</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={isEnabled}
-                        onClick={() => handleToggleEmailFeature(key, isEnabled)}
-                        disabled={updateEmailFeatureMutation.isPending}
-                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
-                          isEnabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            isEnabled ? 'translate-x-6' : 'translate-x-1'
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={isEnabled}
+                          onClick={() => handleToggleEmailFeature(key, isEnabled)}
+                          disabled={updateEmailFeatureMutation.isPending}
+                          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                            isEnabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
                           }`}
-                        />
-                      </button>
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              isEnabled ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 pl-11">
+                        <button
+                          type="button"
+                          onClick={() => handleSendFeatureTest(testKey)}
+                          disabled={isTesting}
+                          className="flex items-center gap-1.5 text-[10px] font-bold text-primary hover:underline disabled:opacity-50 disabled:no-underline"
+                        >
+                          {isTesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                          {isTesting ? 'Sending sample...' : 'Send Test'}
+                        </button>
+                        {testResult && (
+                          <p className={`text-[10px] flex items-center gap-1 ${testResult.success ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {testResult.success ? <CheckCircle className="h-3 w-3 shrink-0" /> : <XCircle className="h-3 w-3 shrink-0" />}
+                            <span className="truncate max-w-[220px]" title={testResult.message}>{testResult.message}</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1894,6 +2181,124 @@ export default function AdminPage() {
                       </select>
                       <p className="text-[9px] text-slate-400">Applied to new employees' accounts when they register or accept an invite.</p>
                     </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                  <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span>Access & Registration</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 -mt-1">
+                    Controls how new accounts can be created once your workspace is set up. The very first Admin
+                    account is always exempt from this — it always gets in, so there's someone to configure it.
+                  </p>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Registration Mode</label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { value: 'INVITE_ONLY', title: 'Invite Only (Recommended)', desc: "Nobody can self-register. Every account starts as an invitation from an Admin or Manager." },
+                        { value: 'DOMAIN_RESTRICTED', title: 'Company Domain Self-Signup', desc: 'Anyone with an email on your approved domain(s) below can sign themselves up. Invitations still work too.' },
+                        { value: 'OPEN', title: 'Open Registration', desc: 'Anyone, anywhere, can create an account. Not recommended for a real company deployment — mainly useful for demos/trials.' },
+                      ].map((opt) => (
+                        <label
+                          key={opt.value}
+                          className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                            orgForm.registrationMode === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="registrationMode"
+                            value={opt.value}
+                            checked={orgForm.registrationMode === opt.value}
+                            onChange={(e) => setOrgForm({ ...orgForm, registrationMode: e.target.value })}
+                            className="mt-0.5"
+                          />
+                          <div>
+                            <p className="font-bold text-foreground">{opt.title}</p>
+                            <p className="text-[10px] text-slate-400 leading-normal mt-0.5">{opt.desc}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  {orgForm.registrationMode === 'DOMAIN_RESTRICTED' && (
+                    <div className="space-y-1 pt-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Allowed Email Domains</label>
+                      <input
+                        type="text"
+                        value={allowedDomainsInput}
+                        onChange={(e) => setAllowedDomainsInput(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        placeholder="yourcompany.com, yourcompany.io"
+                      />
+                      <p className="text-[9px] text-slate-400">Comma-separated. Anyone signing up with an email on one of these domains is auto-approved as an Employee.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div className="flex items-center gap-2 font-bold text-xs text-foreground">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      <span>Single Sign-On (Google)</span>
+                    </div>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${orgSettingsData?.ssoGoogleAvailable ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+                      {orgSettingsData?.ssoGoogleAvailable ? 'Active' : 'Not Configured'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 -mt-1">
+                    Lets employees sign in with their Google account instead of a password. Requires
+                    GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI to be set on the server —
+                    that part is infra-level config, not editable here. This toggle lets you turn it off for the
+                    workspace even when the server has it configured.
+                  </p>
+                  <label className="flex items-center gap-3 cursor-pointer w-fit">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={ssoGoogleEnabled}
+                      onClick={() => setSsoGoogleEnabled(!ssoGoogleEnabled)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${ssoGoogleEnabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${ssoGoogleEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                    <span className="text-xs font-bold">{ssoGoogleEnabled ? 'Enabled' : 'Disabled'}</span>
+                  </label>
+                </div>
+
+                <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                  <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
+                    <HeartPulse className="h-3.5 w-3.5" />
+                    <span>Health Alerts</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 -mt-1">
+                    Get notified the moment System Health status changes — checked every 2 minutes in the
+                    background, whether or not anyone has the System Health tab open. Works with a Slack incoming
+                    webhook URL, or any endpoint that accepts a JSON POST.
+                  </p>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Alert Webhook URL</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={orgForm.alertWebhookUrl || ''}
+                        onChange={(e) => setOrgForm({ ...orgForm, alertWebhookUrl: e.target.value })}
+                        className="flex-1 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        placeholder="https://hooks.slack.com/services/..."
+                      />
+                      <button
+                        type="button"
+                        onClick={() => sendTestAlertMutation.mutate(orgForm.alertWebhookUrl)}
+                        disabled={sendTestAlertMutation.isPending || !orgForm.alertWebhookUrl}
+                        className="flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {sendTestAlertMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                        Send Test
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-slate-400">Leave blank to disable alerting. "Send Test" tries the URL above immediately, even before you save.</p>
                   </div>
                 </div>
 
@@ -2329,6 +2734,48 @@ export default function AdminPage() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[10px]">Reporting Manager</label>
+                  <select
+                    value={editManagerId}
+                    onChange={(e) => setEditManagerId(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                    id="edit-manager-select"
+                  >
+                    <option value="">No Manager Assigned</option>
+                    {systemUsers?.filter((u: any) => u.id !== selectedEditUser?.id).map((u: any) => (
+                      <option key={u.id} value={u.id}>{u.firstName} {u.lastName} ({u.designation || 'Staff'})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[10px]">Department</label>
+                  <select
+                    value={editDepartmentId}
+                    onChange={(e) => setEditDepartmentId(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                    id="edit-department-select"
+                  >
+                    <option value="">No Department</option>
+                    {depts?.map((d: any) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-400 uppercase text-[10px]">Joining Date</label>
+                <input
+                  type="date"
+                  value={editJoiningDate}
+                  onChange={(e) => setEditJoiningDate(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                  id="edit-joining-date-input"
+                />
               </div>
 
               <button 

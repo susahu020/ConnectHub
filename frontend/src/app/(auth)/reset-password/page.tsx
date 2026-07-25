@@ -10,9 +10,10 @@ import { toast } from 'react-hot-toast';
 import { Layers, Loader2, Eye, EyeOff } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
+import { passwordZodSchema, PASSWORD_HINT } from '../../../lib/passwordPolicy';
 
 const resetPasswordSchema = z.object({
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: passwordZodSchema,
   confirmPassword: z.string().min(1, 'Please confirm your password'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
@@ -108,7 +109,11 @@ function ResetPasswordForm() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && <p className="text-xs font-medium text-red-500">{errors.password.message}</p>}
+          {errors.password ? (
+            <p className="text-xs font-medium text-red-500">{errors.password.message}</p>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">{PASSWORD_HINT}</p>
+          )}
         </div>
 
         <div className="space-y-2">

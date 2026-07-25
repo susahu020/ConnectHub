@@ -29,7 +29,6 @@ services:
       dockerfile: Dockerfile
     container_name: connecthub-backend
     restart: on-failure
-    command: sh -c "npx prisma db push --accept-data-loss && npm run seed && npm start"
     ports:
       - "5000:5000"
     env_file:
@@ -39,8 +38,6 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/connecthub?schema=public
       - REDIS_URL=redis://redis:6379
-      - JWT_ACCESS_SECRET=default-local-jwt-access-secret-123456
-      - JWT_REFRESH_SECRET=default-local-jwt-refresh-secret-123456
       - JWT_ACCESS_EXPIRES_IN=15m
       - JWT_REFRESH_EXPIRES_IN=7d
       - FRONTEND_URL=http://localhost:3000

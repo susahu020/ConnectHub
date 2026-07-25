@@ -77,6 +77,7 @@ import {
   disable2FA,
   sendContactMessage,
 } from '../controllers/auth.controller';
+import { initiateGoogleSso, googleSsoCallback } from '../controllers/auth.controller';
 
 import {
   getProfile,
@@ -108,6 +109,7 @@ import {
   deleteCertification,
   getUserActivityLogs,
 } from '../controllers/user.controller';
+import { exportMyData, deleteMyAccount } from '../controllers/privacy.controller';
 
 import {
   getDirectMessages,
@@ -205,6 +207,9 @@ import {
   getEmailFeatureSettings,
   updateEmailFeatureSettings,
   sendTestEmail,
+  sendFeatureTestEmail,
+  getSystemHealth,
+  sendTestHealthAlert,
 } from '../controllers/admin.controller';
 
 import {
@@ -278,6 +283,8 @@ router.use(rateLimiter);
 // AUTHENTICATION
 // ==========================================
 router.post('/auth/register', validate(registerSchema), register);
+router.get('/auth/sso/google', initiateGoogleSso);
+router.get('/auth/sso/google/callback', googleSsoCallback);
 router.post('/auth/login', validate(loginSchema), login);
 router.post('/auth/verify-email', validate(verifyEmailSchema), verifyEmail);
 router.post('/auth/2fa/verify-login', verifyLogin2FA as any);
@@ -302,7 +309,9 @@ router.post('/auth/invite/complete', completeOnboarding);
 router.get('/users/profile', authenticate as any, getProfile as any);
 router.get('/users/profile/:userId', authenticate as any, getProfileById as any);
 router.put('/users/profile', authenticate as any, validate(updateProfileSchema), updateProfile as any);
-router.put('/users/profile/:userId', authenticate as any, updateProfileById as any);
+router.put('/users/profile/:userId', authenticate as any, validate(updateProfileSchema), updateProfileById as any);
+router.get('/users/me/export', authenticate as any, exportMyData as any);
+router.delete('/users/me', authenticate as any, deleteMyAccount as any);
 router.post('/users/avatar', authenticate as any, upload.single('avatar'), uploadAvatar as any);
 router.post('/users/:userId/avatar', authenticate as any, upload.single('avatar'), uploadAvatarById as any);
 router.post('/users/cover', authenticate as any, upload.single('cover'), uploadCover as any);
@@ -483,6 +492,9 @@ router.delete('/teams/:id/members/:userId', authenticate as any, authorize(['ADM
 router.get('/admin/email-settings', authenticate as any, authorize(['ADMIN']), getEmailFeatureSettings as any);
 router.put('/admin/email-settings', authenticate as any, authorize(['ADMIN']), updateEmailFeatureSettings as any);
 router.post('/admin/email-settings/test', authenticate as any, authorize(['ADMIN']), sendTestEmail as any);
+router.post('/admin/email-settings/test/:feature', authenticate as any, authorize(['ADMIN']), sendFeatureTestEmail as any);
+router.get('/admin/system-health', authenticate as any, authorize(['ADMIN']), getSystemHealth as any);
+router.post('/admin/system-health/test-alert', authenticate as any, authorize(['ADMIN']), sendTestHealthAlert as any);
 router.get('/organization/settings', getPublicOrganizationSettings as any);
 router.put('/admin/organization-settings', authenticate as any, authorize(['ADMIN']), updateOrganizationSettings as any);
 router.post('/admin/organization-settings/logo', authenticate as any, authorize(['ADMIN']), upload.single('logo'), uploadOrganizationLogo as any);
@@ -540,8 +552,8 @@ router.delete('/hr/expenses/:id', authenticate as any, deleteExpenseClaim as any
 
 // Payslips
 router.get('/hr/payslips', authenticate as any, getPayslips as any);
-router.post('/hr/payslips', authenticate as any, authorize(['ADMIN', 'MANAGER']), generatePayslip as any);
-router.put('/hr/payslips/:id/status', authenticate as any, authorize(['ADMIN', 'MANAGER']), updatePayslipStatus as any);
+router.post('/hr/payslips', authenticate as any, authorize(['ADMIN']), generatePayslip as any);
+router.put('/hr/payslips/:id/status', authenticate as any, authorize(['ADMIN']), updatePayslipStatus as any);
 router.delete('/hr/payslips/:id', authenticate as any, authorize(['ADMIN']), deletePayslip as any);
 
 // Shifts
@@ -551,7 +563,7 @@ router.get('/hr/shifts/assignments', authenticate as any, getShiftAssignments as
 router.post('/hr/shifts/assign', authenticate as any, authorize(['ADMIN', 'MANAGER']), assignShift as any);
 router.post('/hr/shifts/swap', authenticate as any, createSwapRequest as any);
 router.get('/hr/shifts/swaps', authenticate as any, getSwapRequests as any);
-router.put('/hr/shifts/swaps/:id/status', authenticate as any, updateSwapRequestStatus as any);
+router.put('/hr/shifts/swaps/:id/status', authenticate as any, authorize(['ADMIN', 'MANAGER']), updateSwapRequestStatus as any);
 router.delete('/hr/shifts/assignments/:id', authenticate as any, authorize(['ADMIN']), deleteShiftAssignment as any);
 router.delete('/hr/shifts/:id', authenticate as any, authorize(['ADMIN']), deleteShift as any);
 

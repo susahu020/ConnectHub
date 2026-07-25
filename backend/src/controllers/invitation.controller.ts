@@ -5,6 +5,8 @@ import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { sendEmail } from '../config/mailer';
 import { getOrgName, getOrganizationSettings } from '../services/organization.service';
+import { generateEmployeeId } from '../utils/employeeId';
+import { checkPasswordStrength, checkPasswordAgainstIdentity } from '../utils/passwordPolicy';
 
 /**
  * Admin or Manager invites a user.
@@ -16,6 +18,21 @@ export const inviteUser = async (req: AuthenticatedRequest, res: Response, next:
 
     if (!email || !role) {
       res.status(400).json({ message: 'Email and role are required.' });
+      return;
+    }
+
+    const validRoles = ['ADMIN', 'MANAGER', 'EMPLOYEE'];
+    if (!validRoles.includes(role)) {
+      res.status(400).json({ message: `role must be one of: ${validRoles.join(', ')}.` });
+      return;
+    }
+
+    // The route-level checkPermission('Users','Update') only confirms this
+    // requester is allowed to invite *someone* — it doesn't distinguish which
+    // role they're allowed to hand out. Admins can invite into any role;
+    // Managers can only bring on Employees, not other Managers or Admins.
+    if (req.user?.role === 'MANAGER' && role !== 'EMPLOYEE') {
+      res.status(403).json({ message: 'Managers can only invite new Employees. Ask an Admin to invite a Manager or Admin.' });
       return;
     }
 
@@ -176,6 +193,17 @@ export const completeOnboarding = async (req: Request, res: Response, next: Next
       return;
     }
 
+    const strengthCheck = checkPasswordStrength(password);
+    if (!strengthCheck.valid) {
+      res.status(400).json({ message: strengthCheck.message });
+      return;
+    }
+    const identityCheck = checkPasswordAgainstIdentity(password, { email: invite.email, firstName, lastName });
+    if (!identityCheck.valid) {
+      res.status(400).json({ message: identityCheck.message });
+      return;
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Resolve CustomRole matching the invite role
@@ -187,6 +215,7 @@ export const completeOnboarding = async (req: Request, res: Response, next: Next
 
     // Create User
     const orgSettingsForTimezone = await getOrganizationSettings();
+    const employeeId = await generateEmployeeId();
     const user = await prisma.user.create({
       data: {
         email: invite.email,
@@ -197,6 +226,7 @@ export const completeOnboarding = async (req: Request, res: Response, next: Next
         designation: designation || (invite.role === 'MANAGER' ? 'Engineering Lead' : 'Staff Associate'),
         location: location || 'Remote',
         skills: skills || [],
+        employeeId,
         customRoleId: roleRecord?.id || null,
         isVerified: true, // Auto-verified since they were invited by admin/manager
         timezone: orgSettingsForTimezone.defaultTimezone || 'UTC',

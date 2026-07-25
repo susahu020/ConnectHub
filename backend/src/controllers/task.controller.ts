@@ -2,6 +2,8 @@ import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { createNotification } from '../services/notification.service';
+import { emitDataUpdate } from '../utils/realtime';
+import { logAudit } from '../utils/auditLog';
 
 export const createTask = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -76,6 +78,7 @@ export const createTask = async (req: AuthenticatedRequest, res: Response, next:
       io,
     });
 
+    emitDataUpdate(req, 'tasks');
     res.status(201).json(task);
   } catch (error) {
     next(error);
@@ -358,6 +361,7 @@ export const updateTask = async (req: AuthenticatedRequest, res: Response, next:
       }
     }
 
+    emitDataUpdate(req, 'tasks');
     res.status(200).json(updatedTask);
   } catch (error) {
     next(error);
@@ -381,6 +385,8 @@ export const deleteTask = async (req: AuthenticatedRequest, res: Response, next:
 
     await prisma.task.delete({ where: { id } });
 
+    emitDataUpdate(req, 'tasks');
+    logAudit(req, 'TASK_DELETED', `Deleted task ${id} ("${task.title}", creator: ${task.creatorId}, assignee: ${task.assigneeId || 'unassigned'}).`);
     res.status(200).json({ message: 'Task deleted successfully.', taskId: id });
   } catch (error) {
     next(error);
@@ -476,6 +482,7 @@ export const createProject = async (req: AuthenticatedRequest, res: Response, ne
       },
     });
 
+    emitDataUpdate(req, 'tasks');
     res.status(201).json(project);
   } catch (error) {
     next(error);
@@ -495,6 +502,7 @@ export const updateProject = async (req: AuthenticatedRequest, res: Response, ne
       where: { id },
       data: { name, description, status },
     });
+    emitDataUpdate(req, 'tasks');
     res.status(200).json(project);
   } catch (error) {
     next(error);
@@ -509,9 +517,16 @@ export const deleteProject = async (req: AuthenticatedRequest, res: Response, ne
     }
 
     const { id } = req.params;
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (!project) {
+      res.status(404).json({ message: 'Project not found.' });
+      return;
+    }
     await prisma.project.delete({
       where: { id },
     });
+    emitDataUpdate(req, 'tasks');
+    logAudit(req, 'PROJECT_DELETED', `Deleted project ${id} ("${project.name}").`);
     res.status(200).json({ message: 'Project deleted successfully.', projectId: id });
   } catch (error) {
     next(error);

@@ -67,6 +67,7 @@ async function main() {
       phone: '+15550100',
       location: 'New York HQ',
       isVerified: true,
+      employeeId: 'CH01',
       skills: ['Security', 'Cloud Operations', 'Database Admin'],
       settings: { create: {} },
     },
@@ -86,6 +87,7 @@ async function main() {
       location: 'San Francisco Office',
       isVerified: true,
       departmentId: deptEngineering.id,
+      employeeId: 'CH02',
       skills: ['Leadership', 'System Design', 'Agile Product Design'],
       settings: { create: {} },
     },
@@ -105,6 +107,10 @@ async function main() {
       location: 'Remote',
       isVerified: true,
       departmentId: deptEngineering.id,
+      // Reports to Bob (manager@connecthub.com) — exercises the reporting-manager
+      // scoped approval logic in hr.controller.ts (leave/expense/shift-swap approvals).
+      managerId: manager.id,
+      employeeId: 'CH03',
       skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],
       settings: { create: {} },
     },
@@ -289,6 +295,11 @@ async function seedCustomRolesAndPermissions() {
     ...['Tasks', 'Announcements', 'Groups', 'Files'].flatMap(m =>
       ['Create', 'Update', 'Delete', 'Assign', 'Publish'].map(a => ({ roleId: managerRole.id, module: m, action: a, isEnabled: true }))
     ),
+    // Lets Managers send invitations (POST /auth/invite requires Users:Update).
+    // The invite controller itself further restricts Managers to inviting
+    // only EMPLOYEE-role accounts — this permission alone doesn't grant them
+    // the ability to invite Admins or other Managers.
+    { roleId: managerRole.id, module: 'Users', action: 'Update', isEnabled: true },
   ];
 
   const allPermissions = [...adminPermissions, ...employeePermissions, ...managerPermissions];

@@ -89,6 +89,11 @@ model User {
   socialLinks      Json?
   lastSeen         DateTime?
   lastLoginAt      DateTime?
+  // Set when this account was created or has ever signed in via SSO (currently
+  // Google). Null for password-only accounts. A user can still have a
+  // password AND have signed in via SSO — this just records that the option
+  // is available/was used, it doesn't disable password login.
+  ssoProvider      String?
 
   experiences      Experience[]
   educations       Education[]
@@ -632,6 +637,7 @@ model EmailFeatureSettings {
   announcementEmail   Boolean  @default(true)
   meetingInviteEmail  Boolean  @default(true)
   fileSharedEmail     Boolean  @default(true)
+  birthdayWishEmail   Boolean  @default(true) // automatic birthday wish email, sent once per year on the user's birthday
   updatedAt           DateTime @updatedAt
   updatedById         String?
 }
@@ -654,6 +660,23 @@ model OrganizationSettings {
   address              String?
   defaultWatermarkText String   @default("ConnectHub CONFIDENTIAL")
   defaultTimezone      String   @default("UTC")
+  // How new accounts may be created once the very first (bootstrap) Admin
+  // exists — see auth.controller.ts register(). INVITE_ONLY: nobody can
+  // self-register, only invite-completion works (recommended for
+  // production). DOMAIN_RESTRICTED: self-registration allowed, but only for
+  // emails matching allowedDomains. OPEN: unrestricted self-registration
+  // (useful for demos/trials, not recommended for a real company deployment).
+  registrationMode    String   @default("INVITE_ONLY")
+  allowedDomains       String[] @default([])
+  // Optional webhook (Slack-compatible incoming webhook, or any endpoint that
+  // accepts a JSON POST) that gets notified when the System Health status
+  // changes — see alerting.service.ts. Null/empty means alerting is off.
+  alertWebhookUrl      String?
+  // Admin-facing on/off switch for Google SSO — independent of whether the
+  // server actually has GOOGLE_CLIENT_ID/SECRET configured (see
+  // services/sso.service.ts isGoogleSsoAvailable). Lets an admin turn SSO
+  // off for the workspace without needing infra access to unset env vars.
+  ssoGoogleEnabled     Boolean  @default(true)
   updatedAt            DateTime @updatedAt
   updatedById          String?
 }

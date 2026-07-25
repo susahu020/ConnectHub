@@ -9,6 +9,7 @@ export function FilterToolbar({
   filterAssignee,
   onFilterAssigneeChange,
   colleagues,
+  currentUserId,
   onExportCSV,
 }: {
   searchQuery: string;
@@ -18,6 +19,7 @@ export function FilterToolbar({
   filterAssignee: string;
   onFilterAssigneeChange: (v: string) => void;
   colleagues: any;
+  currentUserId?: string;
   onExportCSV: () => void;
 }) {
   const hasActiveFilters = searchQuery || filterPriority !== 'ALL' || filterAssignee !== 'ALL';
@@ -59,7 +61,8 @@ export function FilterToolbar({
             className="px-2.5 py-1.5 border rounded-lg bg-slate-50 dark:bg-slate-850 focus:outline-none focus:ring-1 focus:ring-primary text-xs cursor-pointer max-w-[150px] truncate"
           >
             <option value="ALL">All Colleagues</option>
-            {colleagues?.users?.map((col: any) => (
+            {currentUserId && <option value={currentUserId}>My Tasks</option>}
+            {colleagues?.users?.filter((col: any) => col.id !== currentUserId).map((col: any) => (
               <option key={col.id} value={col.id}>
                 {col.firstName} {col.lastName}
               </option>

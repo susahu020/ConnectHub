@@ -473,6 +473,7 @@ export default function TasksPage() {
             filterAssignee={filterAssignee}
             onFilterAssigneeChange={setFilterAssignee}
             colleagues={colleagues}
+            currentUserId={user?.id}
             onExportCSV={handleExportCSV}
           />
 

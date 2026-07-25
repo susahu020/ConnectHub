@@ -405,7 +405,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       label: 'Work',
       items: [
-        { name: 'Kanban Tasks', href: '/tasks', icon: <Trello /> },
+        { name: 'Tasks', href: '/tasks', icon: <Trello /> },
         { name: 'Calendar', href: '/calendar', icon: <Calendar /> },
         ...(isAdmin ? [{ name: 'Automations', href: '/workflows', icon: <Sparkles /> }] : []),
       ],
