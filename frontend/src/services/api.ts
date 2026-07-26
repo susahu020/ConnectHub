@@ -2,6 +2,18 @@ import { useAuthStore } from '../lib/store';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
+// Dispatched instead of setting window.location.href directly, since this
+// module runs outside of React and has no access to the Next.js router.
+// components/providers.tsx listens for this and does a client-side
+// router.push('/login') so the SPA doesn't hard-reload on session expiry.
+export const AUTH_SESSION_EXPIRED_EVENT = 'auth:session-expired';
+
+function redirectToLogin() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+  }
+}
+
 let isRefreshing = false;
 let refreshSubscribers: ((token: string) => void)[] = [];
 
@@ -79,9 +91,7 @@ async function request<T = any>(
       } else {
         // Refresh token expired too -> Logout
         store.logout();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
+        redirectToLogin();
         throw new Error('Session expired. Please log in again.');
       }
     } else {
@@ -115,16 +125,14 @@ async function request<T = any>(
 
   if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/refresh') {
     store.logout();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
+    redirectToLogin();
     throw new Error('Session expired. Please log in again.');
   }
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || 'Something went wrong');
+    throw Object.assign(new Error(data.message || 'Something went wrong'), { code: data.code });
   }
 
   return data as T;
@@ -168,6 +176,9 @@ export const api = {
   adminLogoutAllUsers: () => request('/admin/logout-all', 'POST'),
   extendSession: () => request('/auth/extend-session', 'POST'),
   inviteUser: (body: { email: string; role: string }) => request('/auth/invite', 'POST', body),
+  getInvitations: () => request('/admin/invitations'),
+  revokeInvitation: (id: string) => request(`/admin/invitations/${id}`, 'DELETE'),
+  resendInvitation: (id: string) => request(`/admin/invitations/${id}/resend`, 'POST'),
   verifyInvitation: (token: string) => request(`/auth/invite/verify?token=${token}`),
   completeOnboarding: (body: any) => request('/auth/invite/complete', 'POST', body),
   
@@ -337,12 +348,65 @@ export const api = {
   deleteWorkflow: (id: string) => request(`/workflows/${id}`, 'DELETE'),
 
   // Admin Panel
-  getAuditLogs: () => request('/admin/audit-logs'),
-  getAdminUsers: () => request('/admin/users'),
-  getSystemMetrics: () => request('/admin/system/metrics'),
+  getAuditLogs: (params?: { page?: number; limit?: number; startDate?: string; endDate?: string; action?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.startDate) qs.set('startDate', params.startDate);
+    if (params?.endDate) qs.set('endDate', params.endDate);
+    if (params?.action) qs.set('action', params.action);
+    if (params?.search) qs.set('search', params.search);
+    const query = qs.toString();
+    return request(`/admin/audit-logs${query ? `?${query}` : ''}`);
+  },
+  exportAuditLogs: async (params?: { startDate?: string; endDate?: string; action?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.startDate) qs.set('startDate', params.startDate);
+    if (params?.endDate) qs.set('endDate', params.endDate);
+    if (params?.action) qs.set('action', params.action);
+    if (params?.search) qs.set('search', params.search);
+    const query = qs.toString();
+
+    const token = useAuthStore.getState().token;
+    const response = await fetch(`${API_BASE_URL}/admin/audit-logs/export${query ? `?${query}` : ''}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      let message = 'Failed to export audit logs.';
+      try {
+        const data = await response.json();
+        message = data.message || message;
+      } catch {
+        // response wasn't JSON — keep the generic message
+      }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+  getAdminUsers: (params?: { page?: number; limit?: number; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.search) qs.set('search', params.search);
+    const query = qs.toString();
+    return request(`/admin/users${query ? `?${query}` : ''}`);
+  },
   updateUserRole: (userId: string, role: string) => request(`/admin/users/${userId}/role`, 'PUT', { role }),
-  toggleUserVerification: (userId: string, isVerified: boolean) => 
-    request(`/admin/users/${userId}/verification`, 'PUT', { isVerified }),
+  toggleUserSuspension: (userId: string, isSuspended: boolean) => 
+    request(`/admin/users/${userId}/suspension`, 'PUT', { isSuspended }),
+  toggleUserActive: (userId: string, isActive: boolean) =>
+    request(`/admin/users/${userId}/active`, 'PUT', { isActive }),
   adminUpdateUser: (id: string, body: any) => request(`/admin/users/${id}`, 'PUT', body),
   adminDeleteUser: (id: string) => request(`/admin/users/${id}`, 'DELETE'),
   adminChangeUserPassword: (id: string, password: string) => request(`/admin/users/${id}/password`, 'PUT', { password }),
@@ -350,6 +414,7 @@ export const api = {
   createDepartment: (body: any) => request('/admin/departments', 'POST', body),
   getDepartments: () => request('/admin/departments'),
   deleteDepartment: (id: string) => request(`/admin/departments/${id}`, 'DELETE'),
+  updateDepartment: (id: string, body: { name?: string; description?: string; managerId?: string | null }) => request(`/admin/departments/${id}`, 'PUT', body),
   getEmailFeatureSettings: () => request('/admin/email-settings'),
   updateEmailFeatureSettings: (body: Record<string, boolean>) => request('/admin/email-settings', 'PUT', body),
   sendTestEmail: (to?: string) => request('/admin/email-settings/test', 'POST', to ? { to } : {}),

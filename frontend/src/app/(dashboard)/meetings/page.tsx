@@ -118,6 +118,20 @@ export default function MeetingsPage() {
   const screenVideoRef = useRef<HTMLVideoElement>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+
+  // Mirrors of `user` / `mediaStream` for use inside the socket listener effect
+  // below. That effect must stay subscribed for the entire meeting — if it
+  // depended on `user` or `mediaStream` directly, it would tear down and
+  // re-register every socket listener (including the one that shows the
+  // host the "X wants to join" prompt) any time either changed, e.g. every
+  // few minutes when the presence system flips status to/from AWAY, or
+  // whenever the camera/mic is toggled and the stream is re-acquired. Reading
+  // through a ref instead keeps the listeners mounted continuously, so a
+  // join request can never arrive in the gap between teardown and re-setup.
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+  const mediaStreamRef = useRef(mediaStream);
+  useEffect(() => { mediaStreamRef.current = mediaStream; }, [mediaStream]);
   
   // Whiteboard Canvas
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -613,6 +627,64 @@ export default function MeetingsPage() {
     };
   }, [meetingStep, videoOn, audioOn]);
 
+  // Ask for OS notification permission once, up front — like Meet/Teams do the
+  // first time you host a call — so a later join request can actually raise a
+  // system notification instead of silently failing the permission check.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
+  // Plays a short two-tone chime (Web Audio API — no audio asset needed) and,
+  // if this tab isn't the one currently focused, raises a native OS
+  // notification too. Meet/Teams do the same: an in-call prompt if you're
+  // looking at the call, plus a system-level nudge if you're not, so a host
+  // who's tabbed away still notices someone waiting to get in.
+  const notifyJoinRequest = (guestName: string) => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        [660, 880].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.16);
+          gain.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + i * 0.16 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.16 + 0.18);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + i * 0.16);
+          osc.stop(ctx.currentTime + i * 0.16 + 0.2);
+        });
+      }
+    } catch {
+      // Non-fatal — the in-app toast/popup still shows either way.
+    }
+
+    if (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'granted' &&
+      document.hidden
+    ) {
+      try {
+        const n = new Notification('Someone wants to join your meeting', {
+          body: `${guestName} is asking to join your call.`,
+          tag: 'meeting-join-request',
+        });
+        n.onclick = () => {
+          window.focus();
+          n.close();
+        };
+      } catch {
+        // Some browsers restrict constructing Notification directly; safe to ignore.
+      }
+    }
+  };
+
   // Real-time socket event listeners for meetings coordination
   useEffect(() => {
     if (!socket) return;
@@ -624,12 +696,15 @@ export default function MeetingsPage() {
       // Automatically request entry when the meeting starts
       socket.emit('request_to_join_meeting', { 
         meetingId: startedId, 
-        guestName: `${user?.firstName} ${user?.lastName || ''}` 
+        guestName: `${userRef.current?.firstName} ${userRef.current?.lastName || ''}` 
       });
       toast.success('Host started the meeting! Requesting entry...');
     });
 
-    // Listen for guest requesting to join (received by Host in room)
+    // Listen for guest requesting to join (received by Host in room). Shows
+    // the same in-app accept/cancel prompt Meet/Teams show, plus — since the
+    // host may well not have this tab focused — a native OS notification and
+    // a short chime so it's noticed even from another tab or app.
     socket.on('guest_request_to_join', ({ guestId, guestName, socketId }) => {
       setJoinRequests(prev => {
         // Prevent duplicate request popups
@@ -637,6 +712,7 @@ export default function MeetingsPage() {
         return [...prev, { id: socketId, name: guestName }];
       });
       toast(`🔔 ${guestName} is requesting to join the call.`, { id: socketId });
+      notifyJoinRequest(guestName);
     });
 
     // Listen for host's admission result (received by Guest)
@@ -734,8 +810,8 @@ export default function MeetingsPage() {
       Object.values(peerConnections.current).forEach(pc => pc.close());
       peerConnections.current = {};
       
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
       }
       toast.error('The host has ended this meeting.');
     });
@@ -745,7 +821,7 @@ export default function MeetingsPage() {
       setChatMessages(prev => [
         ...prev,
         {
-          sender: msg.senderId === user?.id ? 'Me' : msg.sender,
+          sender: msg.senderId === userRef.current?.id ? 'Me' : msg.sender,
           content: msg.content,
           time: msg.time
         }
@@ -827,7 +903,7 @@ export default function MeetingsPage() {
       socket.off('clear_whiteboard');
       socket.off('reaction_received');
     };
-  }, [socket, user, mediaStream]);
+  }, [socket]);
 
   // Join the persistent, whole-meeting channel for the entire time we're in the
   // call — this is what meeting-wide host controls (end meeting, lock, recording

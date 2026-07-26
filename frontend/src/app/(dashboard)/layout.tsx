@@ -23,6 +23,7 @@ import {
   Sparkles,
   Network,
   Layers,
+  Building2,
 } from 'lucide-react';
 import { useAuthStore } from '../../lib/store';
 import { api } from '../../services/api';
@@ -253,7 +254,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     logout();
     toast.error('Session expired due to inactivity.');
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   // Load Notifications
@@ -352,7 +353,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       console.warn('Network logout error:', e);
     }
     logout();
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   const markNotifRead = async (id: string) => {
@@ -426,6 +427,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ...(isManagerOrAdmin ? [{ name: 'Analytics', href: '/analytics', icon: <BarChart3 /> }] : []),
       ],
     },
+    ...(isAdmin ? [{
+      label: 'Organization',
+      items: [
+        { name: 'Organization', href: '/organization', icon: <Building2 /> },
+      ],
+    }] : []),
     {
       label: 'General',
       items: [

@@ -2,7 +2,10 @@ import { Router } from 'express';
 import {
   inviteUser,
   verifyInvitation,
-  completeOnboarding
+  completeOnboarding,
+  getInvitations,
+  revokeInvitation,
+  resendInvitation
 } from '../controllers/invitation.controller';
 
 import {
@@ -41,7 +44,7 @@ import { authorize } from '../middleware/role.middleware';
 import { checkPermission } from '../middleware/rbac.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { upload } from '../middleware/upload.middleware';
-import { rateLimiter } from '../middleware/rateLimiter';
+import { rateLimiter, authRateLimiter } from '../middleware/rateLimiter';
 
 // Validation schemas
 import {
@@ -193,14 +196,16 @@ import {
 
 import {
   getAuditLogs,
+  exportAuditLogs,
   getSystemUsers,
   updateUserRole,
-  toggleUserVerification,
+  toggleUserSuspension,
+  toggleUserActive,
   getDepartmentStats,
   createDepartment,
   getDepartments,
   deleteDepartment,
-  getSystemMetrics,
+  updateDepartment,
   adminUpdateUser,
   adminDeleteUser,
   adminChangeUserPassword,
@@ -282,10 +287,10 @@ router.use(rateLimiter);
 // ==========================================
 // AUTHENTICATION
 // ==========================================
-router.post('/auth/register', validate(registerSchema), register);
+router.post('/auth/register', authRateLimiter, validate(registerSchema), register);
 router.get('/auth/sso/google', initiateGoogleSso);
 router.get('/auth/sso/google/callback', googleSsoCallback);
-router.post('/auth/login', validate(loginSchema), login);
+router.post('/auth/login', authRateLimiter, validate(loginSchema), login);
 router.post('/auth/verify-email', validate(verifyEmailSchema), verifyEmail);
 router.post('/auth/2fa/verify-login', verifyLogin2FA as any);
 router.post('/auth/2fa/setup', authenticate as any, setup2FA as any);
@@ -295,13 +300,16 @@ router.post('/auth/refresh', refresh);
 router.post('/auth/logout', authenticate as any, logout as any);
 router.post('/auth/logout-all', authenticate as any, logoutAll as any);
 router.post('/auth/extend-session', authenticate as any, extendSession as any);
-router.post('/auth/forgot-password', validate(forgotPasswordSchema), forgotPassword);
-router.post('/auth/reset-password', validate(resetPasswordSchema), resetPassword);
+router.post('/auth/forgot-password', authRateLimiter, validate(forgotPasswordSchema), forgotPassword);
+router.post('/auth/reset-password', authRateLimiter, validate(resetPasswordSchema), resetPassword);
 router.post('/auth/change-password', authenticate as any, changePassword as any);
-router.post('/auth/contact', sendContactMessage as any);
+router.post('/auth/contact', authRateLimiter, sendContactMessage as any);
 router.post('/auth/invite', authenticate as any, checkPermission('Users', 'Update'), inviteUser as any);
 router.get('/auth/invite/verify', verifyInvitation);
 router.post('/auth/invite/complete', completeOnboarding);
+router.get('/admin/invitations', authenticate as any, checkPermission('Users', 'Update'), getInvitations as any);
+router.delete('/admin/invitations/:id', authenticate as any, checkPermission('Users', 'Update'), revokeInvitation as any);
+router.post('/admin/invitations/:id/resend', authenticate as any, checkPermission('Users', 'Update'), resendInvitation as any);
 
 // ==========================================
 // USER & PROFILE
@@ -469,10 +477,11 @@ router.get('/search', authenticate as any, globalSearch as any);
 // ADMIN PANEL
 // ==========================================
 router.get('/admin/audit-logs', authenticate as any, authorize(['ADMIN']), getAuditLogs as any);
+router.get('/admin/audit-logs/export', authenticate as any, authorize(['ADMIN']), exportAuditLogs as any);
 router.get('/admin/users', authenticate as any, authorize(['ADMIN']), getSystemUsers as any);
-router.get('/admin/system/metrics', authenticate as any, authorize(['ADMIN']), getSystemMetrics as any);
 router.put('/admin/users/:userId/role', authenticate as any, checkPermission('Users', 'Update'), updateUserRole as any);
-router.put('/admin/users/:userId/verification', authenticate as any, authorize(['ADMIN']), toggleUserVerification as any);
+router.put('/admin/users/:userId/suspension', authenticate as any, authorize(['ADMIN']), toggleUserSuspension as any);
+router.put('/admin/users/:userId/active', authenticate as any, authorize(['ADMIN']), toggleUserActive as any);
 router.put('/admin/users/:id', authenticate as any, authorize(['ADMIN']), adminUpdateUser as any);
 router.delete('/admin/users/:id', authenticate as any, authorize(['ADMIN']), adminDeleteUser as any);
 router.put('/admin/users/:id/password', authenticate as any, authorize(['ADMIN']), adminChangeUserPassword as any);
@@ -482,6 +491,7 @@ router.post('/admin/logout-user', authenticate as any, authorize(['ADMIN']), adm
 router.post('/admin/logout-all', authenticate as any, authorize(['ADMIN']), adminLogoutAll as any);
 router.get('/admin/departments', authenticate as any, getDepartments as any);
 router.delete('/admin/departments/:id', authenticate as any, authorize(['ADMIN']), deleteDepartment as any);
+router.put('/admin/departments/:id', authenticate as any, authorize(['ADMIN']), updateDepartment as any);
 router.get('/teams', authenticate as any, getTeams as any);
 router.get('/teams/:id', authenticate as any, getTeamById as any);
 router.post('/teams', authenticate as any, authorize(['ADMIN']), createTeam as any);

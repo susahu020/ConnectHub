@@ -16,6 +16,7 @@ import { PrivacyDataCard } from '../../../components/settings/PrivacyDataCard';
 import { ActiveSessionsPanel } from '../../../components/settings/ActiveSessionsPanel';
 import { TwoFactorSetupModal } from '../../../components/settings/TwoFactorSetupModal';
 import { DeleteAccountModal } from '../../../components/settings/DeleteAccountModal';
+import { PromoteAdminModal } from '../../../components/settings/PromoteAdminModal';
 
 export default function SettingsPage() {
   const { user, updateUser, logout } = useAuthStore();
@@ -28,6 +29,16 @@ export default function SettingsPage() {
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [deleteAccountPassword, setDeleteAccountPassword] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
+
+  // Shown instead of a plain error toast when self-deletion is blocked
+  // because the requester is the workspace's last Admin — lets them promote
+  // a replacement and delete in one flow rather than bouncing them out to
+  // the admin panel and back.
+  const [promoteAdminOpen, setPromoteAdminOpen] = useState(false);
+  const [promoteCandidates, setPromoteCandidates] = useState<any[]>([]);
+  const [loadingPromoteCandidates, setLoadingPromoteCandidates] = useState(false);
+  const [selectedPromoteUserId, setSelectedPromoteUserId] = useState('');
+  const [promoting, setPromoting] = useState(false);
 
   // Password edit state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -201,7 +212,7 @@ export default function SettingsPage() {
       await api.logout();
       useAuthStore.getState().logout();
       toast.success('Successfully logged out of all devices.');
-      window.location.href = '/login';
+      router.push('/login');
     } catch (err) {
       toast.error('Failed to terminate all sessions.');
     }
@@ -231,11 +242,57 @@ export default function SettingsPage() {
       logout();
       router.push('/login');
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to delete your account.');
+      if (err?.code === 'LAST_ADMIN') {
+        // Keep deleteAccountPassword around — we'll reuse it once a
+        // replacement Admin has been chosen, so the user isn't asked to
+        // re-enter their password a second time.
+        setDeleteAccountOpen(false);
+        setPromoteAdminOpen(true);
+        setLoadingPromoteCandidates(true);
+        try {
+          const users = await api.getAdminUsers();
+          setPromoteCandidates((users || []).filter((u: any) => u.id !== user?.id));
+        } catch (loadErr: any) {
+          toast.error(loadErr?.message || 'Failed to load teammates to promote.');
+          setPromoteAdminOpen(false);
+        } finally {
+          setLoadingPromoteCandidates(false);
+        }
+      } else {
+        toast.error(err?.message || 'Failed to delete your account.');
+        setDeleteAccountPassword('');
+      }
     } finally {
       setDeletingAccount(false);
+    }
+  };
+
+  const handlePromoteAndDeleteAccount = async () => {
+    if (!selectedPromoteUserId) {
+      toast.error('Select a teammate to promote to Admin.');
+      return;
+    }
+    setPromoting(true);
+    try {
+      await api.updateUserRole(selectedPromoteUserId, 'ADMIN');
+      await api.deleteMyAccount(deleteAccountPassword);
+      toast.success('Teammate promoted to Admin. Your account has been deleted.');
+      logout();
+      router.push('/login');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to complete the admin transfer.');
+    } finally {
+      setPromoting(false);
+      setPromoteAdminOpen(false);
+      setSelectedPromoteUserId('');
       setDeleteAccountPassword('');
     }
+  };
+
+  const handleClosePromoteAdmin = () => {
+    setPromoteAdminOpen(false);
+    setSelectedPromoteUserId('');
+    setDeleteAccountPassword('');
   };
 
   return (
@@ -319,6 +376,18 @@ export default function SettingsPage() {
             setDeleteAccountPassword('');
           }}
           onConfirm={handleDeleteAccount}
+        />
+      )}
+
+      {promoteAdminOpen && (
+        <PromoteAdminModal
+          candidates={promoteCandidates}
+          loadingCandidates={loadingPromoteCandidates}
+          selectedUserId={selectedPromoteUserId}
+          onSelectedUserChange={setSelectedPromoteUserId}
+          submitting={promoting}
+          onClose={handleClosePromoteAdmin}
+          onConfirm={handlePromoteAndDeleteAccount}
         />
       )}
     </div>

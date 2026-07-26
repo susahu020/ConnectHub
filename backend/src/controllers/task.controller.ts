@@ -420,6 +420,7 @@ export const addTaskComment = async (req: AuthenticatedRequest, res: Response, n
       },
     });
 
+    emitDataUpdate(req, 'tasks');
     res.status(201).json(comment);
   } catch (error) {
     next(error);
@@ -604,6 +605,7 @@ export const createSubtask = async (req: AuthenticatedRequest, res: Response, ne
     });
 
     res.status(201).json(subtask);
+    emitDataUpdate(req, 'tasks');
   } catch (error) {
     next(error);
   }
@@ -645,6 +647,7 @@ export const toggleSubtask = async (req: AuthenticatedRequest, res: Response, ne
     });
 
     res.status(200).json(updated);
+    emitDataUpdate(req, 'tasks');
   } catch (error) {
     next(error);
   }
@@ -668,6 +671,7 @@ export const deleteSubtask = async (req: AuthenticatedRequest, res: Response, ne
     }
 
     res.status(200).json({ message: 'Subtask deleted successfully.', subtaskId });
+    emitDataUpdate(req, 'tasks');
   } catch (error) {
     next(error);
   }
@@ -716,6 +720,7 @@ export const logTaskTime = async (req: AuthenticatedRequest, res: Response, next
     });
 
     res.status(201).json(timeLog);
+    emitDataUpdate(req, 'tasks');
   } catch (error) {
     next(error);
   }
@@ -790,6 +795,7 @@ export const addTaskDependency = async (req: AuthenticatedRequest, res: Response
     });
 
     res.status(201).json(dep);
+    emitDataUpdate(req, 'tasks');
   } catch (error) {
     next(error);
   }
@@ -820,6 +826,7 @@ export const removeTaskDependency = async (req: AuthenticatedRequest, res: Respo
     });
 
     res.status(200).json({ message: 'Dependency blocker removed successfully.', taskId, dependsOnTaskId });
+    emitDataUpdate(req, 'tasks');
   } catch (error) {
     next(error);
   }

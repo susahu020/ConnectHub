@@ -27,10 +27,18 @@ const checkDatabase = async (): Promise<HealthCheckResult> => {
   try {
     await withTimeout(prisma.$queryRaw`SELECT 1`, 3000);
     const latencyMs = Date.now() - start;
+    // Active Postgres client connections — folded in from the old separate
+    // "System Monitors" metrics endpoint so this one check covers both
+    // reachability and connection-pool pressure.
+    const activeConnectionsResult: any = await prisma.$queryRaw`
+      SELECT count(*)::int as count FROM pg_stat_activity
+    `.catch(() => [{ count: null }]);
+    const activeConnections = activeConnectionsResult[0]?.count ?? null;
     return {
       status: latencyMs > 500 ? 'degraded' : 'healthy',
       message: latencyMs > 500 ? 'Connected, but responding slowly.' : 'Connected.',
       latencyMs,
+      activeConnections,
     };
   } catch (err: any) {
     return { status: 'down', message: err?.message || 'Database query failed.', latencyMs: Date.now() - start };
@@ -42,10 +50,13 @@ const checkRedis = async (): Promise<HealthCheckResult> => {
   try {
     await withTimeout(redis.ping(), 2000);
     const latencyMs = Date.now() - start;
+    // Cached key count — folded in from the old "System Monitors" tab.
+    const keysCount = await redis.dbsize().catch(() => null);
     return {
       status: latencyMs > 300 ? 'degraded' : 'healthy',
       message: latencyMs > 300 ? 'Connected, but responding slowly.' : 'Connected.',
       latencyMs,
+      keysCount,
     };
   } catch (err: any) {
     // Redis is used for caching/queues, not core request paths — treat as
@@ -95,6 +106,9 @@ const checkMemory = (): HealthCheckResult => {
   const heapUsedMB = Math.round(mem.heapUsed / 1024 / 1024);
   const heapTotalMB = Math.round(mem.heapTotal / 1024 / 1024);
   const systemUsedPercent = Math.round(((totalMB - freeMB) / totalMB) * 100);
+  // Cumulative process CPU time — folded in from the old "System Monitors" tab.
+  const cpu = process.cpuUsage();
+  const cpuUsageSeconds = Number(((cpu.user + cpu.system) / 1_000_000).toFixed(2));
 
   return {
     status: systemUsedPercent > 90 ? 'degraded' : 'healthy',
@@ -105,6 +119,7 @@ const checkMemory = (): HealthCheckResult => {
     systemTotalMB: totalMB,
     systemFreeMB: freeMB,
     systemUsedPercent,
+    cpuUsageSeconds,
   };
 };
 

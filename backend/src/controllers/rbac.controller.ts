@@ -2,7 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import redis from '../config/redis';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
-import { invalidateRoleCache } from '../services/rbac.service';
+import { invalidateRoleCache, getRolePermissions } from '../services/rbac.service';
+import { emitDataUpdate } from '../utils/realtime';
 
 /**
  * Get all custom roles.
@@ -302,23 +303,16 @@ export const assignRole = async (req: AuthenticatedRequest, res: Response, next:
       return;
     }
 
-    // Update user: also map role enum to ADMIN/MANAGER/EMPLOYEE for backward compatibility
-    let legacyRole = user.role;
-    const nameUpper = role.name.toUpperCase();
-    if (nameUpper === 'ADMIN') {
-      legacyRole = 'ADMIN';
-    } else if (nameUpper === 'MANAGER') {
-      legacyRole = 'MANAGER';
-    } else {
-      legacyRole = 'EMPLOYEE';
-    }
-
+    // Only the granular RBAC role is updated here. This must NOT also set
+    // the legacy `role` enum based on the custom role's name — a custom
+    // role named e.g. "Admin" (for any unrelated reason) would otherwise
+    // silently grant real admin-panel access to whoever it's assigned to.
+    // The legacy system-access tier is changed exclusively through the
+    // dedicated "System Access Role" controls (updateUserRole /
+    // adminUpdateUser), which carry their own self- and last-admin guards.
     await prisma.user.update({
       where: { id: userId },
-      data: {
-        customRoleId: roleId,
-        role: legacyRole,
-      },
+      data: { customRoleId: roleId },
     });
 
     // Invalidate session cache in Redis to refresh permissions immediately
@@ -335,7 +329,29 @@ export const assignRole = async (req: AuthenticatedRequest, res: Response, next:
       },
     });
 
+    // Refresh any admin screens currently listing users (e.g. the User
+    // Management table showing each user's assigned role) — this mutation
+    // was previously missing from the generic real-time broadcast that every
+    // other user-affecting admin action already triggers.
+    emitDataUpdate(req, 'users');
+
+    // Push the change straight to the affected user's own active session(s)
+    // so their permissions take effect immediately, without them needing to
+    // refresh the page or log back in. The compiled permission map is sent
+    // along so the client can update its local state directly rather than
+    // making a follow-up round trip.
+    const io = req.app.get('io');
+    if (io) {
+      const permissions = await getRolePermissions(roleId);
+      io.to(`user:${userId}`).emit('role_assignment_updated', {
+        customRoleId: roleId,
+        roleName: role.name,
+        permissions,
+      });
+    }
+
     res.status(200).json({ message: `Role "${role.name}" successfully assigned.` });
+
   } catch (error) {
     next(error);
   }

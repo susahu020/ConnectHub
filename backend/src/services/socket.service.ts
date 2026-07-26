@@ -274,7 +274,26 @@ export const initSocket = (server: HttpServer) => {
       //    slow network, host on a different tab/page, host reconnected). Since every
       //    socket joins `user:<id>` on connect (see below), this reaches the host
       //    regardless of which page they're on.
-      const hostUserId = meetingHosts.get(meetingId);
+      let hostUserId = meetingHosts.get(meetingId);
+
+      // meetingHosts is an in-process Map — it's empty after every server restart
+      // (e.g. nodemon reloading on a file save) and can also lag a beat behind the
+      // host's REST call if their 'start_meeting' socket emit hasn't landed yet.
+      // Fall back to the durable DB record (Meeting.hostId) so a join request is
+      // never silently dropped just because in-memory state hasn't caught up.
+      if (!hostUserId) {
+        try {
+          const meeting = await prisma.meeting.findUnique({ where: { code: meetingId } });
+          if (meeting?.hostId) {
+            hostUserId = meeting.hostId;
+            meetingHosts.set(meetingId, hostUserId); // self-heal for subsequent requests
+            activeMeetings.add(meetingId);
+          }
+        } catch (err) {
+          console.error('Failed to look up meeting host as a fallback:', err);
+        }
+      }
+
       if (hostUserId && hostUserId !== userId) {
         io.to(`user:${hostUserId}`).emit('guest_request_to_join', payload);
 
@@ -301,17 +320,34 @@ export const initSocket = (server: HttpServer) => {
     // Host-only moderation actions. All of these trust the caller only if the
     // server's own record says they're the host of this meetingId — the
     // client's local isHost flag is a UI convenience, not authorization.
-    const assertIsHost = (meetingId: string) => meetingHosts.get(meetingId) === userId;
+    // Falls back to the DB (Meeting.hostId) and self-heals the in-memory map
+    // when it's empty — same reasoning as the join-request fallback above.
+    const assertIsHost = async (meetingId: string): Promise<boolean> => {
+      if (meetingHosts.get(meetingId) === userId) return true;
+      if (meetingHosts.has(meetingId)) return false; // known host, and it's not this user
 
-    socket.on('admit_meeting_guest', ({ meetingId, guestSocketId, admit }) => {
-      if (!assertIsHost(meetingId)) return;
+      try {
+        const meeting = await prisma.meeting.findUnique({ where: { code: meetingId } });
+        if (meeting?.hostId === userId) {
+          meetingHosts.set(meetingId, userId);
+          activeMeetings.add(meetingId);
+          return true;
+        }
+      } catch (err) {
+        console.error('Failed to look up meeting host for authorization:', err);
+      }
+      return false;
+    };
+
+    socket.on('admit_meeting_guest', async ({ meetingId, guestSocketId, admit }) => {
+      if (!(await assertIsHost(meetingId))) return;
       // Send the decision directly to the guest's socket
       io.to(guestSocketId).emit('meeting_admission_result', { admit, meetingId });
       console.log(`Host decision for guest socket ${guestSocketId} in ${meetingId}: ${admit ? 'ADMITTED' : 'DENIED'}`);
     });
 
-    socket.on('toggle_meeting_lock', ({ meetingId, locked }) => {
-      if (!assertIsHost(meetingId)) return;
+    socket.on('toggle_meeting_lock', async ({ meetingId, locked }) => {
+      if (!(await assertIsHost(meetingId))) return;
       if (locked) lockedMeetings.add(meetingId);
       else lockedMeetings.delete(meetingId);
       io.to(`meeting:${meetingId}`).emit('meeting_lock_changed', { locked });
@@ -320,25 +356,25 @@ export const initSocket = (server: HttpServer) => {
     // Host creates/renames/removes breakout rooms. `rooms` is the full desired list
     // (excluding "main", which always implicitly exists); broadcasting the whole
     // list keeps every client's room picker in sync without diffing client-side.
-    socket.on('update_breakout_rooms', ({ meetingId, rooms }) => {
-      if (!assertIsHost(meetingId)) return;
+    socket.on('update_breakout_rooms', async ({ meetingId, rooms }) => {
+      if (!(await assertIsHost(meetingId))) return;
       io.to(`meeting:${meetingId}`).emit('breakout_rooms_updated', { rooms });
     });
 
     // Host closes all breakout rooms — every participant currently in one gets
     // moved back to the main room automatically.
-    socket.on('close_breakout_rooms', ({ meetingId }) => {
-      if (!assertIsHost(meetingId)) return;
+    socket.on('close_breakout_rooms', async ({ meetingId }) => {
+      if (!(await assertIsHost(meetingId))) return;
       io.to(`meeting:${meetingId}`).emit('breakout_rooms_closed');
     });
 
-    socket.on('force_mute_participant', ({ meetingId, room, targetSocketId }) => {
-      if (!assertIsHost(meetingId)) return;
+    socket.on('force_mute_participant', async ({ meetingId, room, targetSocketId }) => {
+      if (!(await assertIsHost(meetingId))) return;
       io.to(targetSocketId).emit('force_muted');
     });
 
-    socket.on('remove_participant', ({ meetingId, room, targetSocketId }) => {
-      if (!assertIsHost(meetingId)) return;
+    socket.on('remove_participant', async ({ meetingId, room, targetSocketId }) => {
+      if (!(await assertIsHost(meetingId))) return;
       // `room` is the roomKey the host is currently in (main or a breakout room) —
       // that's where the target participant actually lives, which may differ from
       // the base meetingId used purely for host authorization above.
@@ -470,8 +506,8 @@ export const initSocket = (server: HttpServer) => {
 
     // Recording consent notice — broadcast to everyone in the room the moment
     // the host starts/stops, mirroring Meet/Teams' "this meeting is being recorded" banner.
-    socket.on('recording_state', ({ meetingId, recording }) => {
-      if (!assertIsHost(meetingId)) return;
+    socket.on('recording_state', async ({ meetingId, recording }) => {
+      if (!(await assertIsHost(meetingId))) return;
       socket.to(`meeting:${meetingId}`).emit('meeting_recording_state_changed', {
         recording,
         byName: `${user.firstName} ${user.lastName}`,
@@ -499,8 +535,20 @@ export const initSocket = (server: HttpServer) => {
     });
 
     // Non-host participant asks the host for permission to present their screen.
-    socket.on('request_screen_share_permission', ({ meetingId, room, guestName }) => {
-      const hostUserId = meetingHosts.get(meetingId);
+    socket.on('request_screen_share_permission', async ({ meetingId, room, guestName }) => {
+      let hostUserId = meetingHosts.get(meetingId);
+      if (!hostUserId) {
+        try {
+          const meeting = await prisma.meeting.findUnique({ where: { code: meetingId } });
+          if (meeting?.hostId) {
+            hostUserId = meeting.hostId;
+            meetingHosts.set(meetingId, hostUserId);
+            activeMeetings.add(meetingId);
+          }
+        } catch (err) {
+          console.error('Failed to look up meeting host as a fallback:', err);
+        }
+      }
       const roomKey = room || meetingId;
       const payload = { meetingId, socketId: socket.id, guestId: userId, guestName };
       // Broadcast to the room (covers the host's active tab) and, for the same
@@ -512,8 +560,8 @@ export const initSocket = (server: HttpServer) => {
     });
 
     // Host's decision, routed back to just the requesting guest.
-    socket.on('screen_share_permission_result', ({ meetingId, targetSocketId, approved }) => {
-      if (!assertIsHost(meetingId)) return;
+    socket.on('screen_share_permission_result', async ({ meetingId, targetSocketId, approved }) => {
+      if (!(await assertIsHost(meetingId))) return;
       io.to(targetSocketId).emit('screen_share_permission_result', { approved });
     });
 
@@ -526,8 +574,8 @@ export const initSocket = (server: HttpServer) => {
     });
 
     // Terminate meeting for all participants
-    socket.on('end_meeting', ({ meetingId }) => {
-      if (!assertIsHost(meetingId)) return;
+    socket.on('end_meeting', async ({ meetingId }) => {
+      if (!(await assertIsHost(meetingId))) return;
       meetingParticipants.delete(meetingId);
       activeMeetings.delete(meetingId);
       meetingHosts.delete(meetingId);

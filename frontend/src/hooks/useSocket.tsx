@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { useAuthStore } from '../lib/store';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
@@ -119,6 +120,30 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         queryClient.invalidateQueries({ queryKey: [key] });
       });
     });
+
+    // Sent directly to this user's own room when an admin assigns them a
+    // different custom role (see assignRole in rbac.controller.ts). Applies
+    // the new role/permissions to local state immediately — no page refresh,
+    // no waiting for the next login — and lets them know it happened.
+    socketInstance.on(
+      'role_assignment_updated',
+      ({
+        customRoleId,
+        roleName,
+        permissions,
+      }: {
+        customRoleId: string;
+        roleName: string;
+        permissions: Record<string, Record<string, boolean>>;
+      }) => {
+        updateUser({ customRoleId, customRoleName: roleName, permissions });
+        toast.success(`Your role was updated to "${roleName}". New permissions are now active.`);
+        // Any screen showing this user's role (e.g. an admin viewing the
+        // directory) should also pick up the change right away.
+        queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        queryClient.invalidateQueries({ queryKey: ['directory'] });
+      }
+    );
 
     setSocket(socketInstance);
 

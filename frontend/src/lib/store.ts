@@ -6,6 +6,9 @@ interface User {
   firstName: string;
   lastName: string;
   role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+  customRoleId?: string | null;
+  customRoleName?: string;
+  permissions?: Record<string, Record<string, boolean>>;
   designation?: string;
   phone?: string;
   avatarUrl?: string;
@@ -55,6 +58,22 @@ export const useAuthStore = create<AuthState>((set) => {
   const initialToken = getInitialToken();
   const initialUser = getInitialUser();
 
+  // Non-secret marker cookie so middleware.ts can redirect signed-out users
+  // to /login (and signed-in users away from /login) before the page shell
+  // renders, instead of relying solely on a client-side useEffect redirect.
+  // This is a UX/defense-in-depth layer only — it carries no token and
+  // grants no access by itself; every API call still requires the real
+  // Bearer token, and the backend re-checks role/permission on every
+  // request regardless of what this cookie says.
+  const setSessionCookie = (role: User['role']) => {
+    if (typeof document === 'undefined') return;
+    document.cookie = `ch_session=${role}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  };
+  const clearSessionCookie = () => {
+    if (typeof document === 'undefined') return;
+    document.cookie = 'ch_session=; path=/; max-age=0; SameSite=Lax';
+  };
+
   return {
     user: initialUser,
     token: initialToken,
@@ -62,6 +81,7 @@ export const useAuthStore = create<AuthState>((set) => {
     setAuth: (user, token) => {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
+      setSessionCookie(user.role);
       set({ user, token, isAuthenticated: true });
     },
     updateUser: (updatedFields) => {
@@ -69,12 +89,14 @@ export const useAuthStore = create<AuthState>((set) => {
         if (!state.user) return state;
         const newUser = { ...state.user, ...updatedFields };
         localStorage.setItem('user', JSON.stringify(newUser));
+        if (updatedFields.role) setSessionCookie(newUser.role);
         return { user: newUser };
       });
     },
     logout: () => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      clearSessionCookie();
       set({ user: null, token: null, isAuthenticated: false });
     },
   };

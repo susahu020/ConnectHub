@@ -71,6 +71,19 @@ model User {
   status           String               @default("OFFLINE")
   location         String?
   isVerified       Boolean              @default(false)
+  // Set by an admin via the User Management tab (distinct from isVerified,
+  // which only tracks whether the user's email address has been confirmed).
+  // A suspended user must be blocked from logging in and from using any
+  // existing session, regardless of their email-verification state.
+  isSuspended      Boolean              @default(false)
+  // Distinct from isSuspended: this is the routine on/off switch an admin
+  // flips for day-to-day account lifecycle (e.g. an offboarded employee,
+  // someone on long-term leave) via the User Management dropdown.
+  // isSuspended remains the separate, heavier-weight administrative/security
+  // action (e.g. a policy violation or investigation). Either one alone is
+  // enough to block login and kill existing sessions — see auth.controller.ts
+  // and auth.middleware.ts, which check both independently.
+  isActive         Boolean              @default(true)
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   

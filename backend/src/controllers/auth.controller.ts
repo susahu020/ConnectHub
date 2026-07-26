@@ -284,6 +284,24 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     // C. Reset failed login limits on success
     await clearFailedLogins(email);
 
+    // C2. Suspended accounts are blocked outright. This must run before the
+    // 2FA and email-verification checks below — otherwise a suspended user
+    // could complete the "unverified email" OTP flow (or Google SSO, which
+    // auto-verifies) and effectively undo the admin's suspension themselves.
+    if (user.isSuspended) {
+      res.status(403).json({ message: 'Your account has been suspended. Contact your administrator.', code: 'USER_SUSPENDED' });
+      return;
+    }
+
+    // C3. Inactive accounts are blocked the same way. Distinct from
+    // isSuspended — this is the routine active/inactive toggle rather than
+    // a security/administrative suspension — but it must gate login just
+    // as strictly, and for the same reason (before 2FA/verification).
+    if (!user.isActive) {
+      res.status(403).json({ message: 'Your account is inactive. Contact your administrator.', code: 'USER_INACTIVE' });
+      return;
+    }
+
     // Two-Factor Authentication Check
     if (user.twoFactorEnabled) {
       const isRemember = !!rememberMe;
@@ -931,6 +949,18 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
+    // Re-check suspension/active status here too — the account could have
+    // been suspended or deactivated in the window between the password step
+    // (which already checked this) and completing 2FA.
+    if (user.isSuspended) {
+      res.status(403).json({ message: 'Your account has been suspended. Contact your administrator.', code: 'USER_SUSPENDED' });
+      return;
+    }
+    if (!user.isActive) {
+      res.status(403).json({ message: 'Your account is inactive. Contact your administrator.', code: 'USER_INACTIVE' });
+      return;
+    }
+
     await enforceDuplicateLoginPolicy(user.id);
 
     const userAgentStr = (req.headers['user-agent'] as string) || '';
@@ -1152,7 +1182,11 @@ export const sendContactMessage = async (req: Request, res: Response, next: Next
     const adminUser = await prisma.user.findFirst({
       where: { role: 'ADMIN' },
     });
-    const adminEmail = orgSettings.supportEmail || adminUser?.email || process.env.SMTP_USER || 'susahu02@gmail.com';
+    const adminEmail = orgSettings.supportEmail || adminUser?.email || process.env.SMTP_USER;
+    if (!adminEmail) {
+      res.status(500).json({ message: 'No support email is configured to receive contact messages. Set an Org support email or SMTP_USER.' });
+      return;
+    }
 
     const subject = `New Contact Form Message from ${name}`;
     const text = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
@@ -1313,6 +1347,19 @@ export const googleSsoCallback = async (req: Request, res: Response, next: NextF
       await prisma.user.update({ where: { id: user.id }, data: { ssoProvider: 'GOOGLE' } });
     }
 
+    // Suspended accounts must not be able to sign back in via Google, which
+    // would otherwise auto-verify them below and silently undo the suspension.
+    if (user.isSuspended) {
+      failRedirect('Your account has been suspended. Contact your administrator.');
+      return;
+    }
+
+    // Same as above, but for the separate active/inactive toggle.
+    if (!user.isActive) {
+      failRedirect('Your account is inactive. Contact your administrator.');
+      return;
+    }
+
     if (!user.isVerified) {
       await prisma.user.update({ where: { id: user.id }, data: { isVerified: true } });
     }
@@ -1372,7 +1419,7 @@ export const googleSsoCallback = async (req: Request, res: Response, next: NextF
       maxAge: sessionLifespan,
     });
 
-    res.redirect(`${frontendUrl}/auth/sso-callback?accessToken=${encodeURIComponent(accessToken)}`);
+    res.redirect(`${frontendUrl}/sso-callback?accessToken=${encodeURIComponent(accessToken)}`);
   } catch (error) {
     console.error('Google SSO callback failed:', error);
     failRedirect('Something went wrong signing you in with Google. Please try again.');

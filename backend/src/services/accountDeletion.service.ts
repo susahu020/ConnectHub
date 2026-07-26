@@ -3,6 +3,7 @@ import prisma from '../config/db';
 export interface DeleteAccountResult {
   ok: boolean;
   message?: string;
+  code?: 'LAST_ADMIN';
 }
 
 /**
@@ -33,7 +34,11 @@ export const deleteUserAccount = async (
   if (userToDelete.role === 'ADMIN') {
     const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
     if (adminCount <= 1) {
-      return { ok: false, message: 'This is the last remaining Admin account — the workspace must always have at least one Admin. Promote another user to Admin first.' };
+      return {
+        ok: false,
+        code: 'LAST_ADMIN',
+        message: 'This is the last remaining Admin account — the workspace must always have at least one Admin. Promote another user to Admin first.',
+      };
     }
   }
 

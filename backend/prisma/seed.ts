@@ -6,10 +6,16 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Checking database state...');
 
-  // Check if seeding is already done (e.g. from a previous container boot)
-  const existingTeam = await prisma.team.findFirst();
-  if (existingTeam) {
-    console.log('Database already has data. Checking if custom roles need to be seeded...');
+  // Check if seeding is already done, OR if this database is already "live"
+  // with real usage (e.g. someone registered through the app before any
+  // Team was ever created). Checking only for a Team is not enough — a
+  // fresh production-like database can have real Users (with employeeIds
+  // already claimed, like CH01) long before any Team exists, and blindly
+  // re-running the full seeder would try to hard-create demo users with
+  // those same hardcoded employeeIds and crash on a unique constraint.
+  const existingUser = await prisma.user.findFirst();
+  if (existingUser) {
+    console.log('Database already has users. Checking if custom roles need to be seeded...');
     const existingRoles = await prisma.customRole.findFirst();
     if (!existingRoles) {
       await seedCustomRolesAndPermissions();

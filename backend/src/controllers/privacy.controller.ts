@@ -56,7 +56,7 @@ export const deleteMyAccount = async (req: AuthenticatedRequest, res: Response, 
 
     const result = await deleteUserAccount(userId, { id: userId, isSelfService: true });
     if (!result.ok) {
-      res.status(400).json({ message: result.message });
+      res.status(400).json({ message: result.message, code: result.code });
       return;
     }
 

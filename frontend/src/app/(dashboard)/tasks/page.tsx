@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
+import { useSocket } from '../../../hooks/useSocket';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { getDaysInMonth } from '../../../components/tasks/taskHelpers';
@@ -23,6 +24,7 @@ import { TaskDetailDrawer } from '../../../components/tasks/drawer/TaskDetailDra
 
 export default function TasksPage() {
   const { user } = useAuthStore();
+  const { socket } = useSocket();
   const isWritePermitted = user?.role === 'ADMIN' || user?.role === 'MANAGER';
   const queryClient = useQueryClient();
   const confirm = useConfirm();
@@ -237,6 +239,60 @@ export default function TasksPage() {
       toast.error('Failed to load task details.');
     }
   };
+
+  // Keep whatever's currently open live, without a refresh, when ANOTHER user
+  // changes something in this project (a task moved, a comment/subtask added,
+  // a dependency changed, the project itself renamed/edited, etc). The
+  // ['projects'] and ['tasks', projectId] React Query caches already get
+  // invalidated globally by SocketProvider on the generic 'tasks' data_update
+  // broadcast (see useSocket.tsx) — that refreshes the project list and the
+  // Kanban/List/Calendar/Gantt views automatically. What it can't reach is
+  // state that isn't React-Query-backed: the currently open task detail
+  // drawer (`selectedTask`, populated via an imperative getTaskDetails call)
+  // and the `selectedProject` snapshot that was copied out of the projects
+  // list at click time and won't otherwise pick up a rename/status change.
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDataUpdate = async ({ module }: { module: string }) => {
+      if (module !== 'tasks') return;
+      if (!selectedTask?.id) return;
+      try {
+        const task = await api.getTaskDetails(selectedTask.id);
+        setSelectedTask(task);
+      } catch (err) {
+        // Most likely the task (or its parent project) was just deleted by
+        // someone else — close the drawer instead of leaving it open on
+        // data that no longer exists.
+        setSelectedTask(null);
+        toast.error('This task is no longer available.');
+      }
+    };
+
+    socket.on('data_update', handleDataUpdate);
+    return () => {
+      socket.off('data_update', handleDataUpdate);
+    };
+  }, [socket, selectedTask?.id]);
+
+  // Once the projects list refetches (triggered by the same broadcast above),
+  // refresh the selectedProject snapshot in place so an open project's header/
+  // settings reflect a rename or status change another admin just made,
+  // instead of continuing to show what it looked like when it was clicked.
+  // If the project itself was deleted by someone else, back out to the
+  // projects list rather than leaving the view pointed at a dead project id.
+  useEffect(() => {
+    if (!selectedProject || !projects) return;
+    const fresh = (projects as any[]).find((p) => p.id === selectedProject.id);
+    if (!fresh) {
+      toast.error('This project was deleted.');
+      setSelectedProject(null);
+      return;
+    }
+    if (fresh !== selectedProject && JSON.stringify(fresh) !== JSON.stringify(selectedProject)) {
+      setSelectedProject(fresh);
+    }
+  }, [projects]);
 
   // Task Update Mutation
   const updateTaskMutation = useMutation({

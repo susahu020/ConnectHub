@@ -58,23 +58,46 @@ export const validateStartupSecrets = (): void => {
     problems.push('  - JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must not be the same value');
   }
 
-  if (problems.length === 0) return;
+  // File storage: without Cloudinary, uploads silently fall back to local
+  // disk (backend/src/config/cloudinary.ts + file.controller.ts). That's
+  // fine for local dev, but on any real deployment it means uploaded files
+  // are wiped on every restart/redeploy and invisible to other instances
+  // behind a load balancer — a silent data-loss bug, not just a warning.
+  const storageConfigured = !!(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  );
+  const storageProblems: string[] = [];
+  if (!storageConfigured) {
+    storageProblems.push('  - CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET are not fully set — uploads would silently fall back to local disk');
+  }
+
+  if (problems.length === 0 && storageProblems.length === 0) return;
+
+  const sections = [
+    problems.length > 0
+      ? ['The following environment variables are missing, default, or too weak to use safely:', ...problems].join('\n')
+      : '',
+    storageProblems.length > 0
+      ? ['File storage is not production-ready:', ...storageProblems].join('\n')
+      : '',
+  ].filter(Boolean);
 
   const message = [
     '',
     '🔴 STARTUP SECURITY CHECK FAILED',
     '',
-    'The following environment variables are missing, default, or too weak to use safely:',
-    ...problems,
+    ...sections,
     '',
-    'Generate strong random values, e.g.:',
+    'Generate strong random secret values, e.g.:',
     '  node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"',
     '',
   ].join('\n');
 
   if (isProduction) {
     console.error(message);
-    console.error('Refusing to start in production with insecure secrets. Set NODE_ENV=development to bypass locally.\n');
+    console.error('Refusing to start in production with insecure secrets or ephemeral file storage. Set NODE_ENV=development to bypass locally.\n');
     process.exit(1);
   } else {
     console.warn(message);
