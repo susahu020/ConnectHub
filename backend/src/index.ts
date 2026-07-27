@@ -121,7 +121,7 @@ app.use(
     crossOriginResourcePolicy: false, // Required to view uploads in browser
   })
 );
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(securityHeaders);
 
 // Body Parsers
