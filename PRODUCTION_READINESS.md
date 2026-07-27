@@ -99,6 +99,27 @@ Added:
   message / error passthrough), which had no direct test before (only the
   underlying `hasPermission` service function did).
 
+## 🟢 Fixed: two small follow-ups found on a second pass
+
+- The login page's redirects always hardcoded `/dashboard`, ignoring the
+  `?next=<path>` that `middleware.ts` attaches when it bounces a signed-out
+  visitor to `/login`. Added a `getRedirectTarget()` helper (used after
+  both normal login and 2FA verification) that honors `next` but only when
+  it's a plain relative path — it explicitly rejects `//host` and any
+  `scheme://` value so a crafted `next=` param can't be used as an open
+  redirect.
+- `morgan('dev')` (a colorized, terminal-oriented log format) was used
+  unconditionally. Switched to the standard `combined` format when
+  `NODE_ENV=production`, so production logs are usable by log aggregators
+  instead of carrying ANSI color codes.
+- Confirmed the "reset all user presence to OFFLINE on startup" logic in
+  `index.ts` only touches the `status` (online/offline) field, not the new
+  `isSuspended`/`isActive` fields — it does not un-suspend accounts on
+  restart.
+- Confirmed CORS is scoped to `FRONTEND_URL`, not a wildcard, and grepped
+  for `console.log` calls containing "password"/"token"/"secret" — none
+  found.
+
 ## What I could NOT verify — read this before deploying
 
 I do not have network access or a running Postgres/Redis/Node environment
