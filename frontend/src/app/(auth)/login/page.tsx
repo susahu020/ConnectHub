@@ -34,6 +34,19 @@ function LoginForm() {
     }
   }, [searchParams]);
 
+  // Only ever redirect to a relative in-app path. A bare '/' prefix check
+  // isn't enough on its own (e.g. '//evil.com' is parsed by browsers as a
+  // protocol-relative external URL), so explicitly reject any target
+  // starting with '//' or containing a scheme, and fall back to
+  // '/dashboard' for anything that isn't a plain relative path.
+  const getRedirectTarget = () => {
+    const next = searchParams.get('next');
+    if (next && next.startsWith('/') && !next.startsWith('//') && !next.includes('://')) {
+      return next;
+    }
+    return '/dashboard';
+  };
+
   // 2FA step states
   const [require2fa, setRequire2fa] = useState(false);
   const [temp2faToken, setTemp2faToken] = useState('');
@@ -60,7 +73,7 @@ function LoginForm() {
       } else {
         setAuth(response.user, response.accessToken);
         toast.success(`Welcome back to ${orgSettings.orgName}!`);
-        router.push('/dashboard');
+        router.push(getRedirectTarget());
       }
     } catch (error: any) {
       if (error.message.includes('not verified')) {
@@ -87,7 +100,7 @@ function LoginForm() {
 
       setAuth(response.user, response.accessToken);
       toast.success(`Verification successful. Welcome to ${orgSettings.orgName}!`);
-      router.push('/dashboard');
+      router.push(getRedirectTarget());
     } catch (error: any) {
       toast.error(error.message || 'Invalid or expired 2FA code.');
     } finally {
