@@ -4,6 +4,8 @@ import path from 'path';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cloudinary';
+import { emitDataUpdate } from '../utils/realtime';
+import { logAudit } from '../utils/auditLog';
 
 export const getProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -57,18 +59,18 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response, ne
       location,
       skills,
       status,
-      employeeId,
       coverUrl,
-      joiningDate,
       employmentType,
       officeLocation,
       emergencyContact,
       birthday,
       timezone,
       workingHours,
-      managerId,
-      socialLinks,
-      departmentId
+      socialLinks
+      // managerId and departmentId are intentionally NOT accepted here — org
+      // structure (who reports to whom, which department someone is in) is an
+      // HR/admin decision, not something a user can self-assign. Only
+      // adminUpdateUser (Admin-only) may set these. See admin.controller.ts.
     } = req.body;
 
     const updatedUser = await prisma.user.update({
@@ -82,18 +84,15 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response, ne
         location: location !== undefined ? location : undefined,
         skills: skills !== undefined ? skills : undefined,
         status: status !== undefined ? status : undefined,
-        employeeId: employeeId !== undefined ? (employeeId === '' ? null : employeeId) : undefined,
         coverUrl: coverUrl !== undefined ? coverUrl : undefined,
-        joiningDate: joiningDate ? new Date(joiningDate) : (joiningDate === null ? null : undefined),
+        // joiningDate is HR/admin-controlled — not accepted from self-service profile updates.
         employmentType: employmentType !== undefined ? employmentType : undefined,
         officeLocation: officeLocation !== undefined ? officeLocation : undefined,
         emergencyContact: emergencyContact !== undefined ? emergencyContact : undefined,
         birthday: birthday ? new Date(birthday) : (birthday === null ? null : undefined),
         timezone: timezone !== undefined ? timezone : undefined,
         workingHours: workingHours !== undefined ? workingHours : undefined,
-        managerId: managerId !== undefined ? (managerId === 'null' || managerId === '' ? null : managerId) : undefined,
         socialLinks: socialLinks !== undefined ? socialLinks : undefined,
-        departmentId: departmentId !== undefined ? (departmentId === 'null' || departmentId === '' ? null : departmentId) : undefined,
       },
       include: {
         department: true,
@@ -129,6 +128,7 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response, ne
     });
 
     const { passwordHash: _, ...safeUser } = updatedUser;
+    emitDataUpdate(req, 'users');
     res.status(200).json({ message: 'Profile updated successfully.', user: safeUser });
   } catch (error) {
     next(error);
@@ -577,6 +577,7 @@ export const uploadAvatar = async (req: AuthenticatedRequest, res: Response, nex
       },
     });
 
+    emitDataUpdate(req, 'users');
     res.status(200).json({ message: 'Avatar uploaded successfully.', avatarUrl: fileUrl });
   } catch (error) {
     next(error);
@@ -919,18 +920,18 @@ export const updateProfileById = async (req: AuthenticatedRequest, res: Response
       location,
       skills,
       status,
-      employeeId,
       coverUrl,
-      joiningDate,
       employmentType,
       officeLocation,
       emergencyContact,
       birthday,
       timezone,
       workingHours,
-      managerId,
-      socialLinks,
-      departmentId
+      socialLinks
+      // managerId and departmentId are intentionally NOT accepted here — org
+      // structure (who reports to whom, which department someone is in) is an
+      // HR/admin decision, not something a user can self-assign. Only
+      // adminUpdateUser (Admin-only) may set these. See admin.controller.ts.
     } = req.body;
 
     const updatedUser = await prisma.user.update({
@@ -944,22 +945,21 @@ export const updateProfileById = async (req: AuthenticatedRequest, res: Response
         location: location !== undefined ? location : undefined,
         skills: skills !== undefined ? skills : undefined,
         status: status !== undefined ? status : undefined,
-        employeeId: employeeId !== undefined ? (employeeId === '' ? null : employeeId) : undefined,
         coverUrl: coverUrl !== undefined ? coverUrl : undefined,
-        joiningDate: joiningDate ? new Date(joiningDate) : (joiningDate === null ? null : undefined),
+        // joiningDate is HR/admin-controlled — not accepted from self-service profile updates.
         employmentType: employmentType !== undefined ? employmentType : undefined,
         officeLocation: officeLocation !== undefined ? officeLocation : undefined,
         emergencyContact: emergencyContact !== undefined ? emergencyContact : undefined,
         birthday: birthday ? new Date(birthday) : (birthday === null ? null : undefined),
         timezone: timezone !== undefined ? timezone : undefined,
         workingHours: workingHours !== undefined ? workingHours : undefined,
-        managerId: managerId !== undefined ? (managerId === 'null' || managerId === '' ? null : managerId) : undefined,
         socialLinks: socialLinks !== undefined ? socialLinks : undefined,
-        departmentId: departmentId !== undefined ? (departmentId === 'null' || departmentId === '' ? null : departmentId) : undefined,
       },
     });
 
     const { passwordHash: _, ...safeUser } = updatedUser;
+    emitDataUpdate(req, 'users');
+    logAudit(req, 'UPDATE_PROFILE', `Updated own profile information (${userId}).`);
     res.status(200).json({ message: 'Profile updated successfully.', user: safeUser });
   } catch (error) {
     next(error);

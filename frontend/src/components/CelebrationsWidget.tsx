@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { api } from '../services/api';
@@ -33,6 +34,11 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
   const [targetName, setTargetName] = useState('');
   const [wishType, setWishType] = useState<WishType>('birthday');
   const [message, setMessage] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { data: celebrations } = useQuery({
     queryKey: ['hr-celebrations'],
@@ -175,7 +181,7 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
     );
   };
 
-  const modal = modalOpen && (
+  const modalContent = modalOpen && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 animate-scale-up">
         <div className="flex items-center justify-between border-b pb-3">
@@ -220,6 +226,8 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
       </div>
     </div>
   );
+
+  const modal = mounted && modalContent ? createPortal(modalContent, document.body) : null;
 
   if (variant === 'compact') {
     const todaysBirthdays = (celebrations?.birthdays || []).filter((b: any) => isToday(b.date));

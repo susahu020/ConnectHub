@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { strongPasswordZod } from './passwordPolicy';
 
 export const registerSchema = z.object({
   body: z.object({
     email: z.string().email('Invalid email address'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    password: strongPasswordZod,
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
     designation: z.string().optional(),
@@ -36,7 +37,7 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
   body: z.object({
     token: z.string().min(1, 'Token is required'),
-    password: z.string().min(6, 'Password must be at least 6 characters'),
+    password: strongPasswordZod,
   }),
 });
 
@@ -51,17 +52,19 @@ export const updateProfileSchema = z.object({
     skills: z.array(z.string()).optional(),
     status: z.enum(['ONLINE', 'OFFLINE', 'AWAY', 'BUSY', 'DND']).optional(),
     
-    employeeId: z.string().nullable().optional(),
+    // employeeId is intentionally NOT accepted here — it is system-generated
+    // (see utils/employeeId.ts) and must never be user-editable.
     coverUrl: z.string().nullable().optional(),
-    joiningDate: z.string().nullable().optional(),
+    // joiningDate, employmentType, managerId, and departmentId are org-structure /
+    // HR facts. joiningDate and managerId/departmentId are intentionally NOT
+    // accepted in self-service profile updates — only an admin (adminUpdateUser)
+    // may set them. employmentType stays self-editable as a lower-stakes field.
     employmentType: z.string().nullable().optional(),
     officeLocation: z.string().nullable().optional(),
     emergencyContact: z.string().nullable().optional(),
     birthday: z.string().nullable().optional(),
     timezone: z.string().optional(),
     workingHours: z.string().nullable().optional(),
-    managerId: z.string().nullable().optional(),
-    departmentId: z.string().nullable().optional(),
     socialLinks: z.record(z.string().nullable()).optional(),
   }),
 });

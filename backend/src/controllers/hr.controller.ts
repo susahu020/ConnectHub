@@ -1,9 +1,8 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
-
-// Helper to check if role is Admin or Manager
-const isManagerOrAdmin = (role: string) => role === 'ADMIN' || role === 'MANAGER';
+import { logAudit } from '../utils/auditLog';
+import { isAuthorizedApprover, isManagerOrAdmin } from '../services/approval.service';
 
 // Real-time update helper via Socket.io
 const emitHRUpdate = (req: any, type: string) => {
@@ -155,6 +154,11 @@ export const updateLeaveStatus = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
+    if (!(await isAuthorizedApprover(req.user!.id, role, leaveRequest.userId))) {
+      res.status(403).json({ message: "Forbidden. Only this employee's reporting manager or an admin can approve or reject this leave request." });
+      return;
+    }
+
     if (status === 'APPROVED') {
       // Calculate leave days
       const diffTime = Math.abs(leaveRequest.endDate.getTime() - leaveRequest.startDate.getTime());
@@ -201,6 +205,7 @@ export const updateLeaveStatus = async (req: AuthenticatedRequest, res: Response
     });
 
     emitHRUpdate(req, 'LEAVE');
+    logAudit(req, 'LEAVE_REQUEST_' + status, `${status === 'APPROVED' ? 'Approved' : 'Rejected'} leave request ${id} for user ${leaveRequest.userId} (${leaveRequest.leaveType}, ${leaveRequest.startDate.toDateString()} - ${leaveRequest.endDate.toDateString()}).`);
     res.status(200).json(updatedLeave);
   } catch (error) {
     next(error);
@@ -581,6 +586,11 @@ export const updateExpenseStatus = async (req: AuthenticatedRequest, res: Respon
       return;
     }
 
+    if (!(await isAuthorizedApprover(req.user!.id, req.user?.role!, claim.userId))) {
+      res.status(403).json({ message: "Forbidden. Only this employee's reporting manager or an admin can approve or reject this expense claim." });
+      return;
+    }
+
     const updatedClaim = await prisma.expenseClaim.update({
       where: { id },
       data: {
@@ -591,6 +601,7 @@ export const updateExpenseStatus = async (req: AuthenticatedRequest, res: Respon
     });
 
     emitHRUpdate(req, 'EXPENSE');
+    logAudit(req, 'EXPENSE_CLAIM_' + status, `${status === 'APPROVED' ? 'Approved' : 'Rejected'} expense claim ${id} for user ${claim.userId} (amount: ${claim.amount}).`);
     res.status(200).json(updatedClaim);
   } catch (error) {
     next(error);
@@ -606,7 +617,10 @@ export const getPayslips = async (req: AuthenticatedRequest, res: Response, next
     const role = req.user?.role!;
     let payslips;
 
-    if (isManagerOrAdmin(role)) {
+    // Payslips carry salary figures — unlike leave/attendance, this isn't
+    // shared team-visibility territory. Only Admins (payroll/HR) see everyone's;
+    // Managers see their own payslips only, same as any other employee.
+    if (role === 'ADMIN') {
       payslips = await prisma.payslip.findMany({
         include: {
           user: { select: { id: true, firstName: true, lastName: true, email: true, designation: true } },
@@ -632,8 +646,8 @@ export const getPayslips = async (req: AuthenticatedRequest, res: Response, next
 
 export const generatePayslip = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    if (!isManagerOrAdmin(req.user?.role!)) {
-      res.status(403).json({ message: 'Forbidden. Only managers and admins can generate payslips.' });
+    if (req.user?.role !== 'ADMIN') {
+      res.status(403).json({ message: 'Forbidden. Only Admins can generate payslips.' });
       return;
     }
 
@@ -677,6 +691,7 @@ export const generatePayslip = async (req: AuthenticatedRequest, res: Response, 
     });
 
     emitHRUpdate(req, 'PAYSLIP');
+    logAudit(req, 'PAYSLIP_GENERATED', `Generated ${month}/${year} payslip for user ${employeeId}: basic ${basic}, allowances ${allow}, deductions ${deduct}, net ${netSalary}.`);
     res.status(201).json(payslip);
   } catch (error) {
     next(error);
@@ -685,8 +700,8 @@ export const generatePayslip = async (req: AuthenticatedRequest, res: Response, 
 
 export const updatePayslipStatus = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    if (!isManagerOrAdmin(req.user?.role!)) {
-      res.status(403).json({ message: 'Forbidden. Only managers and admins can update payslip status.' });
+    if (req.user?.role !== 'ADMIN') {
+      res.status(403).json({ message: 'Forbidden. Only Admins can update payslip status.' });
       return;
     }
 
@@ -704,6 +719,7 @@ export const updatePayslipStatus = async (req: AuthenticatedRequest, res: Respon
     });
 
     emitHRUpdate(req, 'PAYSLIP');
+    logAudit(req, 'PAYSLIP_STATUS_UPDATED', `Set payslip ${id} (user ${updated.userId}) status to ${status}.`);
     res.status(200).json(updated);
   } catch (error) {
     next(error);
@@ -808,6 +824,34 @@ export const createSwapRequest = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
+    if (assigneeId === userId) {
+      res.status(400).json({ message: 'You cannot request a shift swap with yourself.' });
+      return;
+    }
+
+    const [requesterAssignment, assigneeAssignment] = await Promise.all([
+      prisma.shiftAssignment.findUnique({ where: { id: requesterAssignmentId } }),
+      prisma.shiftAssignment.findUnique({ where: { id: assigneeAssignmentId } }),
+    ]);
+
+    if (!requesterAssignment || !assigneeAssignment) {
+      res.status(404).json({ message: 'One or both shift assignments could not be found.' });
+      return;
+    }
+
+    // The client is trusted to only ever offer the user's own assignments and the
+    // chosen teammate's assignments in its dropdowns, but that's a UI convenience,
+    // not enforcement — verify it server-side so a request can't be built to swap
+    // shifts that don't actually belong to the stated requester/assignee.
+    if (requesterAssignment.userId !== userId) {
+      res.status(403).json({ message: 'You can only offer your own shift assignment in a swap request.' });
+      return;
+    }
+    if (assigneeAssignment.userId !== assigneeId) {
+      res.status(400).json({ message: "The selected shift assignment does not belong to the chosen teammate." });
+      return;
+    }
+
     const swap = await prisma.shiftSwapRequest.create({
       data: {
         requesterId: userId,
@@ -905,6 +949,17 @@ export const updateSwapRequestStatus = async (req: AuthenticatedRequest, res: Re
       return;
     }
 
+    // A swap touches two employees, so either one being a direct report of the
+    // approving manager is enough authority to sign off on it. Admins can always approve.
+    const canApproveSwap =
+      (await isAuthorizedApprover(req.user!.id, req.user?.role!, swap.requesterId)) ||
+      (await isAuthorizedApprover(req.user!.id, req.user?.role!, swap.assigneeId));
+
+    if (!canApproveSwap) {
+      res.status(403).json({ message: 'Forbidden. Only the reporting manager of one of these employees, or an admin, can approve this shift swap.' });
+      return;
+    }
+
     if (status === 'APPROVED') {
       const requesterShiftId = swap.requesterAssignment.shiftId;
       const assigneeShiftId = swap.assigneeAssignment.shiftId;
@@ -937,6 +992,7 @@ export const updateSwapRequestStatus = async (req: AuthenticatedRequest, res: Re
     }
 
     emitHRUpdate(req, 'SHIFT');
+    logAudit(req, 'SHIFT_SWAP_' + status, `${status === 'APPROVED' ? 'Approved' : 'Rejected'} shift swap ${id} between user ${swap.requesterId} and user ${swap.assigneeId}.`);
     res.status(200).json({ message: `Shift swap ${status.toLowerCase()} successfully.` });
   } catch (error) {
     next(error);
@@ -1120,6 +1176,7 @@ export const deleteLeaveRequest = async (req: AuthenticatedRequest, res: Respons
 
     await prisma.leaveRequest.delete({ where: { id } });
     emitHRUpdate(req, 'LEAVE');
+    logAudit(req, 'LEAVE_REQUEST_DELETED', `Deleted leave request ${id} (owner: ${leave.userId}, was ${leave.status}).`);
     res.status(200).json({ message: 'Leave request deleted successfully.' });
   } catch (error) {
     next(error);
@@ -1142,6 +1199,7 @@ export const updateLeaveBalance = async (req: AuthenticatedRequest, res: Respons
       }
     });
     emitHRUpdate(req, 'LEAVE');
+    logAudit(req, 'LEAVE_BALANCE_ADJUSTED', `Adjusted leave balance ${id}: total=${total ?? 'unchanged'}, used=${used ?? 'unchanged'}.`);
     res.status(200).json(updated);
   } catch (error) {
     next(error);
@@ -1166,6 +1224,7 @@ export const updateAttendanceLog = async (req: AuthenticatedRequest, res: Respon
       }
     });
     emitHRUpdate(req, 'ATTENDANCE');
+    logAudit(req, 'ATTENDANCE_LOG_ADJUSTED', `Manually adjusted attendance log ${id} (clockIn/clockOut/status/notes).`);
     res.status(200).json(updated);
   } catch (error) {
     next(error);
@@ -1181,6 +1240,7 @@ export const deleteAttendanceLog = async (req: AuthenticatedRequest, res: Respon
     const { id } = req.params;
     await prisma.attendance.delete({ where: { id } });
     emitHRUpdate(req, 'ATTENDANCE');
+    logAudit(req, 'ATTENDANCE_LOG_DELETED', `Deleted attendance log ${id}.`);
     res.status(200).json({ message: 'Attendance log deleted successfully.' });
   } catch (error) {
     next(error);
@@ -1215,6 +1275,7 @@ export const deleteExpenseClaim = async (req: AuthenticatedRequest, res: Respons
 
     await prisma.expenseClaim.delete({ where: { id } });
     emitHRUpdate(req, 'EXPENSE');
+    logAudit(req, 'EXPENSE_CLAIM_DELETED', `Deleted expense claim ${id} (owner: ${claim.userId}, amount: ${claim.amount}, was ${claim.status}).`);
     res.status(200).json({ message: 'Expense claim deleted successfully.' });
   } catch (error) {
     next(error);
@@ -1228,8 +1289,9 @@ export const deletePayslip = async (req: AuthenticatedRequest, res: Response, ne
       return;
     }
     const { id } = req.params;
-    await prisma.payslip.delete({ where: { id } });
+    const deletedPayslip = await prisma.payslip.delete({ where: { id } });
     emitHRUpdate(req, 'PAYSLIP');
+    logAudit(req, 'PAYSLIP_DELETED', `Deleted payslip ${id} (user: ${deletedPayslip.userId}, ${deletedPayslip.month}/${deletedPayslip.year}, net: ${deletedPayslip.netSalary}).`);
     res.status(200).json({ message: 'Payslip deleted successfully.' });
   } catch (error) {
     next(error);
@@ -1245,6 +1307,7 @@ export const deleteShiftAssignment = async (req: AuthenticatedRequest, res: Resp
     const { id } = req.params;
     await prisma.shiftAssignment.delete({ where: { id } });
     emitHRUpdate(req, 'SHIFT');
+    logAudit(req, 'SHIFT_ASSIGNMENT_DELETED', `Deleted shift assignment ${id}.`);
     res.status(200).json({ message: 'Shift assignment deleted successfully.' });
   } catch (error) {
     next(error);
@@ -1260,6 +1323,7 @@ export const deleteShift = async (req: AuthenticatedRequest, res: Response, next
     const { id } = req.params;
     await prisma.shift.delete({ where: { id } });
     emitHRUpdate(req, 'SHIFT');
+    logAudit(req, 'SHIFT_TYPE_DELETED', `Deleted shift type ${id}.`);
     res.status(200).json({ message: 'Shift type deleted successfully.' });
   } catch (error) {
     next(error);

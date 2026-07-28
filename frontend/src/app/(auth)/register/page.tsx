@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import { Layers, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
+import { passwordZodSchema, PASSWORD_HINT } from '../../../lib/passwordPolicy';
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -18,7 +19,7 @@ const registerSchema = z.object({
   phone: z.string().optional(),
   designation: z.string().min(1, 'Designation is required'),
   role: z.enum(['ADMIN', 'MANAGER', 'EMPLOYEE']),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: passwordZodSchema,
 });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
@@ -110,6 +111,36 @@ function RegisterForm() {
     );
   }
 
+  // No invite token, workspace already has an Admin, and this org has locked
+  // registration to invite-only — there's nothing this page can do for a
+  // walk-up visitor except point them at their administrator.
+  const registrationBlocked = !token && !orgSettings.needsInitialSetup && orgSettings.registrationMode === 'INVITE_ONLY';
+  if (registrationBlocked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-6 py-12">
+        <div className="w-full max-w-md space-y-5 bg-white dark:bg-slate-900 p-8 rounded-3xl border shadow-xl text-center">
+          <div className="flex flex-col items-center space-y-2">
+            {orgSettings.logoUrl ? (
+              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-10 w-10 rounded object-contain" />
+            ) : (
+              <Layers className="h-10 w-10 text-primary" />
+            )}
+            <span className="text-xl font-bold">{orgSettings.orgName}</span>
+          </div>
+          <h2 className="text-lg font-bold">This workspace is invite-only</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {orgSettings.orgName} isn&apos;t open to public sign-ups. If you&apos;re joining a team here, ask an
+            administrator or your manager to send you an invitation email — it'll bring you straight back to this
+            page with everything pre-filled.
+          </p>
+          <Link href="/login" className="inline-block font-semibold text-primary hover:underline text-sm">
+            Back to Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-6 py-12">
       <div className="w-full max-w-lg space-y-6 bg-white dark:bg-slate-900 p-8 rounded-3xl border shadow-xl relative overflow-hidden">
@@ -192,6 +223,11 @@ function RegisterForm() {
               } ${tokenVerified ? 'opacity-70 bg-slate-100 dark:bg-slate-900/60 cursor-not-allowed pointer-events-none select-none' : ''}`}
             />
             {errors.email && <p className="text-xs font-medium text-red-500">{errors.email.message}</p>}
+            {!tokenVerified && !orgSettings.needsInitialSetup && orgSettings.registrationMode === 'DOMAIN_RESTRICTED' && orgSettings.allowedDomains.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Self-signup is limited to: {orgSettings.allowedDomains.map((d) => `@${d}`).join(', ')}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -212,21 +248,21 @@ function RegisterForm() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase" htmlFor="role">
+              <label className="text-xs font-semibold text-muted-foreground uppercase">
                 Assigned Role
               </label>
-              <select
-                id="role"
-                {...register('role')}
-                className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
-                  tokenVerified ? 'opacity-70 bg-slate-100 dark:bg-slate-900/60 cursor-not-allowed pointer-events-none select-none' : ''
-                }`}
-                tabIndex={tokenVerified ? -1 : 0}
-              >
-                <option value="EMPLOYEE">Employee</option>
-                <option value="MANAGER">Manager</option>
-                <option value="ADMIN">Administrator</option>
-              </select>
+              {/* The server always decides the role itself (see auth.controller.ts
+                  register() / invitation.controller.ts completeOnboarding) — an
+                  editable dropdown here would be misleading since nothing the
+                  visitor picks is actually honored. Show what will really happen. */}
+              <div className="w-full px-4 py-2.5 rounded-xl border bg-slate-100 dark:bg-slate-900/60 text-sm font-semibold text-slate-500">
+                {tokenVerified
+                  ? invitedRole === 'ADMIN' ? 'Administrator' : invitedRole === 'MANAGER' ? 'Manager' : 'Employee'
+                  : orgSettings.needsInitialSetup
+                    ? 'Administrator (first account sets up the workspace)'
+                    : 'Employee'}
+              </div>
+              <input type="hidden" {...register('role')} />
             </div>
           </div>
 
@@ -266,7 +302,11 @@ function RegisterForm() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {errors.password && <p className="text-xs font-medium text-red-500">{errors.password.message}</p>}
+              {errors.password ? (
+                <p className="text-xs font-medium text-red-500">{errors.password.message}</p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">{PASSWORD_HINT}</p>
+              )}
             </div>
           </div>
 

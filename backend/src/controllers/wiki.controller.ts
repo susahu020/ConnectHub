@@ -1,11 +1,18 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { emitDataUpdate } from '../utils/realtime';
 
-// An unpublished (draft) page is only visible to its author and admins — everyone
-// else should not be able to list it, open it directly by id, or edit/delete it.
-const canAccessPage = (page: { isPublished: boolean; authorId: string }, userId: string, role?: string) =>
-  page.isPublished || page.authorId === userId || role === 'ADMIN';
+// An unpublished (draft) page is only visible to its author and admins/managers
+// (content moderators) — everyone else should not be able to list it, open it
+// directly by id, or edit/delete it. Exported (rather than kept module-private)
+// specifically so this logic has direct unit test coverage — see
+// __tests__/wikiAccess.test.ts — instead of only being reachable through a
+// full HTTP request against a live database.
+export const isModerator = (role?: string) => role === 'ADMIN' || role === 'MANAGER';
+
+export const canAccessPage = (page: { isPublished: boolean; authorId: string }, userId: string, role?: string) =>
+  page.isPublished || page.authorId === userId || isModerator(role);
 
 // 1. GET /api/wiki — List pages
 export const getWikiPages = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -18,7 +25,7 @@ export const getWikiPages = async (req: AuthenticatedRequest, res: Response, nex
       OR: [
         { isPublished: true },
         { authorId: userId },
-        ...(role === 'ADMIN' ? [{ isPublished: false }] : []),
+        ...(isModerator(role) ? [{ isPublished: false }] : []),
       ],
     };
     if (category) {
@@ -111,6 +118,7 @@ export const createWikiPage = async (req: AuthenticatedRequest, res: Response, n
       },
     });
 
+    emitDataUpdate(req, 'wiki');
     res.status(201).json(page);
   } catch (error) {
     next(error);
@@ -164,6 +172,7 @@ export const updateWikiPage = async (req: AuthenticatedRequest, res: Response, n
       },
     });
 
+    emitDataUpdate(req, 'wiki');
     res.json(updated);
   } catch (error) {
     next(error);
@@ -172,7 +181,8 @@ export const updateWikiPage = async (req: AuthenticatedRequest, res: Response, n
 
 // 5. DELETE /api/wiki/:id — Delete page. Unlike editing, deletion is permanent
 // (there's no wiki recycle bin) — restricted to the author or an admin so a
-// collaborative wiki can't be wiped by anyone who happens across a link.
+// collaborative wiki can't be wiped by anyone who happens across a link. Managers
+// count as moderators here too (same as they do for viewing/listing drafts above).
 export const deleteWikiPage = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
@@ -182,11 +192,12 @@ export const deleteWikiPage = async (req: AuthenticatedRequest, res: Response, n
       return res.status(404).json({ message: 'Wiki page not found.' });
     }
 
-    if (page.authorId !== req.user!.id && req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ message: 'Only the page author or an admin can delete this page.' });
+    if (page.authorId !== req.user!.id && !isModerator(req.user?.role)) {
+      return res.status(403).json({ message: 'Only the page author, a manager, or an admin can delete this page.' });
     }
 
     await prisma.wikiPage.delete({ where: { id } });
+    emitDataUpdate(req, 'wiki');
     res.json({ message: 'Wiki page deleted successfully.' });
   } catch (error) {
     next(error);
@@ -237,6 +248,7 @@ export const rollbackWikiPage = async (req: AuthenticatedRequest, res: Response,
       },
     });
 
+    emitDataUpdate(req, 'wiki');
     res.json(updated);
   } catch (error) {
     next(error);

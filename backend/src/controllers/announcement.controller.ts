@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { emitDataUpdate } from '../utils/realtime';
 import { createManyNotifications } from '../services/notification.service';
 
 export const createAnnouncement = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -62,6 +63,7 @@ export const createAnnouncement = async (req: AuthenticatedRequest, res: Respons
       },
     });
 
+    emitDataUpdate(req, 'announcements');
     res.status(201).json(announcement);
   } catch (error) {
     next(error);
@@ -252,6 +254,7 @@ export const deleteAnnouncement = async (req: AuthenticatedRequest, res: Respons
 
     await prisma.announcement.delete({ where: { id } });
 
+    emitDataUpdate(req, 'announcements');
     res.status(200).json({ message: 'Announcement deleted successfully.', announcementId: id });
   } catch (error) {
     next(error);

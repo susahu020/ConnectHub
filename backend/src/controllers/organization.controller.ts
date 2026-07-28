@@ -5,6 +5,7 @@ import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { invalidateOrganizationSettingsCache } from '../services/organization.service';
 import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cloudinary';
+import { isGoogleSsoConfigured } from '../services/sso.service';
 
 // The set of columns an admin is allowed to update. An explicit whitelist
 // means an unexpected key in the request body (e.g. `id`, `updatedAt`) can
@@ -20,7 +21,11 @@ const ORG_SETTINGS_KEYS = [
   'address',
   'defaultWatermarkText',
   'defaultTimezone',
+  'registrationMode',
+  'alertWebhookUrl',
 ] as const;
+
+const VALID_REGISTRATION_MODES = ['INVITE_ONLY', 'DOMAIN_RESTRICTED', 'OPEN'];
 
 /**
  * Public: fetch org-wide branding/config (name, logo, colors, etc.).
@@ -35,7 +40,15 @@ export const getPublicOrganizationSettings = async (req: Request, res: Response,
       settings = await prisma.organizationSettings.create({ data: {} });
     }
 
-    res.status(200).json(settings);
+    // The very first account ever created always becomes Admin during initial
+    // setup (see auth.controller.ts register()), regardless of registrationMode —
+    // there has to be one owner before anyone can configure anything. The
+    // login/register screens use this flag to show the signup form during
+    // that one-time setup even when the org has since locked registration down.
+    const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
+
+    const ssoGoogleAvailable = isGoogleSsoConfigured() && settings.ssoGoogleEnabled !== false;
+    res.status(200).json({ ...settings, needsInitialSetup: adminCount === 0, ssoGoogleAvailable });
   } catch (error) {
     next(error);
   }
@@ -145,10 +158,54 @@ export const uploadOrganizationFavicon = async (req: AuthenticatedRequest, res: 
  */
 export const updateOrganizationSettings = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const updates: Record<string, string | null> = {};
+    const updates: Record<string, any> = {};
     for (const key of ORG_SETTINGS_KEYS) {
       if (typeof req.body[key] === 'string' || req.body[key] === null) {
         updates[key] = req.body[key];
+      }
+    }
+
+    if (updates.registrationMode !== undefined && !VALID_REGISTRATION_MODES.includes(updates.registrationMode)) {
+      res.status(400).json({ message: `registrationMode must be one of: ${VALID_REGISTRATION_MODES.join(', ')}.` });
+      return;
+    }
+
+    if (updates.alertWebhookUrl) {
+      try {
+        const parsed = new URL(updates.alertWebhookUrl);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') throw new Error('bad protocol');
+      } catch {
+        res.status(400).json({ message: 'alertWebhookUrl must be a valid http(s) URL.' });
+        return;
+      }
+    }
+
+    // allowedDomains is an array, so it's handled separately from the
+    // string|null whitelist loop above. Normalize each entry: strip any
+    // leading "@" or "https://" a well-meaning admin might type, lowercase,
+    // trim, and drop empties/duplicates.
+    if (Array.isArray(req.body.allowedDomains)) {
+      const normalized = Array.from(
+        new Set(
+          req.body.allowedDomains
+            .map((d: any) => String(d).trim().toLowerCase().replace(/^@/, '').replace(/^https?:\/\//, '').replace(/\/$/, ''))
+            .filter((d: string) => d.length > 0)
+        )
+      );
+      updates.allowedDomains = normalized;
+    }
+
+    // Boolean fields aren't covered by the string|null whitelist loop above.
+    if (typeof req.body.ssoGoogleEnabled === 'boolean') {
+      updates.ssoGoogleEnabled = req.body.ssoGoogleEnabled;
+    }
+
+    if (updates.registrationMode === 'DOMAIN_RESTRICTED') {
+      const existingDomains = (await prisma.organizationSettings.findFirst())?.allowedDomains || [];
+      const effectiveDomains = updates.allowedDomains ?? existingDomains;
+      if (!effectiveDomains || effectiveDomains.length === 0) {
+        res.status(400).json({ message: 'Add at least one allowed email domain before switching to domain-restricted registration.' });
+        return;
       }
     }
 

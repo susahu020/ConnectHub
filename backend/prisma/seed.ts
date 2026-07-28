@@ -6,10 +6,16 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Checking database state...');
 
-  // Check if seeding is already done (e.g. from a previous container boot)
-  const existingTeam = await prisma.team.findFirst();
-  if (existingTeam) {
-    console.log('Database already has data. Checking if custom roles need to be seeded...');
+  // Check if seeding is already done, OR if this database is already "live"
+  // with real usage (e.g. someone registered through the app before any
+  // Team was ever created). Checking only for a Team is not enough — a
+  // fresh production-like database can have real Users (with employeeIds
+  // already claimed, like CH01) long before any Team exists, and blindly
+  // re-running the full seeder would try to hard-create demo users with
+  // those same hardcoded employeeIds and crash on a unique constraint.
+  const existingUser = await prisma.user.findFirst();
+  if (existingUser) {
+    console.log('Database already has users. Checking if custom roles need to be seeded...');
     const existingRoles = await prisma.customRole.findFirst();
     if (!existingRoles) {
       await seedCustomRolesAndPermissions();
@@ -67,6 +73,7 @@ async function main() {
       phone: '+15550100',
       location: 'New York HQ',
       isVerified: true,
+      employeeId: 'CH01',
       skills: ['Security', 'Cloud Operations', 'Database Admin'],
       settings: { create: {} },
     },
@@ -86,6 +93,7 @@ async function main() {
       location: 'San Francisco Office',
       isVerified: true,
       departmentId: deptEngineering.id,
+      employeeId: 'CH02',
       skills: ['Leadership', 'System Design', 'Agile Product Design'],
       settings: { create: {} },
     },
@@ -105,6 +113,10 @@ async function main() {
       location: 'Remote',
       isVerified: true,
       departmentId: deptEngineering.id,
+      // Reports to Bob (manager@connecthub.com) — exercises the reporting-manager
+      // scoped approval logic in hr.controller.ts (leave/expense/shift-swap approvals).
+      managerId: manager.id,
+      employeeId: 'CH03',
       skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],
       settings: { create: {} },
     },
@@ -289,6 +301,11 @@ async function seedCustomRolesAndPermissions() {
     ...['Tasks', 'Announcements', 'Groups', 'Files'].flatMap(m =>
       ['Create', 'Update', 'Delete', 'Assign', 'Publish'].map(a => ({ roleId: managerRole.id, module: m, action: a, isEnabled: true }))
     ),
+    // Lets Managers send invitations (POST /auth/invite requires Users:Update).
+    // The invite controller itself further restricts Managers to inviting
+    // only EMPLOYEE-role accounts — this permission alone doesn't grant them
+    // the ability to invite Admins or other Managers.
+    { roleId: managerRole.id, module: 'Users', action: 'Update', isEnabled: true },
   ];
 
   const allPermissions = [...adminPermissions, ...employeePermissions, ...managerPermissions];

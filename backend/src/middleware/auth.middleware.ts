@@ -85,6 +85,16 @@ export const authenticate = async (
       return;
     }
 
+    if (user.isSuspended) {
+      res.status(403).json({ message: 'Your account has been suspended. Contact your administrator.', code: 'USER_SUSPENDED' });
+      return;
+    }
+
+    if (!user.isActive) {
+      res.status(403).json({ message: 'Your account is inactive. Contact your administrator.', code: 'USER_INACTIVE' });
+      return;
+    }
+
     if (!user.isVerified) {
       res.status(403).json({ message: 'Email address not verified.', code: 'USER_NOT_VERIFIED' });
       return;
@@ -163,7 +173,7 @@ export const optionalAuthenticate = async (
     }
 
     const user = await prisma.user.findUnique({ where: { id: sessionData.userId } });
-    if (user && user.isVerified) {
+    if (user && user.isVerified && !user.isSuspended && user.isActive) {
       req.user = user;
       req.sessionId = decoded.sessionId;
     }

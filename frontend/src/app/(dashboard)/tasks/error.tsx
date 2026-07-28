@@ -21,7 +21,7 @@ export default function TasksError({
           <AlertTriangle className="h-7 w-7 animate-bounce" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-base font-bold text-slate-900 dark:text-white">Failed to Load Kanban Tasks</h2>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">Failed to Load Tasks</h2>
           <p className="text-xs text-muted-foreground leading-relaxed">
             There was an error loading the project tasks. Please reload the page or select another project.
           </p>

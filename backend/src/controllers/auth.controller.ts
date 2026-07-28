@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
@@ -6,6 +7,16 @@ import { sendEmail } from '../config/mailer';
 import { getOrgName, getOrganizationSettings } from '../services/organization.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { generateSecret, verifyTOTP, generateBackupCodes } from '../utils/twoFactor';
+import { generateEmployeeId } from '../utils/employeeId';
+import { checkPasswordStrength, checkPasswordAgainstIdentity } from '../utils/passwordPolicy';
+import {
+  isGoogleSsoAvailable,
+  isGoogleSsoConfigured,
+  createSsoState,
+  verifySsoState,
+  getGoogleAuthUrl,
+  exchangeGoogleCode,
+} from '../services/sso.service';
 import {
   parseUserAgent,
   hashToken,
@@ -55,9 +66,47 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     const adminExists = await prisma.user.count({ where: { role: 'ADMIN' } });
     const role = adminExists === 0 ? 'ADMIN' : 'EMPLOYEE';
 
+    // The very first account (bootstrap Admin) is always allowed through —
+    // the org has to have one owner before registrationMode even means
+    // anything. Every registration after that is gated by the admin's
+    // chosen mode (see organization.controller.ts / OrganizationSettings).
+    // This is deliberately separate from the invite flow (auth/invite/complete),
+    // which always works regardless of this setting since an admin/manager
+    // already explicitly chose to invite that exact email address.
+    if (adminExists > 0) {
+      const orgSettings = await getOrganizationSettings();
+      const mode = orgSettings.registrationMode || 'INVITE_ONLY';
+
+      if (mode === 'INVITE_ONLY') {
+        res.status(403).json({
+          message: 'Public registration is disabled for this workspace. Please ask an administrator to send you an invitation.',
+        });
+        return;
+      }
+
+      if (mode === 'DOMAIN_RESTRICTED') {
+        const emailDomain = String(email).split('@')[1]?.toLowerCase();
+        const allowedDomains: string[] = orgSettings.allowedDomains || [];
+        const domainAllowed = !!emailDomain && allowedDomains.includes(emailDomain);
+        if (!domainAllowed) {
+          res.status(403).json({
+            message: 'Self-registration is only open to company email addresses. Please ask an administrator to send you an invitation instead.',
+          });
+          return;
+        }
+      }
+      // mode === 'OPEN' falls through with no restriction.
+    }
+
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       res.status(400).json({ message: 'Email address already registered.' });
+      return;
+    }
+
+    const identityCheck = checkPasswordAgainstIdentity(password, { email, firstName, lastName });
+    if (!identityCheck.valid) {
+      res.status(400).json({ message: identityCheck.message });
       return;
     }
 
@@ -73,6 +122,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
     const orgSettingsForTimezone = await getOrganizationSettings();
+    const employeeId = await generateEmployeeId();
 
     const user = await prisma.user.create({
       data: {
@@ -83,6 +133,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
         phone,
         designation,
         role,
+        employeeId,
         customRoleId: roleRecord?.id || null,
         timezone: orgSettingsForTimezone.defaultTimezone || 'UTC',
         settings: {
@@ -232,6 +283,24 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
     // C. Reset failed login limits on success
     await clearFailedLogins(email);
+
+    // C2. Suspended accounts are blocked outright. This must run before the
+    // 2FA and email-verification checks below — otherwise a suspended user
+    // could complete the "unverified email" OTP flow (or Google SSO, which
+    // auto-verifies) and effectively undo the admin's suspension themselves.
+    if (user.isSuspended) {
+      res.status(403).json({ message: 'Your account has been suspended. Contact your administrator.', code: 'USER_SUSPENDED' });
+      return;
+    }
+
+    // C3. Inactive accounts are blocked the same way. Distinct from
+    // isSuspended — this is the routine active/inactive toggle rather than
+    // a security/administrative suspension — but it must gate login just
+    // as strictly, and for the same reason (before 2FA/verification).
+    if (!user.isActive) {
+      res.status(403).json({ message: 'Your account is inactive. Contact your administrator.', code: 'USER_INACTIVE' });
+      return;
+    }
 
     // Two-Factor Authentication Check
     if (user.twoFactorEnabled) {
@@ -779,6 +848,17 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response, n
       return;
     }
 
+    const strengthCheck = checkPasswordStrength(newPassword);
+    if (!strengthCheck.valid) {
+      res.status(400).json({ message: strengthCheck.message });
+      return;
+    }
+    const identityCheck = checkPasswordAgainstIdentity(newPassword, { email: user.email, firstName: user.firstName, lastName: user.lastName });
+    if (!identityCheck.valid) {
+      res.status(400).json({ message: identityCheck.message });
+      return;
+    }
+
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
     // If logoutOthers is true, revoke other active sessions
@@ -866,6 +946,18 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
 
     if (!isValid) {
       res.status(401).json({ message: 'Invalid authentication token code.' });
+      return;
+    }
+
+    // Re-check suspension/active status here too — the account could have
+    // been suspended or deactivated in the window between the password step
+    // (which already checked this) and completing 2FA.
+    if (user.isSuspended) {
+      res.status(403).json({ message: 'Your account has been suspended. Contact your administrator.', code: 'USER_SUSPENDED' });
+      return;
+    }
+    if (!user.isActive) {
+      res.status(403).json({ message: 'Your account is inactive. Contact your administrator.', code: 'USER_INACTIVE' });
       return;
     }
 
@@ -1090,7 +1182,11 @@ export const sendContactMessage = async (req: Request, res: Response, next: Next
     const adminUser = await prisma.user.findFirst({
       where: { role: 'ADMIN' },
     });
-    const adminEmail = orgSettings.supportEmail || adminUser?.email || process.env.SMTP_USER || 'susahu02@gmail.com';
+    const adminEmail = orgSettings.supportEmail || adminUser?.email || process.env.SMTP_USER;
+    if (!adminEmail) {
+      res.status(500).json({ message: 'No support email is configured to receive contact messages. Set an Org support email or SMTP_USER.' });
+      return;
+    }
 
     const subject = `New Contact Form Message from ${name}`;
     const text = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
@@ -1116,5 +1212,216 @@ export const sendContactMessage = async (req: Request, res: Response, next: Next
     });
   } catch (error) {
     next(error);
+  }
+};
+
+/**
+ * GET /auth/sso/google — kicks off the Google OAuth flow by redirecting the
+ * browser to Google's consent screen. See services/sso.service.ts for the
+ * full design rationale.
+ */
+export const initiateGoogleSso = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const available = await isGoogleSsoAvailable();
+    if (!available) {
+      const reason = isGoogleSsoConfigured() ? 'disabled by your administrator' : 'not configured for this workspace';
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?ssoError=${encodeURIComponent(`Google sign-in is ${reason}.`)}`);
+      return;
+    }
+
+    const state = createSsoState();
+    res.redirect(getGoogleAuthUrl(state));
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /auth/sso/google/callback — Google redirects here with an
+ * authorization code after the user approves access. Exchanges the code,
+ * finds or creates the matching account (respecting the same
+ * registrationMode rules as normal self-registration), issues a session
+ * exactly like a password login would, and redirects into the app with the
+ * access token. The refresh token still goes into the same HttpOnly cookie
+ * password login uses — only the short-lived access token needs to travel
+ * via URL param, and only for the one hop to the SSO callback page, which
+ * immediately stores it and drops it from the URL.
+ *
+ * This mirrors login()'s session-issuance steps (E through the cookie-set)
+ * rather than importing/refactoring login() itself — the two flows diverge
+ * completely before that point (password check vs OAuth identity), and
+ * duplicating ~40 lines here was judged lower-risk than restructuring the
+ * existing, already-hardened login() path. Worth extracting into a shared
+ * helper as a follow-up if a third auth method is ever added.
+ */
+export const googleSsoCallback = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const failRedirect = (message: string) => res.redirect(`${frontendUrl}/login?ssoError=${encodeURIComponent(message)}`);
+
+  try {
+    const available = await isGoogleSsoAvailable();
+    if (!available) {
+      failRedirect('Google sign-in is not available for this workspace.');
+      return;
+    }
+
+    const { code, state, error: googleError } = req.query;
+
+    if (googleError) {
+      failRedirect('Google sign-in was cancelled.');
+      return;
+    }
+    if (!code || typeof code !== 'string' || !state || typeof state !== 'string' || !verifySsoState(state)) {
+      failRedirect('Your sign-in link expired or was invalid. Please try again.');
+      return;
+    }
+
+    let googleUser;
+    try {
+      googleUser = await exchangeGoogleCode(code);
+    } catch (err: any) {
+      console.error('Google SSO exchange failed:', err);
+      failRedirect('Could not verify your Google account. Please try again.');
+      return;
+    }
+
+    if (!googleUser.email_verified) {
+      failRedirect('Your Google email address is not verified. Please verify it with Google first.');
+      return;
+    }
+
+    const email = googleUser.email.toLowerCase();
+    let user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      // Same account-creation gating as register() — first-ever account
+      // always becomes Admin (bootstrap); after that, respect registrationMode.
+      const adminExists = await prisma.user.count({ where: { role: 'ADMIN' } });
+      const role = adminExists === 0 ? 'ADMIN' : 'EMPLOYEE';
+
+      if (adminExists > 0) {
+        const orgSettings = await getOrganizationSettings();
+        const mode = orgSettings.registrationMode || 'INVITE_ONLY';
+
+        if (mode === 'INVITE_ONLY') {
+          failRedirect('This workspace is invite-only. Ask an administrator to send you an invitation, then sign in with Google afterward.');
+          return;
+        }
+        if (mode === 'DOMAIN_RESTRICTED') {
+          const emailDomain = email.split('@')[1];
+          const allowedDomains: string[] = orgSettings.allowedDomains || [];
+          if (!allowedDomains.includes(emailDomain)) {
+            failRedirect('Self sign-up is limited to approved company email domains for this workspace.');
+            return;
+          }
+        }
+      }
+
+      const orgSettingsForTimezone = await getOrganizationSettings();
+      const employeeId = await generateEmployeeId();
+      // SSO-created accounts still need *some* passwordHash (the column is
+      // required) — generate a long random one the user will never see or
+      // need; they can set a real password later via "Forgot Password" if
+      // they ever want password-based login too.
+      const unusablePassword = crypto.randomBytes(32).toString('hex');
+      const randomPasswordHash = await bcrypt.hash(unusablePassword, 10);
+
+      user = await prisma.user.create({
+        data: {
+          email,
+          passwordHash: randomPasswordHash,
+          firstName: googleUser.given_name || email.split('@')[0],
+          lastName: googleUser.family_name || '',
+          avatarUrl: googleUser.picture || null,
+          role,
+          employeeId,
+          isVerified: true, // Google already verified this email address
+          ssoProvider: 'GOOGLE',
+          timezone: orgSettingsForTimezone.defaultTimezone || 'UTC',
+          settings: { create: {} },
+        },
+      });
+    } else if (!user.ssoProvider) {
+      // Existing password-based account signing in via Google for the first
+      // time — link it (doesn't remove their password login option).
+      await prisma.user.update({ where: { id: user.id }, data: { ssoProvider: 'GOOGLE' } });
+    }
+
+    // Suspended accounts must not be able to sign back in via Google, which
+    // would otherwise auto-verify them below and silently undo the suspension.
+    if (user.isSuspended) {
+      failRedirect('Your account has been suspended. Contact your administrator.');
+      return;
+    }
+
+    // Same as above, but for the separate active/inactive toggle.
+    if (!user.isActive) {
+      failRedirect('Your account is inactive. Contact your administrator.');
+      return;
+    }
+
+    if (!user.isVerified) {
+      await prisma.user.update({ where: { id: user.id }, data: { isVerified: true } });
+    }
+
+    // --- From here down mirrors login()'s session-issuance (steps E-H) ---
+    await enforceDuplicateLoginPolicy(user.id);
+
+    const userAgentStr = (req.headers['user-agent'] as string) || '';
+    const { browser, operatingSystem, deviceName } = parseUserAgent(userAgentStr);
+    const ipAddress = req.ip || '';
+    const location = resolveLocation(ipAddress);
+
+    const sessionRecord = await prisma.session.create({
+      data: {
+        userId: user.id,
+        deviceName,
+        browser,
+        operatingSystem,
+        ipAddress,
+        location,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const sessionLifespan = 8 * 60 * 60 * 1000; // SSO sessions default to a standard 8h session (no "remember me" step in this flow)
+    const expiresAt = new Date(Date.now() + sessionLifespan);
+    await prisma.session.update({ where: { id: sessionRecord.id }, data: { expiresAt } });
+
+    const { accessToken, refreshToken } = generateTokens(user.id, user.email, sessionRecord.sessionId, false);
+
+    const refreshTokenHash = hashToken(refreshToken);
+    await prisma.session.update({ where: { id: sessionRecord.id }, data: { refreshTokenHash } });
+
+    await cacheSession(sessionRecord.sessionId, {
+      userId: user.id,
+      email: user.email,
+      accessTokenVersion: 1,
+      expiresAt: expiresAt.getTime(),
+    }, sessionLifespan / 1000);
+
+    await prisma.user.update({ where: { id: user.id }, data: { status: 'ONLINE', lastLoginAt: new Date() } });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: 'USER_LOGIN',
+        details: `Successful Google SSO login from ${browser} / ${operatingSystem}`,
+        ipAddress: req.ip,
+        userAgent: userAgentStr || null,
+      },
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: sessionLifespan,
+    });
+
+    res.redirect(`${frontendUrl}/sso-callback?accessToken=${encodeURIComponent(accessToken)}`);
+  } catch (error) {
+    console.error('Google SSO callback failed:', error);
+    failRedirect('Something went wrong signing you in with Google. Please try again.');
   }
 };

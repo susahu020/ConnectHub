@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { emitDataUpdate } from '../utils/realtime';
 
 /**
  * List all teams, optionally filtered by department, with their member
@@ -77,6 +78,7 @@ export const createTeam = async (req: AuthenticatedRequest, res: Response, next:
       },
     });
 
+    emitDataUpdate(req, 'teams');
     res.status(201).json(team);
   } catch (error) {
     next(error);
@@ -98,6 +100,7 @@ export const updateTeam = async (req: AuthenticatedRequest, res: Response, next:
       include: { department: { select: { id: true, name: true } }, members: true },
     });
 
+    emitDataUpdate(req, 'teams');
     res.status(200).json(team);
   } catch (error) {
     next(error);
@@ -118,6 +121,7 @@ export const deleteTeam = async (req: AuthenticatedRequest, res: Response, next:
       },
     });
 
+    emitDataUpdate(req, 'teams');
     res.status(200).json({ message: 'Team deleted successfully.', teamId: id });
   } catch (error) {
     next(error);
@@ -151,6 +155,7 @@ export const addTeamMember = async (req: AuthenticatedRequest, res: Response, ne
       include: { user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, designation: true } } },
     });
 
+    emitDataUpdate(req, 'teams');
     res.status(201).json(member);
   } catch (error) {
     next(error);
@@ -165,6 +170,7 @@ export const removeTeamMember = async (req: AuthenticatedRequest, res: Response,
       where: { teamId_userId: { teamId, userId } },
     });
 
+    emitDataUpdate(req, 'teams');
     res.status(200).json({ message: 'Member removed from team.' });
   } catch (error) {
     next(error);

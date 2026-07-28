@@ -4,67 +4,83 @@ import redis from '../config/redis';
 // Simple sliding window counter in memory for fallback
 const memoryLimitStore = new Map<string, { count: number; resetTime: number }>();
 
-export const rateLimiter = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  const ip = req.ip || 'unknown-ip';
-  const limit = 100; // 100 requests
-  const windowMs = 60 * 1000; // per 1 minute
+/**
+ * Generic factory backing both the global and the stricter auth limiter
+ * below — same Redis-with-memory-fallback sliding window, parameterized by
+ * key prefix, limit, and window so we don't duplicate the counting logic.
+ */
+const makeRateLimiter = (opts: { keyPrefix: string; limit: number; windowSeconds: number; message: string }) => {
+  const { keyPrefix, limit, windowSeconds, message } = opts;
+  const windowMs = windowSeconds * 1000;
 
-  const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const ip = req.ip || 'unknown-ip';
+    const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
 
-  if (isRedisAvailable) {
-    try {
-      const key = `rate_limit:${ip}`;
-      const requests = await redis.incr(key);
+    if (isRedisAvailable) {
+      try {
+        const key = `${keyPrefix}:${ip}`;
+        const requests = await redis.incr(key);
 
-      if (requests === 1) {
-        await redis.expire(key, 60); // 1 minute expiration
+        if (requests === 1) {
+          await redis.expire(key, windowSeconds);
+        }
+
+        res.setHeader('X-RateLimit-Limit', limit);
+        res.setHeader('X-RateLimit-Remaining', Math.max(0, limit - requests));
+
+        if (requests > limit) {
+          res.status(429).json({ message, code: 'RATE_LIMIT_EXCEEDED' });
+          return;
+        }
+        next();
+        return;
+      } catch (err) {
+        console.warn(`Redis rate limiter (${keyPrefix}) error, falling back to memory:`, err);
       }
+    }
 
+    // Memory fallback rate limiter
+    const now = Date.now();
+    const mapKey = `${keyPrefix}:${ip}`;
+    const clientData = memoryLimitStore.get(mapKey);
+
+    if (!clientData || now > clientData.resetTime) {
+      memoryLimitStore.set(mapKey, { count: 1, resetTime: now + windowMs });
       res.setHeader('X-RateLimit-Limit', limit);
-      res.setHeader('X-RateLimit-Remaining', Math.max(0, limit - requests));
+      res.setHeader('X-RateLimit-Remaining', limit - 1);
+      next();
+    } else {
+      clientData.count++;
+      res.setHeader('X-RateLimit-Limit', limit);
+      res.setHeader('X-RateLimit-Remaining', Math.max(0, limit - clientData.count));
 
-      if (requests > limit) {
-        res.status(429).json({
-          message: 'Too many requests. Please try again in 1 minute.',
-          code: 'RATE_LIMIT_EXCEEDED',
-        });
+      if (clientData.count > limit) {
+        res.status(429).json({ message, code: 'RATE_LIMIT_EXCEEDED' });
         return;
       }
       next();
-      return;
-    } catch (err) {
-      console.warn('Redis rate limiter error, falling back to memory:', err);
     }
-  }
-
-  // Memory fallback rate limiter
-  const now = Date.now();
-  const clientData = memoryLimitStore.get(ip);
-
-  if (!clientData || now > clientData.resetTime) {
-    memoryLimitStore.set(ip, {
-      count: 1,
-      resetTime: now + windowMs,
-    });
-    res.setHeader('X-RateLimit-Limit', limit);
-    res.setHeader('X-RateLimit-Remaining', limit - 1);
-    next();
-  } else {
-    clientData.count++;
-    res.setHeader('X-RateLimit-Limit', limit);
-    res.setHeader('X-RateLimit-Remaining', Math.max(0, limit - clientData.count));
-
-    if (clientData.count > limit) {
-      res.status(429).json({
-        message: 'Too many requests. Please try again in 1 minute.',
-        code: 'RATE_LIMIT_EXCEEDED',
-      });
-      return;
-    }
-    next();
-  }
+  };
 };
+
+// Baseline limiter applied to every API request.
+export const rateLimiter = makeRateLimiter({
+  keyPrefix: 'rate_limit',
+  limit: 100,
+  windowSeconds: 60,
+  message: 'Too many requests. Please try again in 1 minute.',
+});
+
+// Stricter limiter for sensitive, unauthenticated-or-account-affecting auth
+// endpoints (login, register, forgot-password, invite, contact form) where
+// the global 100/min budget is far too generous for credential-guessing or
+// spam abuse. Account-level lockout (see auth.controller.checkFailedLoginLockout)
+// already limits attempts against a single account; this limits volume from
+// a single IP across ANY account, including registration/invite spam.
+export const authRateLimiter = makeRateLimiter({
+  keyPrefix: 'auth_rate_limit',
+  limit: 10,
+  windowSeconds: 15 * 60,
+  message: 'Too many attempts from this network. Please try again in 15 minutes.',
+});

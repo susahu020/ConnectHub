@@ -3,12 +3,31 @@
 import React, { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
+import { useRouter } from 'next/navigation';
 import { SocketProvider, useSocket } from '../hooks/useSocket';
 import { Toaster } from 'react-hot-toast';
 import { ConfirmProvider } from '../context/ConfirmContext';
 import { useOrganizationSettings } from '../hooks/useOrganizationSettings';
+import { AUTH_SESSION_EXPIRED_EVENT } from '../services/api';
 
 export { useSocket };
+
+// Listens for the session-expired signal dispatched from services/api.ts
+// (a plain module that has no access to the Next.js router) and performs a
+// client-side navigation to /login instead of a hard window.location reload.
+function SessionExpiryListener() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const handleExpired = () => {
+      router.push('/login');
+    };
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleExpired);
+    return () => window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleExpired);
+  }, [router]);
+
+  return null;
+}
 
 // Keeps the browser tab title/favicon in sync with the admin-configured
 // organization name/branding. Lives inside the QueryClientProvider tree so
@@ -53,6 +72,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <ConfirmProvider>
           <SocketProvider>
+            <SessionExpiryListener />
             <OrgBrandingSync />
             {children}
             <Toaster position="top-right" reverseOrder={false} />

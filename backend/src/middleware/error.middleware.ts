@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { trackError } from '../utils/errorTracker';
 
 export const errorHandler = (
   err: any,
@@ -10,6 +11,7 @@ export const errorHandler = (
   const message = err.message || 'Internal Server Error';
 
   console.error(`[Error Handler] [${req.method}] ${req.path} - Status: ${statusCode} - Error:`, err);
+  trackError(req.method, req.path, statusCode, message);
 
   res.status(statusCode).json({
     message,

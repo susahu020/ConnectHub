@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { createManyNotifications } from '../services/notification.service';
+import { emitDataUpdate } from '../utils/realtime';
 
 export const createGroup = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -64,6 +65,7 @@ export const createGroup = async (req: AuthenticatedRequest, res: Response, next
       });
     }
 
+    emitDataUpdate(req, 'groups');
     res.status(201).json(group);
   } catch (error) {
     next(error);
@@ -235,6 +237,7 @@ export const addMember = async (req: AuthenticatedRequest, res: Response, next: 
       },
     });
 
+    emitDataUpdate(req, 'groups');
     res.status(201).json({ message: `${membership.user.firstName} added to group.`, membership });
   } catch (error) {
     next(error);
@@ -260,6 +263,7 @@ export const removeMember = async (req: AuthenticatedRequest, res: Response, nex
       where: { groupId_userId: { groupId, userId } },
     });
 
+    emitDataUpdate(req, 'groups');
     res.status(200).json({ message: 'Member removed from group successfully.', userId });
   } catch (error) {
     next(error);
@@ -304,6 +308,7 @@ export const deleteGroup = async (req: AuthenticatedRequest, res: Response, next
       where: { id: groupId },
     });
 
+    emitDataUpdate(req, 'groups');
     res.status(200).json({ message: 'Channel deleted successfully.' });
   } catch (error) {
     next(error);
@@ -355,6 +360,7 @@ export const updateGroup = async (req: AuthenticatedRequest, res: Response, next
       },
     });
 
+    emitDataUpdate(req, 'groups');
     res.status(200).json(updated);
   } catch (error) {
     next(error);
