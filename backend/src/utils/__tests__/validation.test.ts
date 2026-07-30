@@ -3,7 +3,7 @@ import { registerSchema, loginSchema, resetPasswordSchema, verifyEmailSchema } f
 describe('registerSchema', () => {
   const validBody = {
     email: 'newhire@example.com',
-    password: 'securepass123',
+    password: 'SecurePass123!',
     firstName: 'Jane',
     lastName: 'Doe',
   };
@@ -18,7 +18,7 @@ describe('registerSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('rejects a password shorter than 6 characters', () => {
+  it('rejects a password shorter than the minimum length', () => {
     const result = registerSchema.safeParse({ body: { ...validBody, password: '123' } });
     expect(result.success).toBe(false);
   });
@@ -54,12 +54,12 @@ describe('loginSchema', () => {
 
 describe('resetPasswordSchema', () => {
   it('accepts a valid reset payload', () => {
-    const result = resetPasswordSchema.safeParse({ body: { token: 'abc123', password: 'newpassword' } });
+    const result = resetPasswordSchema.safeParse({ body: { token: 'abc123', password: 'NewPassword123!' } });
     expect(result.success).toBe(true);
   });
 
   it('rejects a missing token', () => {
-    const result = resetPasswordSchema.safeParse({ body: { token: '', password: 'newpassword' } });
+    const result = resetPasswordSchema.safeParse({ body: { token: '', password: 'NewPassword123!' } });
     expect(result.success).toBe(false);
   });
 });
