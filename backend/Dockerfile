@@ -3,7 +3,9 @@
 # devDependencies available (ts-node, typescript, @types/*, prisma CLI).
 FROM node:20-alpine AS build
 
-RUN apk add --no-cache openssl
+
+# now:
+RUN apk add --no-cache openssl python3 make g++
 
 WORKDIR /app
 
@@ -25,7 +27,7 @@ RUN npm run build
 # importantly, lets the process run as a non-root user rather than root.
 FROM node:20-alpine AS runtime
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl python3 make g++
 
 # Run as a dedicated non-root user rather than root, standard container
 # hardening practice — limits blast radius if the process is compromised.
