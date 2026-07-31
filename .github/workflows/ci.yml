@@ -49,7 +49,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://connecthub:connecthub@localhost:5432/connecthub_test
       REDIS_URL: redis://localhost:6379
-      JWT_SECRET: ci-test-secret-not-for-production
+      JWT_ACCESS_SECRET: ci-test-access-secret-not-for-production-000000
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-not-for-production-000000
       NODE_ENV: test
 
     steps:
