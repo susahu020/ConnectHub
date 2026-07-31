@@ -18,7 +18,7 @@ describe('checkPasswordStrength', () => {
   });
 
   it('accepts a password with 3 character classes (upper, lower, digit)', () => {
-    expect(checkPasswordStrength('Abcdefgh123').valid).toBe(true);
+    expect(checkPasswordStrength('Ferngully82').valid).toBe(true);
   });
 
   it('accepts a password with all 4 character classes', () => {

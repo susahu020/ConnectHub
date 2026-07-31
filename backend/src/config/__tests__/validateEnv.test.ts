@@ -27,11 +27,14 @@ describe('validateStartupSecrets', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_ACCESS_SECRET = strongSecretA;
     process.env.JWT_REFRESH_SECRET = strongSecretB;
+    process.env.CLOUDINARY_CLOUD_NAME = 'test-cloud';
+    process.env.CLOUDINARY_API_KEY = 'test-key';
+    process.env.CLOUDINARY_API_SECRET = 'test-secret';
 
     expect(() => validateStartupSecrets()).not.toThrow();
     expect(exitSpy).not.toHaveBeenCalled();
   });
-
+  
   it('refuses to start in production with the known .env.example placeholder secrets', () => {
     process.env.NODE_ENV = 'production';
     process.env.JWT_ACCESS_SECRET = 'default-local-jwt-access-secret-123456';
