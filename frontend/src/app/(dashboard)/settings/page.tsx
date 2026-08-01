@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { AccountSummaryBanner } from '../../../components/settings/AccountSummaryBanner';
 import { PreferencesCard } from '../../../components/settings/PreferencesCard';
+import { NotificationPreferencesCard, NotificationPreferences } from '../../../components/settings/NotificationPreferencesCard';
 import { PasswordCard } from '../../../components/settings/PasswordCard';
 import { TwoFactorCard } from '../../../components/settings/TwoFactorCard';
 import { PrivacyDataCard } from '../../../components/settings/PrivacyDataCard';
@@ -52,6 +53,9 @@ export default function SettingsPage() {
   const [pushEnabled, setPushEnabled] = useState(user?.settings?.pushEnabled ?? true);
   const [emailEnabled, setEmailEnabled] = useState(user?.settings?.emailEnabled ?? true);
   const [desktopEnabled, setDesktopEnabled] = useState(user?.settings?.desktopEnabled ?? true);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(
+    (user?.settings?.notificationPreferences as NotificationPreferences) || {}
+  );
 
   // 2FA management state
   const [twoFactorOpen, setTwoFactorOpen] = useState(false);
@@ -76,6 +80,7 @@ export default function SettingsPage() {
         pushEnabled,
         emailEnabled,
         desktopEnabled,
+        notificationPreferences,
       });
       // Sync client side Zustand store
       updateUser({ settings: response.settings });
@@ -93,7 +98,7 @@ export default function SettingsPage() {
         setActiveTheme(theme);
       }
     }
-  }, [theme, language, pushEnabled, emailEnabled, desktopEnabled]);
+  }, [theme, language, pushEnabled, emailEnabled, desktopEnabled, notificationPreferences]);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,6 +322,11 @@ export default function SettingsPage() {
             onEmailEnabledChange={setEmailEnabled}
             desktopEnabled={desktopEnabled}
             onDesktopEnabledChange={setDesktopEnabled}
+          />
+
+          <NotificationPreferencesCard
+            preferences={notificationPreferences}
+            onChange={setNotificationPreferences}
           />
 
           <PasswordCard

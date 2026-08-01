@@ -346,7 +346,15 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
 export const updateSettings = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { theme, language, pushEnabled, emailEnabled, desktopEnabled } = req.body;
+    const { theme, language, pushEnabled, emailEnabled, desktopEnabled, notificationPreferences } = req.body;
+
+    // Loose shape check only — this is a per-category { inApp?, email? }
+    // map the user controls entirely for themselves, so there's nothing to
+    // authorize beyond "is it actually an object".
+    if (notificationPreferences !== undefined && (typeof notificationPreferences !== 'object' || notificationPreferences === null || Array.isArray(notificationPreferences))) {
+      res.status(400).json({ message: 'notificationPreferences must be an object.' });
+      return;
+    }
 
     const settings = await prisma.userSettings.update({
       where: { userId },
@@ -356,6 +364,7 @@ export const updateSettings = async (req: AuthenticatedRequest, res: Response, n
         pushEnabled: pushEnabled !== undefined ? pushEnabled : undefined,
         emailEnabled: emailEnabled !== undefined ? emailEnabled : undefined,
         desktopEnabled: desktopEnabled !== undefined ? desktopEnabled : undefined,
+        notificationPreferences: notificationPreferences !== undefined ? notificationPreferences : undefined,
       },
     });
 

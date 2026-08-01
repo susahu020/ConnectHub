@@ -633,6 +633,13 @@ model UserSettings {
   pushEnabled    Boolean @default(true)
   emailEnabled   Boolean @default(true)
   desktopEnabled Boolean @default(true)
+  // Per-category overrides on top of the three channel-level switches above,
+  // keyed by NotificationType (e.g. "MESSAGE", "TASK_ASSIGNED") ->
+  // { inApp?: boolean, email?: boolean }. A category missing from the map,
+  // or the whole field being null, means "no override" — every category
+  // defaults to on so existing users see no behavior change. See
+  // services/notification.service.ts's resolveNotificationPreference().
+  notificationPreferences Json?
 }
 
 // Singleton table (a single row) holding admin-controlled, per-feature
