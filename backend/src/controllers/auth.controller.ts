@@ -26,7 +26,9 @@ import {
   enforceDuplicateLoginPolicy,
   cacheSession,
   invalidateSessionCache,
-  revokeSession
+  revokeSession,
+  revokeSessions,
+  notifyIfNewDevice
 } from '../services/session.service';
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456';
@@ -400,6 +402,10 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       expiresAt: expiresAt.getTime(),
     }, sessionLifespan / 1000);
 
+    // Fire-and-forget: never let alerting delay or fail the login itself
+    // (the helper already catches its own errors internally).
+    notifyIfNewDevice(user.id, user.email, sessionRecord.sessionId, browser, operatingSystem, location, ipAddress);
+
     // Update status and last login
     await prisma.user.update({
       where: { id: user.id },
@@ -510,8 +516,23 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
     });
 
     // A. Replay Attack Detection
-    if (!session || session.isRevoked || session.expiresAt < new Date()) {
-      res.status(401).json({ message: 'Session expired or invalid.' });
+    if (!session || session.expiresAt < new Date()) {
+      res.status(401).json({ message: 'Session expired or invalid.', code: 'SESSION_EXPIRED' });
+      return;
+    }
+
+    if (session.isRevoked) {
+      // Surface *why* this session died (single-session policy kicked it
+      // out, an admin force-logged-out or suspended the account, a password
+      // change invalidated it, etc.) rather than a generic "expired" — the
+      // person sitting at this now-dead session otherwise has no way to
+      // tell a silent bug apart from an intentional security action. The
+      // frontend (services/api.ts + components/providers.tsx) maps this
+      // code to a human-readable toast before redirecting to /login.
+      res.status(401).json({
+        message: 'This session has been signed out.',
+        code: session.revokedReason || 'SESSION_REVOKED',
+      });
       return;
     }
 
@@ -593,19 +614,13 @@ export const logoutAll = async (req: AuthenticatedRequest, res: Response, next: 
       return;
     }
 
-    // Fetch active sessions for user except current
-    const sessionsToRevoke = await prisma.session.findMany({
-      where: {
-        userId,
-        sessionId: { not: currentSessionId },
-        isRevoked: false,
-      },
-    });
-
-    // Revoke each session
-    for (const session of sessionsToRevoke) {
-      await revokeSession(session.sessionId, 'FORCE_OUT', 'Logged out remotely by user');
-    }
+    // Revoke every other active session in parallel (see revokeSessions'
+    // doc comment for why this used to be a sequential loop).
+    await revokeSessions(
+      { userId, sessionId: { not: currentSessionId }, isRevoked: false },
+      'FORCE_OUT',
+      'Logged out remotely by user'
+    );
 
     await prisma.auditLog.create({
       data: {
@@ -663,14 +678,8 @@ export const adminLogoutUser = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    // Find active sessions for user
-    const activeSessions = await prisma.session.findMany({
-      where: { userId: targetUserId, isRevoked: false },
-    });
-
-    for (const session of activeSessions) {
-      await revokeSession(session.sessionId, 'ADMIN_LOGOUT', 'Logged out by Administrator');
-    }
+    // Revoke every active session for this user in parallel
+    await revokeSessions({ userId: targetUserId, isRevoked: false }, 'ADMIN_LOGOUT', 'Logged out by Administrator');
 
     // Update status
     await prisma.user.update({
@@ -697,14 +706,11 @@ export const adminLogoutUser = async (req: Request, res: Response, next: NextFun
 // 9. ADMIN FORCE LOGOUT ALL SESSIONS GLOBALLY
 export const adminLogoutAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Find all active sessions
-    const activeSessions = await prisma.session.findMany({
-      where: { isRevoked: false },
-    });
-
-    for (const session of activeSessions) {
-      await revokeSession(session.sessionId, 'ADMIN_LOGOUT_ALL', 'Global termination by Administrator');
-    }
+    // Revoke every active session, company-wide, in parallel. This is the
+    // call site where the old sequential one-by-one loop hurt the most —
+    // it could mean revoking hundreds/thousands of sessions one HTTP
+    // request at a time.
+    await revokeSessions({ isRevoked: false }, 'ADMIN_LOGOUT_ALL', 'Global termination by Administrator');
 
     // Set all users status to offline
     await prisma.user.updateMany({
@@ -800,13 +806,11 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Change password, revoke reset tokens, and terminate active sessions
-    const activeSessions = await prisma.session.findMany({
-      where: { userId: resetRecord.userId, isRevoked: false },
-    });
-
-    for (const session of activeSessions) {
-      await revokeSession(session.sessionId, 'PASSWORD_CHANGE', 'Forced session termination due to password reset');
-    }
+    await revokeSessions(
+      { userId: resetRecord.userId, isRevoked: false },
+      'PASSWORD_CHANGE',
+      'Forced session termination due to password reset'
+    );
 
     await prisma.$transaction([
       prisma.user.update({
@@ -863,12 +867,11 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response, n
 
     // If logoutOthers is true, revoke other active sessions
     if (logoutOthers && currentSessionId) {
-      const activeSessions = await prisma.session.findMany({
-        where: { userId, sessionId: { not: currentSessionId }, isRevoked: false },
-      });
-      for (const session of activeSessions) {
-        await revokeSession(session.sessionId, 'PASSWORD_CHANGE', 'Forced session logout due to password change');
-      }
+      await revokeSessions(
+        { userId, sessionId: { not: currentSessionId }, isRevoked: false },
+        'PASSWORD_CHANGE',
+        'Forced session logout due to password change'
+      );
     }
 
     await prisma.user.update({
@@ -1002,6 +1005,8 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
       accessTokenVersion: 1,
       expiresAt: expiresAt.getTime(),
     }, sessionLifespan / 1000);
+
+    notifyIfNewDevice(user.id, user.email, sessionRecord.sessionId, browser, operatingSystem, location, ipAddress);
 
     await prisma.user.update({
       where: { id: user.id },
@@ -1399,6 +1404,8 @@ export const googleSsoCallback = async (req: Request, res: Response, next: NextF
       accessTokenVersion: 1,
       expiresAt: expiresAt.getTime(),
     }, sessionLifespan / 1000);
+
+    notifyIfNewDevice(user.id, user.email, sessionRecord.sessionId, browser, operatingSystem, location, ipAddress);
 
     await prisma.user.update({ where: { id: user.id }, data: { status: 'ONLINE', lastLoginAt: new Date() } });
 

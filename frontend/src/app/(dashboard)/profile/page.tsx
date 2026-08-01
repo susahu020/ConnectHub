@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import ImageCropperModal from '../../../components/ImageCropperModal';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
+import { useSocket } from '../../../hooks/useSocket';
 import { ProfileHeader } from '../../../components/profile/ProfileHeader';
 import { ProfileTabsNav } from '../../../components/profile/ProfileTabsNav';
 import { OverviewTab } from '../../../components/profile/tabs/OverviewTab';
@@ -35,7 +36,8 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'security' ? 'security' : 'overview');
+  const mfaSetupRequired = searchParams.get('mfaRequired') === 'true';
 
   const { data: userTasks, isLoading: loadingTasks } = useQuery({
     queryKey: ['profile-tasks', profile?.id],
@@ -164,6 +166,26 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchProfile();
   }, [targetUserId]);
+
+  // Live updates: the profile page fetches with a plain useState/fetch
+  // rather than React Query, so it isn't covered by the generic data_update
+  // system (see hooks/useSocket.tsx). Listen directly instead — if someone
+  // (possibly this same person in another tab) changes the profile currently
+  // being viewed, refetch it instead of requiring a manual reload.
+  const { socket } = useSocket();
+  useEffect(() => {
+    if (!socket) return;
+    const viewedUserId = targetUserId || currentUser?.id;
+    const handleProfileUpdated = ({ userId }: { userId: string }) => {
+      if (userId === viewedUserId) {
+        fetchProfile();
+      }
+    };
+    socket.on('profile_updated', handleProfileUpdated);
+    return () => {
+      socket.off('profile_updated', handleProfileUpdated);
+    };
+  }, [socket, targetUserId, currentUser?.id]);
 
   // Load activities when activeTab changes
   useEffect(() => {
@@ -440,6 +462,18 @@ export default function ProfilePage() {
         onStartChat={handleStartChat}
         completion={completion}
       />
+
+      {mfaSetupRequired && (
+        <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-4 text-sm">
+          <ShieldAlert className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div>
+            <p className="font-bold text-amber-800 dark:text-amber-300">Two-factor authentication is required</p>
+            <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+              Your organization requires everyone to have 2FA enabled. Set it up below to continue using the rest of the app.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
         <ProfileTabsNav activeTab={activeTab} onChange={setActiveTab} />

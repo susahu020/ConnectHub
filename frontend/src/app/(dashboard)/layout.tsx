@@ -322,9 +322,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
     });
 
+    // Cross-device sync: mirrors the local state updates markNotifRead/
+    // markAllNotifRead/deleteNotification already make in this tab, so a
+    // notification read or dismissed on another of this user's devices
+    // doesn't keep showing here until a manual reload.
+    const handleNotificationRead = ({ id }: { id: string }) => {
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    };
+    const handleAllNotificationsRead = () => {
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    };
+    const handleNotificationDeleted = ({ id }: { id: string }) => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    };
+    socket.on('notification_read', handleNotificationRead);
+    socket.on('all_notifications_read', handleAllNotificationsRead);
+    socket.on('notification_deleted', handleNotificationDeleted);
+
     return () => {
       socket.off('notification_received', handleNewNotification);
       socket.off('message');
+      socket.off('notification_read', handleNotificationRead);
+      socket.off('all_notifications_read', handleAllNotificationsRead);
+      socket.off('notification_deleted', handleNotificationDeleted);
     };
   }, [socket, user]);
 

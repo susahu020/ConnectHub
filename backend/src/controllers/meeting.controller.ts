@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { createManyNotifications } from '../services/notification.service';
+import { emitDataUpdate } from '../utils/realtime';
 
 // Google Meet style code: xxx-yyyy-zzz, always lowercase so string comparisons
 // (DB unique lookup, socket.io room names) never fail because of case.
@@ -103,6 +104,8 @@ export const scheduleMeeting = async (req: AuthenticatedRequest, res: Response, 
     }
 
     res.status(201).json(meeting);
+
+    emitDataUpdate(req, 'meetings');
   } catch (error) {
     next(error);
   }
@@ -134,6 +137,8 @@ export const respondToInvite = async (req: AuthenticatedRequest, res: Response, 
     });
 
     res.json(updated);
+
+    emitDataUpdate(req, 'meetings');
   } catch (error) {
     next(error);
   }
@@ -188,6 +193,8 @@ export const startMeeting = async (req: AuthenticatedRequest, res: Response, nex
     });
 
     res.json(updated);
+
+    emitDataUpdate(req, 'meetings');
   } catch (error) {
     next(error);
   }
@@ -212,6 +219,8 @@ export const endMeeting = async (req: AuthenticatedRequest, res: Response, next:
     });
 
     res.json(updated);
+
+    emitDataUpdate(req, 'meetings');
   } catch (error) {
     next(error);
   }

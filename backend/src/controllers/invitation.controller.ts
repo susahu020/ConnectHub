@@ -7,6 +7,7 @@ import { sendEmail } from '../config/mailer';
 import { getOrgName, getOrganizationSettings } from '../services/organization.service';
 import { generateEmployeeId } from '../utils/employeeId';
 import { checkPasswordStrength, checkPasswordAgainstIdentity } from '../utils/passwordPolicy';
+import { emitDataUpdate } from '../utils/realtime';
 
 const buildInvitationEmail = (orgName: string, role: string, inviteLink: string) => {
   const subject = `You have been invited to join ${orgName}!`;
@@ -117,6 +118,8 @@ export const inviteUser = async (req: AuthenticatedRequest, res: Response, next:
       },
     });
 
+    emitDataUpdate(req, 'invitations');
+
     res.status(201).json({
       message: 'Invitation generated and email sent successfully.',
       inviteLink,
@@ -202,6 +205,8 @@ export const revokeInvitation = async (req: AuthenticatedRequest, res: Response,
       },
     });
 
+    emitDataUpdate(req, 'invitations');
+
     res.status(200).json({ message: 'Invitation revoked.', id });
   } catch (error) {
     next(error);
@@ -264,6 +269,8 @@ export const resendInvitation = async (req: AuthenticatedRequest, res: Response,
         ipAddress: req.ip || '127.0.0.1',
       },
     });
+
+    emitDataUpdate(req, 'invitations');
 
     res.status(200).json({ message: 'Invitation resent.', inviteLink });
   } catch (error) {
@@ -410,6 +417,9 @@ export const completeOnboarding = async (req: Request, res: Response, next: Next
       lastName: user.lastName,
       email: user.email,
     }, automationIo).catch((err: any) => console.error('[Automation] EMPLOYEE_JOINED trigger failed:', err));
+
+    emitDataUpdate(req, 'invitations');
+    emitDataUpdate(req, 'users');
 
     res.status(201).json({
       message: 'Onboarding completed successfully. You can now log in.',

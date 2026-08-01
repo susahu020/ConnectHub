@@ -6,6 +6,7 @@ import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cl
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { createNotification } from '../services/notification.service';
 import { getOrganizationSettings } from '../services/organization.service';
+import { emitDataUpdate } from '../utils/realtime';
 
 export const uploadFile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -73,6 +74,8 @@ export const uploadFile = async (req: AuthenticatedRequest, res: Response, next:
     }, automationIo).catch((err: any) => console.error('[Automation] DOCUMENT_UPLOADED trigger failed:', err));
 
     res.status(201).json(dbFile);
+
+    emitDataUpdate(req, 'files');
   } catch (error) {
     next(error);
   }
@@ -92,6 +95,8 @@ export const createFolder = async (req: AuthenticatedRequest, res: Response, nex
     });
 
     res.status(201).json(folder);
+
+    emitDataUpdate(req, 'files');
   } catch (error) {
     next(error);
   }
@@ -172,6 +177,16 @@ export const updateFile = async (req: AuthenticatedRequest, res: Response, next:
       return;
     }
 
+    // Same ownership rule as deleteFile: only the uploader or an Admin may
+    // push a new version. This was previously missing here — any
+    // authenticated user could overwrite any other user's file content in
+    // this shared drive, since file IDs are visible to everyone via the
+    // shared /files/explorer listing.
+    if (existingFile.uploaderId !== req.user?.id && req.user?.role !== 'ADMIN') {
+      res.status(403).json({ message: 'Forbidden. You do not have permission to modify this file.' });
+      return;
+    }
+
     let fileUrl = '';
     if (isCloudinaryConfigured) {
       try {
@@ -213,6 +228,8 @@ export const updateFile = async (req: AuthenticatedRequest, res: Response, next:
     });
 
     res.status(200).json(updatedFile);
+
+    emitDataUpdate(req, 'files');
   } catch (error) {
     next(error);
   }
@@ -239,6 +256,8 @@ export const deleteFile = async (req: AuthenticatedRequest, res: Response, next:
     });
 
     res.status(200).json({ message: 'File deleted successfully.', fileId: id });
+
+    emitDataUpdate(req, 'files');
   } catch (error) {
     next(error);
   }
@@ -264,6 +283,8 @@ export const deleteFolder = async (req: AuthenticatedRequest, res: Response, nex
       data: { isDeleted: true },
     });
     res.status(200).json({ message: 'Folder moved to recycle bin.', folderId: id });
+
+    emitDataUpdate(req, 'files');
   } catch (error) {
     next(error);
   }
@@ -300,18 +321,47 @@ export const restoreItem = async (req: AuthenticatedRequest, res: Response, next
     const { id } = req.params;
     const { type } = req.body; // 'FILE' | 'FOLDER'
 
+    // These three actions (restore, permanent-delete, move) previously had
+    // no ownership check at all — only the top-level soft-delete endpoints
+    // (deleteFile/deleteFolder) enforced "uploader/creator or Admin only".
+    // Since this is a shared drive (getFilesAndFolders lists everyone's
+    // files/folders, not just the requester's own), every item's id was
+    // discoverable by any authenticated user, so this was a real broken
+    // access control gap: anyone could restore, permanently delete, or move
+    // anyone else's files/folders. Enforcing the same rule here as the rest
+    // of this controller already uses.
     if (type === 'FOLDER') {
+      const existing = await prisma.folder.findUnique({ where: { id } });
+      if (!existing) {
+        res.status(404).json({ message: 'Folder not found.' });
+        return;
+      }
+      if (existing.createdById !== req.user?.id && req.user?.role !== 'ADMIN') {
+        res.status(403).json({ message: 'Forbidden. You do not own this folder.' });
+        return;
+      }
       await prisma.folder.update({
         where: { id },
         data: { isDeleted: false },
       });
     } else {
+      const existing = await prisma.file.findUnique({ where: { id } });
+      if (!existing) {
+        res.status(404).json({ message: 'File not found.' });
+        return;
+      }
+      if (existing.uploaderId !== req.user?.id && req.user?.role !== 'ADMIN') {
+        res.status(403).json({ message: 'Forbidden. You do not have permission to restore this file.' });
+        return;
+      }
       await prisma.file.update({
         where: { id },
         data: { isDeleted: false },
       });
     }
     res.status(200).json({ message: 'Item restored successfully.', itemId: id, type });
+
+    emitDataUpdate(req, 'files');
   } catch (error) {
     next(error);
   }
@@ -326,10 +376,23 @@ export const deletePermanently = async (req: AuthenticatedRequest, res: Response
     const { type } = req.body; // 'FILE' | 'FOLDER'
 
     if (type === 'FOLDER') {
+      const existing = await prisma.folder.findUnique({ where: { id } });
+      if (!existing) {
+        res.status(404).json({ message: 'Folder not found.' });
+        return;
+      }
+      if (existing.createdById !== req.user?.id && req.user?.role !== 'ADMIN') {
+        res.status(403).json({ message: 'Forbidden. You do not own this folder.' });
+        return;
+      }
       await prisma.folder.delete({ where: { id } });
     } else {
       const existingFile = await prisma.file.findUnique({ where: { id } });
       if (existingFile) {
+        if (existingFile.uploaderId !== req.user?.id && req.user?.role !== 'ADMIN') {
+          res.status(403).json({ message: 'Forbidden. You do not have permission to delete this file.' });
+          return;
+        }
         if (existingFile.url.includes('/uploads/')) {
           const filename = existingFile.url.split('/uploads/')[1];
           const localPath = path.join(process.cwd(), 'uploads', filename);
@@ -345,6 +408,8 @@ export const deletePermanently = async (req: AuthenticatedRequest, res: Response
       }
     }
     res.status(200).json({ message: 'Item deleted permanently.', itemId: id, type });
+
+    emitDataUpdate(req, 'files');
   } catch (error) {
     next(error);
   }
@@ -363,17 +428,37 @@ export const moveItem = async (req: AuthenticatedRequest, res: Response, next: N
         res.status(400).json({ message: 'Cannot move folder inside itself.' });
         return;
       }
+      const existing = await prisma.folder.findUnique({ where: { id } });
+      if (!existing) {
+        res.status(404).json({ message: 'Folder not found.' });
+        return;
+      }
+      if (existing.createdById !== req.user?.id && req.user?.role !== 'ADMIN') {
+        res.status(403).json({ message: 'Forbidden. You do not own this folder.' });
+        return;
+      }
       await prisma.folder.update({
         where: { id },
         data: { parentId: targetFolderId || null },
       });
     } else {
+      const existing = await prisma.file.findUnique({ where: { id } });
+      if (!existing) {
+        res.status(404).json({ message: 'File not found.' });
+        return;
+      }
+      if (existing.uploaderId !== req.user?.id && req.user?.role !== 'ADMIN') {
+        res.status(403).json({ message: 'Forbidden. You do not have permission to move this file.' });
+        return;
+      }
       await prisma.file.update({
         where: { id },
         data: { folderId: targetFolderId || null },
       });
     }
     res.status(200).json({ message: 'Item moved successfully.', itemId: id, targetFolderId });
+
+    emitDataUpdate(req, 'files');
   } catch (error) {
     next(error);
   }

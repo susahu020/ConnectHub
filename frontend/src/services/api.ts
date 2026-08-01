@@ -8,9 +8,21 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost
 // router.push('/login') so the SPA doesn't hard-reload on session expiry.
 export const AUTH_SESSION_EXPIRED_EVENT = 'auth:session-expired';
 
-function redirectToLogin() {
+// Dispatched when the backend blocks a request with MFA_SETUP_REQUIRED (see
+// middleware/auth.middleware.ts) — the org requires 2FA and this user
+// hasn't set it up yet. Same cross-module-to-router pattern as the
+// session-expired event above.
+export const AUTH_MFA_REQUIRED_EVENT = 'auth:mfa-required';
+
+function redirectToLogin(reason?: string) {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+    window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT, { detail: { reason } }));
+  }
+}
+
+function redirectToMfaSetup() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_MFA_REQUIRED_EVENT));
   }
 }
 
@@ -26,7 +38,7 @@ const onRefreshed = (token: string) => {
   refreshSubscribers = [];
 };
 
-async function handleTokenRefresh(): Promise<string | null> {
+async function handleTokenRefresh(): Promise<{ accessToken: string | null; code?: string }> {
   try {
     const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
@@ -36,12 +48,13 @@ async function handleTokenRefresh(): Promise<string | null> {
       credentials: 'include', // Pass HttpOnly refresh cookie cross-origin
     });
     if (!res.ok) {
-      return null;
+      const errData = await res.json().catch(() => ({}));
+      return { accessToken: null, code: errData.code };
     }
     const data = await res.json();
-    return data.accessToken || null;
+    return { accessToken: data.accessToken || null };
   } catch (err) {
-    return null;
+    return { accessToken: null };
   }
 }
 
@@ -80,7 +93,7 @@ async function request<T = any>(
   if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/refresh') {
     if (!isRefreshing) {
       isRefreshing = true;
-      const newAccessToken = await handleTokenRefresh();
+      const { accessToken: newAccessToken, code: refreshFailureCode } = await handleTokenRefresh();
       isRefreshing = false;
 
       if (newAccessToken) {
@@ -91,7 +104,7 @@ async function request<T = any>(
       } else {
         // Refresh token expired too -> Logout
         store.logout();
-        redirectToLogin();
+        redirectToLogin(refreshFailureCode);
         throw new Error('Session expired. Please log in again.');
       }
     } else {
@@ -132,6 +145,9 @@ async function request<T = any>(
   const data = await response.json();
 
   if (!response.ok) {
+    if (data.code === 'MFA_SETUP_REQUIRED') {
+      redirectToMfaSetup();
+    }
     throw Object.assign(new Error(data.message || 'Something went wrong'), { code: data.code });
   }
 

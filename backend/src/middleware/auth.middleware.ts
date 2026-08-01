@@ -3,6 +3,20 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { User } from '@prisma/client';
 import { getCachedSession, cacheSession } from '../services/session.service';
+import { getOrganizationSettings } from '../services/organization.service';
+
+// Endpoints that must stay reachable for a user who hasn't set up 2FA yet
+// even when the organization requires it — otherwise a user with MFA_SETUP_
+// REQUIRED could never load the very screen that lets them satisfy it, or
+// sign out and try a different account. Paths are router-relative (this
+// router is mounted at /api/v1 in index.ts, so req.path here excludes that
+// prefix).
+const MFA_SETUP_ALLOWLIST = new Set([
+  '/auth/2fa/setup',
+  '/auth/2fa/activate',
+  '/auth/logout',
+  '/users/profile',
+]);
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
@@ -98,6 +112,21 @@ export const authenticate = async (
     if (!user.isVerified) {
       res.status(403).json({ message: 'Email address not verified.', code: 'USER_NOT_VERIFIED' });
       return;
+    }
+
+    // Org-wide MFA enforcement (Organization Settings > Security). Blocks
+    // everything except the handful of endpoints needed to view your own
+    // name/email, set up 2FA, or log out — not a full lockout, just no
+    // access to the rest of the app until 2FA is on.
+    if (!user.twoFactorEnabled && !MFA_SETUP_ALLOWLIST.has(req.path)) {
+      const orgSettings = await getOrganizationSettings();
+      if (orgSettings.mfaRequired) {
+        res.status(403).json({
+          message: 'Your organization requires two-factor authentication. Please set it up to continue.',
+          code: 'MFA_SETUP_REQUIRED',
+        });
+        return;
+      }
     }
 
     // Bind session context to request object

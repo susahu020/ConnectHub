@@ -6,6 +6,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { invalidateOrganizationSettingsCache } from '../services/organization.service';
 import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cloudinary';
 import { isGoogleSsoConfigured } from '../services/sso.service';
+import { emitDataUpdate } from '../utils/realtime';
 
 // The set of columns an admin is allowed to update. An explicit whitelist
 // means an unexpected key in the request body (e.g. `id`, `updatedAt`) can
@@ -23,9 +24,11 @@ const ORG_SETTINGS_KEYS = [
   'defaultTimezone',
   'registrationMode',
   'alertWebhookUrl',
+  'duplicateLoginPolicy',
 ] as const;
 
 const VALID_REGISTRATION_MODES = ['INVITE_ONLY', 'DOMAIN_RESTRICTED', 'OPEN'];
+const VALID_DUPLICATE_LOGIN_POLICIES = ['SINGLE_SESSION', 'LIMIT_3', 'UNLIMITED'];
 
 /**
  * Public: fetch org-wide branding/config (name, logo, colors, etc.).
@@ -106,6 +109,7 @@ export const uploadOrganizationLogo = async (req: AuthenticatedRequest, res: Res
     });
 
     invalidateOrganizationSettingsCache();
+    emitDataUpdate(req, 'organization');
 
     await prisma.auditLog.create({
       data: { userId: req.user?.id, action: 'UPDATE_ORGANIZATION_SETTINGS', details: 'Uploaded new organization logo' },
@@ -141,6 +145,7 @@ export const uploadOrganizationFavicon = async (req: AuthenticatedRequest, res: 
     });
 
     invalidateOrganizationSettingsCache();
+    emitDataUpdate(req, 'organization');
 
     await prisma.auditLog.create({
       data: { userId: req.user?.id, action: 'UPDATE_ORGANIZATION_SETTINGS', details: 'Uploaded new organization favicon' },
@@ -167,6 +172,11 @@ export const updateOrganizationSettings = async (req: AuthenticatedRequest, res:
 
     if (updates.registrationMode !== undefined && !VALID_REGISTRATION_MODES.includes(updates.registrationMode)) {
       res.status(400).json({ message: `registrationMode must be one of: ${VALID_REGISTRATION_MODES.join(', ')}.` });
+      return;
+    }
+
+    if (updates.duplicateLoginPolicy !== undefined && !VALID_DUPLICATE_LOGIN_POLICIES.includes(updates.duplicateLoginPolicy)) {
+      res.status(400).json({ message: `duplicateLoginPolicy must be one of: ${VALID_DUPLICATE_LOGIN_POLICIES.join(', ')}.` });
       return;
     }
 
@@ -199,6 +209,9 @@ export const updateOrganizationSettings = async (req: AuthenticatedRequest, res:
     if (typeof req.body.ssoGoogleEnabled === 'boolean') {
       updates.ssoGoogleEnabled = req.body.ssoGoogleEnabled;
     }
+    if (typeof req.body.mfaRequired === 'boolean') {
+      updates.mfaRequired = req.body.mfaRequired;
+    }
 
     if (updates.registrationMode === 'DOMAIN_RESTRICTED') {
       const existingDomains = (await prisma.organizationSettings.findFirst())?.allowedDomains || [];
@@ -227,6 +240,11 @@ export const updateOrganizationSettings = async (req: AuthenticatedRequest, res:
     // Make sure every subsequent request (emails, public settings endpoint)
     // picks up the change immediately instead of serving a stale cached copy.
     invalidateOrganizationSettingsCache();
+    // And every already-open browser tab/session — other admins on this
+    // settings page, and every user's login screen or sidebar that reads
+    // org branding/registration/SSO/session-policy — picks it up live too,
+    // instead of only on their next manual refresh.
+    emitDataUpdate(req, 'organization');
 
     await prisma.auditLog.create({
       data: {

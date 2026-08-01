@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { emitDataUpdate } from '../utils/realtime';
 
 // 1. GET /api/workflows — List workflows
 export const getWorkflows = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -33,6 +34,8 @@ export const createWorkflow = async (req: AuthenticatedRequest, res: Response, n
     });
 
     res.status(201).json(workflow);
+
+    emitDataUpdate(req, 'workflows');
   } catch (error) {
     next(error);
   }
@@ -60,6 +63,8 @@ export const updateWorkflow = async (req: AuthenticatedRequest, res: Response, n
     });
 
     res.json(updated);
+
+    emitDataUpdate(req, 'workflows');
   } catch (error) {
     next(error);
   }
@@ -77,6 +82,8 @@ export const deleteWorkflow = async (req: AuthenticatedRequest, res: Response, n
 
     await prisma.workflow.delete({ where: { id } });
     res.json({ message: 'Workflow deleted successfully.' });
+
+    emitDataUpdate(req, 'workflows');
   } catch (error) {
     next(error);
   }

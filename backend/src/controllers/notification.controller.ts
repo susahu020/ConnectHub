@@ -29,6 +29,13 @@ export const markNotificationAsRead = async (req: AuthenticatedRequest, res: Res
     });
 
     res.status(200).json({ message: 'Notification marked as read.', count: updated.count });
+
+    // Notifications are read from a plain useState in the dashboard layout,
+    // not React Query, so they aren't covered by the generic data_update
+    // system. Push directly to this user's own other active sessions (a
+    // second browser tab/device) so the same notification doesn't stay
+    // showing as unread there until they happen to reload.
+    req.app.get('io')?.to(`user:${userId}`).emit('notification_read', { id });
   } catch (error) {
     next(error);
   }
@@ -44,6 +51,8 @@ export const markAllNotificationsAsRead = async (req: AuthenticatedRequest, res:
     });
 
     res.status(200).json({ message: 'All notifications marked as read.', count: updated.count });
+
+    req.app.get('io')?.to(`user:${userId}`).emit('all_notifications_read');
   } catch (error) {
     next(error);
   }
@@ -59,6 +68,8 @@ export const deleteNotification = async (req: AuthenticatedRequest, res: Respons
     });
 
     res.status(200).json({ message: 'Notification deleted successfully.', notificationId: id });
+
+    req.app.get('io')?.to(`user:${userId}`).emit('notification_deleted', { id });
   } catch (error) {
     next(error);
   }

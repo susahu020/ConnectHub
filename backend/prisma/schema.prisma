@@ -690,6 +690,22 @@ model OrganizationSettings {
   // services/sso.service.ts isGoogleSsoAvailable). Lets an admin turn SSO
   // off for the workspace without needing infra access to unset env vars.
   ssoGoogleEnabled     Boolean  @default(true)
+  // Concurrent-session policy — controls whether the same credentials can be
+  // used to be logged in from more than one browser/device at a time. See
+  // services/session.service.ts enforceDuplicateLoginPolicy() for the
+  // enforcement logic. SINGLE_SESSION (industry-standard default for an
+  // internal collaboration tool): a new login immediately revokes every
+  // other active session for that user, so only one browser/device stays
+  // signed in at once. LIMIT_3: up to 3 concurrent sessions, oldest evicted
+  // beyond that. UNLIMITED: no restriction (not recommended — allows the
+  // same credentials to stay logged in on unlimited browsers/devices at
+  // once).
+  duplicateLoginPolicy String   @default("SINGLE_SESSION")
+  // When true, every user must have 2FA enabled to use the app beyond
+  // setting it up — enforced in middleware/auth.middleware.ts. Off by
+  // default so flipping it on doesn't instantly lock out an org that
+  // hasn't rolled 2FA out to everyone yet.
+  mfaRequired          Boolean  @default(false)
   updatedAt            DateTime @updatedAt
   updatedById          String?
 }

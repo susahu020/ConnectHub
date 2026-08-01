@@ -17,6 +17,7 @@ import {
   Palette,
   HeartPulse,
   Loader2,
+  MonitorSmartphone,
 } from 'lucide-react';
 import { api } from '../../../../services/api';
 import { useAuthStore } from '../../../../lib/store';
@@ -77,6 +78,7 @@ export default function OrganizationSettingsPage() {
   const [orgForm, setOrgForm] = useState<Record<string, string>>({});
   const [allowedDomainsInput, setAllowedDomainsInput] = useState('');
   const [ssoGoogleEnabled, setSsoGoogleEnabled] = useState(true);
+  const [mfaRequired, setMfaRequired] = useState(false);
 
   useEffect(() => {
     if (orgSettingsData) {
@@ -93,9 +95,11 @@ export default function OrganizationSettingsPage() {
         defaultTimezone: orgSettingsData.defaultTimezone || '',
         registrationMode: orgSettingsData.registrationMode || 'INVITE_ONLY',
         alertWebhookUrl: orgSettingsData.alertWebhookUrl || '',
+        duplicateLoginPolicy: orgSettingsData.duplicateLoginPolicy || 'SINGLE_SESSION',
       });
       setAllowedDomainsInput((orgSettingsData.allowedDomains || []).join(', '));
       setSsoGoogleEnabled(orgSettingsData.ssoGoogleEnabled !== false);
+      setMfaRequired(orgSettingsData.mfaRequired === true);
     }
   }, [orgSettingsData]);
 
@@ -119,7 +123,7 @@ export default function OrganizationSettingsPage() {
       .split(',')
       .map((d) => d.trim())
       .filter(Boolean);
-    updateOrgSettingsMutation.mutate({ ...orgForm, allowedDomains, ssoGoogleEnabled });
+    updateOrgSettingsMutation.mutate({ ...orgForm, allowedDomains, ssoGoogleEnabled, mfaRequired });
   };
 
   const sendTestAlertMutation = useMutation({
@@ -506,6 +510,71 @@ export default function OrganizationSettingsPage() {
                     <p className="text-[9px] text-slate-400">Comma-separated. Anyone signing up with an email on one of these domains is auto-approved as an Employee.</p>
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-2 font-bold text-xs text-foreground">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span>Require Two-Factor Authentication</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={mfaRequired}
+                    aria-label="Require two-factor authentication for all users"
+                    onClick={() => setMfaRequired(!mfaRequired)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${mfaRequired ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${mfaRequired ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 -mt-1">
+                  When on, every user must set up 2FA before they can use the rest of the app. Anyone without it
+                  enabled yet is limited to the 2FA setup screen the next time they load a page — nobody is signed
+                  out or locked out immediately when you turn this on.
+                </p>
+              </div>
+
+              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
+                  <MonitorSmartphone className="h-3.5 w-3.5" />
+                  <span>Session & Login Policy</span>
+                </div>
+                <p className="text-[10px] text-slate-400 -mt-1">
+                  Controls whether the same account can be signed in from more than one browser or device at
+                  the same time. Employees can always see and manage their own active sessions from Settings →
+                  Security.
+                </p>
+                <div className="space-y-1">
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { value: 'SINGLE_SESSION', title: 'Single Session (Recommended)', desc: 'Signing in on a new browser or device automatically signs the account out everywhere else. Prevents the same credentials from being logged in in two places at once.' },
+                      { value: 'LIMIT_3', title: 'Up to 3 Devices', desc: 'Allows up to 3 concurrent sessions per account. Signing in on a 4th device signs out the oldest one.' },
+                      { value: 'UNLIMITED', title: 'Unlimited', desc: 'No restriction — the same credentials can stay signed in on any number of browsers/devices at once. Not recommended.' },
+                    ].map((opt) => (
+                      <label
+                        key={opt.value}
+                        className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                          orgForm.duplicateLoginPolicy === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="duplicateLoginPolicy"
+                          value={opt.value}
+                          checked={orgForm.duplicateLoginPolicy === opt.value}
+                          onChange={(e) => setOrgForm({ ...orgForm, duplicateLoginPolicy: e.target.value })}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <p className="font-bold text-foreground">{opt.title}</p>
+                          <p className="text-[10px] text-slate-400 leading-normal mt-0.5">{opt.desc}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">

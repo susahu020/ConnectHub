@@ -280,6 +280,8 @@ export const leaveGroup = async (req: AuthenticatedRequest, res: Response, next:
     });
 
     res.status(200).json({ message: 'Left the group successfully.' });
+
+    emitDataUpdate(req, 'groups');
   } catch (error) {
     next(error);
   }

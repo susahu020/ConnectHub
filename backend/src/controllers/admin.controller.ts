@@ -7,7 +7,7 @@ import { buildBirthdayEmailHtml } from '../services/birthday.service';
 import { getSystemHealth as getSystemHealthData } from '../services/health.service';
 import { sendWebhookAlert } from '../services/alerting.service';
 import { deleteUserAccount } from '../services/accountDeletion.service';
-import { revokeSession } from '../services/session.service';
+import { revokeSessions } from '../services/session.service';
 import { checkPasswordStrength, checkPasswordAgainstIdentity } from '../utils/passwordPolicy';
 import { sendEmail } from '../config/mailer';
 import { getOrganizationSettings } from '../services/organization.service';
@@ -328,18 +328,14 @@ export const toggleUserSuspension = async (req: AuthenticatedRequest, res: Respo
 
     // Revoke sessions and drop the user's live presence when suspending, so
     // the block takes effect immediately instead of waiting for their
-    // access token to expire. Sessions are revoked one-by-one via
+    // access token to expire. revokeSessions revokes each one via
     // revokeSession (not a raw deleteMany) so the Redis-cached copy that
     // `authenticate` checks first is invalidated too — otherwise a cached
     // session could remain valid until its TTL expires even though the
-    // Postgres row is gone.
+    // Postgres row is gone — but does so in parallel rather than
+    // sequentially (see revokeSessions' doc comment in session.service.ts).
     if (isSuspended) {
-      const activeSessions = await prisma.session.findMany({
-        where: { userId, isRevoked: false },
-      });
-      for (const session of activeSessions) {
-        await revokeSession(session.sessionId, 'ADMIN_SUSPEND', 'Account suspended by administrator');
-      }
+      await revokeSessions({ userId, isRevoked: false }, 'ADMIN_SUSPEND', 'Account suspended by administrator');
 
       await prisma.$transaction([
         prisma.refreshToken.deleteMany({ where: { userId } }),
@@ -395,17 +391,14 @@ export const toggleUserActive = async (req: AuthenticatedRequest, res: Response,
       data: { isActive },
     });
 
-    // Same immediate-effect handling as suspension: revoke sessions one by
-    // one (invalidating the Redis-cached copy too) and drop refresh tokens
-    // when deactivating, so the block takes effect right away rather than
-    // waiting for their access token to expire naturally.
+    // Same immediate-effect handling as suspension: revoke sessions in
+    // parallel via revokeSessions (which still invalidates the Redis-cached
+    // copy per session — see its doc comment in session.service.ts) and
+    // drop refresh tokens when deactivating, so the block takes effect
+    // right away rather than waiting for their access token to expire
+    // naturally.
     if (!isActive) {
-      const activeSessions = await prisma.session.findMany({
-        where: { userId, isRevoked: false },
-      });
-      for (const session of activeSessions) {
-        await revokeSession(session.sessionId, 'ADMIN_DEACTIVATE', 'Account deactivated by administrator');
-      }
+      await revokeSessions({ userId, isRevoked: false }, 'ADMIN_DEACTIVATE', 'Account deactivated by administrator');
 
       await prisma.$transaction([
         prisma.refreshToken.deleteMany({ where: { userId } }),
@@ -787,6 +780,7 @@ export const updateEmailFeatureSettings = async (req: AuthenticatedRequest, res:
     // Make sure the notification service picks up the change immediately
     // instead of serving a stale cached copy for up to CACHE_TTL_MS.
     invalidateEmailFeatureSettingsCache();
+    emitDataUpdate(req, 'email-settings');
 
     await prisma.auditLog.create({
       data: {

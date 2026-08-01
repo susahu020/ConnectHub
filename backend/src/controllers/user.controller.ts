@@ -7,6 +7,23 @@ import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cl
 import { emitDataUpdate } from '../utils/realtime';
 import { logAudit } from '../utils/auditLog';
 
+// The profile page (skills/experience/education/certifications/cover/basic
+// info tabs) fetches with a plain useState + manual fetch — it predates the
+// React Query migration everything else uses, so the generic emitDataUpdate/
+// data_update/MODULE_QUERY_KEYS system (see utils/realtime.ts) can't reach
+// it. Without this, a colleague or manager already viewing someone's profile
+// page would not see skill/experience/education/certification/photo changes
+// that person makes in another tab until they manually reloaded. This emits
+// a small, targeted event instead: the frontend profile page listens for it
+// and — only when the userId matches whichever profile it's currently
+// showing — refetches.
+const emitProfileUpdated = (req: AuthenticatedRequest, userId: string): void => {
+  const io = req.app.get('io');
+  if (io) {
+    io.emit('profile_updated', { userId });
+  }
+};
+
 export const getProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
@@ -129,6 +146,7 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response, ne
 
     const { passwordHash: _, ...safeUser } = updatedUser;
     emitDataUpdate(req, 'users');
+    emitProfileUpdated(req, userId!);
     res.status(200).json({ message: 'Profile updated successfully.', user: safeUser });
   } catch (error) {
     next(error);
@@ -578,6 +596,7 @@ export const uploadAvatar = async (req: AuthenticatedRequest, res: Response, nex
     });
 
     emitDataUpdate(req, 'users');
+    emitProfileUpdated(req, userId);
     res.status(200).json({ message: 'Avatar uploaded successfully.', avatarUrl: fileUrl });
   } catch (error) {
     next(error);
@@ -626,6 +645,8 @@ export const uploadCover = async (req: AuthenticatedRequest, res: Response, next
       },
     });
 
+    emitDataUpdate(req, 'users');
+    emitProfileUpdated(req, userId);
     res.status(200).json({ message: 'Cover banner uploaded successfully.', coverUrl: fileUrl });
   } catch (error) {
     next(error);
@@ -650,6 +671,7 @@ export const addSkill = async (req: AuthenticatedRequest, res: Response, next: N
       }
     });
     res.status(201).json(skill);
+    emitProfileUpdated(req, userId);
   } catch (error) {
     next(error);
   }
@@ -671,6 +693,7 @@ export const updateSkill = async (req: AuthenticatedRequest, res: Response, next
       }
     });
     res.status(200).json(skill);
+    emitProfileUpdated(req, req.user!.id);
   } catch (error) {
     next(error);
   }
@@ -681,6 +704,7 @@ export const deleteSkill = async (req: AuthenticatedRequest, res: Response, next
     const { id } = req.params;
     await prisma.userSkill.delete({ where: { id } });
     res.status(200).json({ message: 'Skill deleted successfully.' });
+    emitProfileUpdated(req, req.user!.id);
   } catch (error) {
     next(error);
   }
@@ -708,6 +732,7 @@ export const addExperience = async (req: AuthenticatedRequest, res: Response, ne
       }
     });
     res.status(201).json(exp);
+    emitProfileUpdated(req, userId);
   } catch (error) {
     next(error);
   }
@@ -732,6 +757,7 @@ export const updateExperience = async (req: AuthenticatedRequest, res: Response,
       }
     });
     res.status(200).json(exp);
+    emitProfileUpdated(req, req.user!.id);
   } catch (error) {
     next(error);
   }
@@ -742,6 +768,7 @@ export const deleteExperience = async (req: AuthenticatedRequest, res: Response,
     const { id } = req.params;
     await prisma.experience.delete({ where: { id } });
     res.status(200).json({ message: 'Experience deleted successfully.' });
+    emitProfileUpdated(req, req.user!.id);
   } catch (error) {
     next(error);
   }
@@ -766,6 +793,7 @@ export const addEducation = async (req: AuthenticatedRequest, res: Response, nex
       }
     });
     res.status(201).json(edu);
+    emitProfileUpdated(req, userId);
   } catch (error) {
     next(error);
   }
@@ -787,6 +815,7 @@ export const updateEducation = async (req: AuthenticatedRequest, res: Response, 
       }
     });
     res.status(200).json(edu);
+    emitProfileUpdated(req, req.user!.id);
   } catch (error) {
     next(error);
   }
@@ -797,6 +826,7 @@ export const deleteEducation = async (req: AuthenticatedRequest, res: Response, 
     const { id } = req.params;
     await prisma.education.delete({ where: { id } });
     res.status(200).json({ message: 'Education deleted successfully.' });
+    emitProfileUpdated(req, req.user!.id);
   } catch (error) {
     next(error);
   }
@@ -821,6 +851,7 @@ export const addCertification = async (req: AuthenticatedRequest, res: Response,
       }
     });
     res.status(201).json(cert);
+    emitProfileUpdated(req, userId);
   } catch (error) {
     next(error);
   }
@@ -842,6 +873,7 @@ export const updateCertification = async (req: AuthenticatedRequest, res: Respon
       }
     });
     res.status(200).json(cert);
+    emitProfileUpdated(req, req.user!.id);
   } catch (error) {
     next(error);
   }
@@ -852,6 +884,7 @@ export const deleteCertification = async (req: AuthenticatedRequest, res: Respon
     const { id } = req.params;
     await prisma.certification.delete({ where: { id } });
     res.status(200).json({ message: 'Certification deleted successfully.' });
+    emitProfileUpdated(req, req.user!.id);
   } catch (error) {
     next(error);
   }
@@ -959,6 +992,7 @@ export const updateProfileById = async (req: AuthenticatedRequest, res: Response
 
     const { passwordHash: _, ...safeUser } = updatedUser;
     emitDataUpdate(req, 'users');
+    emitProfileUpdated(req, userId);
     logAudit(req, 'UPDATE_PROFILE', `Updated own profile information (${userId}).`);
     res.status(200).json({ message: 'Profile updated successfully.', user: safeUser });
   } catch (error) {
@@ -969,6 +1003,15 @@ export const updateProfileById = async (req: AuthenticatedRequest, res: Response
 export const uploadAvatarById = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId } = req.params;
+
+    // Same rule updateProfileById already enforces just above — this was
+    // missing here, meaning any authenticated user could overwrite any
+    // other user's avatar simply by calling this endpoint with their id.
+    if (req.user?.id !== userId) {
+      res.status(403).json({ message: 'Forbidden. Only the user themselves can update their avatar.' });
+      return;
+    }
+
     const file = req.file;
 
     if (!file) {
@@ -1000,6 +1043,9 @@ export const uploadAvatarById = async (req: AuthenticatedRequest, res: Response,
     });
 
     res.status(200).json({ message: 'Avatar uploaded successfully.', avatarUrl: fileUrl, user: updatedUser });
+
+    emitDataUpdate(req, 'users');
+    emitProfileUpdated(req, userId);
   } catch (error) {
     next(error);
   }

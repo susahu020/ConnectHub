@@ -271,6 +271,8 @@ export const editMessage = async (req: AuthenticatedRequest, res: Response, next
       if (existingMessage.receiverId) {
         io.to(`user:${existingMessage.receiverId}`).emit('message_edited', { messageId: id, content, isEdited: true });
         io.to(`user:${existingMessage.senderId}`).emit('message_edited', { messageId: id, content, isEdited: true });
+      } else if (existingMessage.groupId) {
+        io.to(`group:${existingMessage.groupId}`).emit('message_edited', { messageId: id, content, isEdited: true });
       }
     }
 

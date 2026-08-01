@@ -5,6 +5,59 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { invalidateRoleCache, getRolePermissions } from '../services/rbac.service';
 import { emitDataUpdate } from '../utils/realtime';
 
+// Collects roleId plus every role that (transitively) inherits from it, the
+// same set invalidateRoleCache() walks in rbac.service.ts — a permission
+// change on a parent role changes the *effective* permissions of every
+// descendant role too, not just roleId itself.
+const collectRoleAndDescendants = async (roleId: string): Promise<string[]> => {
+  const ids = [roleId];
+  const children = await prisma.customRole.findMany({ where: { parentId: roleId }, select: { id: true } });
+  for (const child of children) {
+    ids.push(...(await collectRoleAndDescendants(child.id)));
+  }
+  return ids;
+};
+
+// Pushes the freshly-recompiled permission set straight to every currently
+// signed-in user affected by a role permission change — every user directly
+// on this role, plus everyone on a role that inherits from it. Without this,
+// updateRolePermissions only invalidated the server-side Redis cache; users
+// already logged in kept acting on their stale, pre-change permission map
+// (visible in the UI, and enforced by hasPermission()) until they happened
+// to log out and back in.
+const pushRolePermissionUpdatesToAffectedUsers = async (req: AuthenticatedRequest, roleId: string): Promise<void> => {
+  const io = req.app.get('io');
+  if (!io) return;
+
+  const affectedRoleIds = await collectRoleAndDescendants(roleId);
+  const affectedUsers = await prisma.user.findMany({
+    where: { customRoleId: { in: affectedRoleIds } },
+    select: { id: true, customRoleId: true },
+  });
+  if (affectedUsers.length === 0) return;
+
+  // Compile each distinct role once (getRolePermissions is itself cached),
+  // not once per user, since many users typically share a role.
+  const permissionsByRole = new Map<string, Record<string, Record<string, boolean>>>();
+  const roleNameById = new Map<string, string>();
+  for (const affectedRoleId of new Set(affectedUsers.map((u) => u.customRoleId!))) {
+    const [permissions, roleRecord] = await Promise.all([
+      getRolePermissions(affectedRoleId),
+      prisma.customRole.findUnique({ where: { id: affectedRoleId }, select: { name: true } }),
+    ]);
+    permissionsByRole.set(affectedRoleId, permissions);
+    roleNameById.set(affectedRoleId, roleRecord?.name || '');
+  }
+
+  for (const user of affectedUsers) {
+    io.to(`user:${user.id}`).emit('role_assignment_updated', {
+      customRoleId: user.customRoleId,
+      roleName: roleNameById.get(user.customRoleId!) || '',
+      permissions: permissionsByRole.get(user.customRoleId!) || {},
+    });
+  }
+};
+
 /**
  * Get all custom roles.
  */
@@ -106,6 +159,8 @@ export const createRole = async (req: AuthenticatedRequest, res: Response, next:
     });
 
     res.status(201).json(role);
+
+    emitDataUpdate(req, 'roles');
   } catch (error) {
     next(error);
   }
@@ -165,6 +220,9 @@ export const updateRolePermissions = async (req: AuthenticatedRequest, res: Resp
         userAgent: req.headers['user-agent'] || null,
       },
     });
+
+    emitDataUpdate(req, 'roles');
+    await pushRolePermissionUpdatesToAffectedUsers(req, roleId);
 
     res.status(200).json({ message: 'Role permissions updated successfully.' });
   } catch (error) {
@@ -234,6 +292,8 @@ export const duplicateRole = async (req: AuthenticatedRequest, res: Response, ne
     });
 
     res.status(201).json(duplicatedRole);
+
+    emitDataUpdate(req, 'roles');
   } catch (error) {
     next(error);
   }
@@ -278,6 +338,8 @@ export const deleteRole = async (req: AuthenticatedRequest, res: Response, next:
     });
 
     res.status(200).json({ message: 'Role deleted successfully.' });
+
+    emitDataUpdate(req, 'roles');
   } catch (error) {
     next(error);
   }

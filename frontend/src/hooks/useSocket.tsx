@@ -42,6 +42,28 @@ const MODULE_QUERY_KEYS: Record<string, string[]> = {
   groups: ['groups'],
   // Org-chart teams (distinct from chat groups)
   teams: ['admin-teams'],
+  // Org-wide branding/config: name, logo, colors, registration mode, SSO
+  // toggle, session/login policy — read by the org settings page, sidebar,
+  // and login screen.
+  organization: ['organization-settings'],
+  // Pending/accepted onboarding invitations (Admin panel)
+  invitations: ['admin-invitations'],
+  // Automation workflows (Admin panel)
+  workflows: ['workflows-list'],
+  // Shared file manager (uploads, folders, moves, deletes) — org-wide, not
+  // scoped to the uploader, so other users browsing the same folder need to
+  // see changes live.
+  files: ['files'],
+  // Scheduled meetings (invites, accept/decline, start/end) — each user's
+  // query is already scoped server-side to meetings they host or are
+  // invited to, so a broad invalidate here is cheap and safe.
+  meetings: ['calendar-meetings'],
+  // Custom RBAC roles (Admin > Roles list). Live per-user permission pushes
+  // for role-permission changes are handled separately via the dedicated
+  // 'role_assignment_updated' socket event, not this generic module.
+  roles: ['admin-roles'],
+  // Admin > Email notification feature toggles
+  'email-settings': ['admin-email-settings'],
 };
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
