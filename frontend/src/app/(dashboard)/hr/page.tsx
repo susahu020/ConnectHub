@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Layers } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
@@ -30,6 +31,7 @@ import { AddHolidayModal } from '../../../components/hr/modals/AddHolidayModal';
 import { RecognizeTeammateModal } from '../../../components/hr/modals/RecognizeTeammateModal';
 
 export default function HRPortal() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const { socket } = useSocket();
@@ -411,7 +413,7 @@ export default function HRPortal() {
         <div>
           <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
             <Layers className="h-8 w-8 text-primary" />
-            HR Portal
+            {t('hr.title')}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Access leave, clock in/out, view shifts, submit expense claims, view payslips, and celebrate teammates.

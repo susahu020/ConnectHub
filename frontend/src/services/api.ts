@@ -243,18 +243,49 @@ export const api = {
   duplicateRole: (id: string, body: { newName: string; description?: string }) => 
     request(`/rbac/roles/${id}/duplicate`, 'POST', body),
   deleteRole: (id: string) => request(`/rbac/roles/${id}`, 'DELETE'),
-  assignUserRole: (userId: string, roleId: string) => request(`/rbac/users/${userId}/role`, 'POST', { roleId }),
+  assignUserRole: (userId: string, roleId: string | null, expiresAt?: string | null) =>
+    request(`/rbac/users/${userId}/role`, 'POST', { roleId, expiresAt }),
 
   // Meetings (REST source of truth backing the live socket signaling)
   createMeeting: (body?: { title?: string }) => request('/meetings', 'POST', body || {}),
-  scheduleMeeting: (body: { title?: string; scheduledFor: string; durationMins?: number; inviteeIds: string[] }) =>
+  scheduleMeeting: (body: { title?: string; scheduledFor: string; durationMins?: number; inviteeIds: string[]; recurrenceRule?: string; recurrenceEndDate?: string }) =>
     request('/meetings/schedule', 'POST', body),
+  cancelMeeting: (id: string, scope: 'occurrence' | 'series' = 'occurrence') =>
+    request(`/meetings/${id}?scope=${scope}`, 'DELETE'),
   respondToMeetingInvite: (id: string, status: 'ACCEPTED' | 'DECLINED') =>
     request(`/meetings/${id}/invite`, 'PATCH', { status }),
   getMeetings: () => request('/meetings'),
   getMeetingByCode: (code: string) => request(`/meetings/${encodeURIComponent(code)}`),
   startMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/start`, 'POST'),
   endMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/end`, 'POST'),
+  downloadMeetingIcs: async (meetingId: string, filenameHint?: string) => {
+    const token = useAuthStore.getState().token;
+    const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/ics`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      let message = 'Failed to export this meeting.';
+      try {
+        const data = await response.json();
+        message = data.message || message;
+      } catch {
+        // response wasn't JSON — keep the generic message
+      }
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filenameHint || 'meeting'}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+  regenerateCalendarFeedToken: (): Promise<{ feedUrl: string; webcalUrl: string }> =>
+    request('/meetings/calendar-feed/token', 'POST'),
 
   // Chats
   getRecentChats: () => request('/chats/recent'),
@@ -325,6 +356,7 @@ export const api = {
   deleteFile: (id: string) => request(`/files/${id}`, 'DELETE'),
   deleteFolder: (id: string) => request(`/files/folders/${id}`, 'DELETE'),
   getRecycleBin: () => request('/files/recycle-bin'),
+  emptyRecycleBin: () => request('/files/recycle-bin', 'DELETE'),
   restoreItem: (id: string, type: 'FILE' | 'FOLDER') => request(`/files/${id}/restore`, 'POST', { type }),
   deletePermanently: (id: string, type: 'FILE' | 'FOLDER') => request(`/files/${id}/permanent`, 'DELETE', { type }),
   moveItem: (id: string, targetFolderId: string | null, type: 'FILE' | 'FOLDER') => 

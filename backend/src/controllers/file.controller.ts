@@ -252,7 +252,7 @@ export const deleteFile = async (req: AuthenticatedRequest, res: Response, next:
 
     await prisma.file.update({
       where: { id },
-      data: { isDeleted: true },
+      data: { isDeleted: true, deletedAt: new Date() },
     });
 
     res.status(200).json({ message: 'File deleted successfully.', fileId: id });
@@ -280,7 +280,7 @@ export const deleteFolder = async (req: AuthenticatedRequest, res: Response, nex
     }
     await prisma.folder.update({
       where: { id },
-      data: { isDeleted: true },
+      data: { isDeleted: true, deletedAt: new Date() },
     });
     res.status(200).json({ message: 'Folder moved to recycle bin.', folderId: id });
 
@@ -296,6 +296,28 @@ export const deleteFolder = async (req: AuthenticatedRequest, res: Response, nex
 export const getRecycleBin = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id!;
+
+    // Lazy auto-purge: if the org has a retention policy configured, clear
+    // out anything past it before listing — same "check on next read rather
+    // than run a background job" pattern as the time-bound role expiry
+    // check in auth.middleware.ts. Only runs the (cheap) extra queries when
+    // a policy is actually set, so this is a no-op for the default org.
+    const orgSettings = await getOrganizationSettings();
+    const retentionDays = orgSettings.recycleBinRetentionDays;
+    if (retentionDays && retentionDays > 0) {
+      const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+      const [expiredFolders, expiredFiles] = await prisma.$transaction([
+        prisma.folder.findMany({ where: { isDeleted: true, createdById: userId, deletedAt: { lt: cutoff } } }),
+        prisma.file.findMany({ where: { isDeleted: true, uploaderId: userId, deletedAt: { lt: cutoff } } }),
+      ]);
+      for (const file of expiredFiles) {
+        await hardDeleteFile(file);
+      }
+      if (expiredFolders.length > 0) {
+        await prisma.folder.deleteMany({ where: { id: { in: expiredFolders.map((f) => f.id) } } });
+      }
+    }
+
     const [folders, files] = await prisma.$transaction([
       prisma.folder.findMany({
         where: { isDeleted: true, createdById: userId },
@@ -307,7 +329,7 @@ export const getRecycleBin = async (req: AuthenticatedRequest, res: Response, ne
         orderBy: { updatedAt: 'desc' },
       }),
     ]);
-    res.status(200).json({ folders, files });
+    res.status(200).json({ folders, files, retentionDays: retentionDays || null });
   } catch (error) {
     next(error);
   }
@@ -342,7 +364,7 @@ export const restoreItem = async (req: AuthenticatedRequest, res: Response, next
       }
       await prisma.folder.update({
         where: { id },
-        data: { isDeleted: false },
+        data: { isDeleted: false, deletedAt: null },
       });
     } else {
       const existing = await prisma.file.findUnique({ where: { id } });
@@ -356,7 +378,7 @@ export const restoreItem = async (req: AuthenticatedRequest, res: Response, next
       }
       await prisma.file.update({
         where: { id },
-        data: { isDeleted: false },
+        data: { isDeleted: false, deletedAt: null },
       });
     }
     res.status(200).json({ message: 'Item restored successfully.', itemId: id, type });
@@ -365,6 +387,26 @@ export const restoreItem = async (req: AuthenticatedRequest, res: Response, next
   } catch (error) {
     next(error);
   }
+};
+
+// Permanently removes a file's DB row and its on-disk upload (if locally
+// stored). No ownership check here — every caller (deletePermanently,
+// emptyRecycleBin, and getRecycleBin's lazy retention purge) is responsible
+// for verifying the request is allowed to delete this specific file before
+// calling this.
+const hardDeleteFile = async (file: { id: string; url: string }): Promise<void> => {
+  if (file.url.includes('/uploads/')) {
+    const filename = file.url.split('/uploads/')[1];
+    const localPath = path.join(process.cwd(), 'uploads', filename);
+    if (fs.existsSync(localPath)) {
+      try {
+        fs.unlinkSync(localPath);
+      } catch (err) {
+        console.error('Failed to unlink local file:', err);
+      }
+    }
+  }
+  await prisma.file.delete({ where: { id: file.id } });
 };
 
 /**
@@ -393,21 +435,42 @@ export const deletePermanently = async (req: AuthenticatedRequest, res: Response
           res.status(403).json({ message: 'Forbidden. You do not have permission to delete this file.' });
           return;
         }
-        if (existingFile.url.includes('/uploads/')) {
-          const filename = existingFile.url.split('/uploads/')[1];
-          const localPath = path.join(process.cwd(), 'uploads', filename);
-          if (fs.existsSync(localPath)) {
-            try {
-              fs.unlinkSync(localPath);
-            } catch (err) {
-              console.error('Failed to unlink local file:', err);
-            }
-          }
-        }
-        await prisma.file.delete({ where: { id } });
+        await hardDeleteFile(existingFile);
       }
     }
     res.status(200).json({ message: 'Item deleted permanently.', itemId: id, type });
+
+    emitDataUpdate(req, 'files');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Permanently deletes every one of the current user's own soft-deleted
+ * files and folders in one go — previously the only way to clear a full
+ * Recycle Bin was one item at a time.
+ */
+export const emptyRecycleBin = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.id!;
+    const [deletedFolders, deletedFiles] = await prisma.$transaction([
+      prisma.folder.findMany({ where: { isDeleted: true, createdById: userId } }),
+      prisma.file.findMany({ where: { isDeleted: true, uploaderId: userId } }),
+    ]);
+
+    for (const file of deletedFiles) {
+      await hardDeleteFile(file);
+    }
+    if (deletedFolders.length > 0) {
+      await prisma.folder.deleteMany({ where: { id: { in: deletedFolders.map((f) => f.id) } } });
+    }
+
+    res.status(200).json({
+      message: 'Recycle Bin emptied.',
+      filesRemoved: deletedFiles.length,
+      foldersRemoved: deletedFolders.length,
+    });
 
     emitDataUpdate(req, 'files');
   } catch (error) {

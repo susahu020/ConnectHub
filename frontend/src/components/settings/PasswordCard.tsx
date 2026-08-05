@@ -1,5 +1,6 @@
 import React from 'react';
 import { Lock, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function PasswordCard({
   currentPassword,
@@ -20,11 +21,12 @@ export function PasswordCard({
   loading: boolean;
   onSubmit: (e: React.FormEvent) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm space-y-4">
       <div className="border-b pb-3 flex items-center space-x-2">
         <Lock className="h-5 w-5 text-indigo-500" />
-        <h3 className="font-bold text-sm">Security & Password</h3>
+        <h3 className="font-bold text-sm">{t('settings.password.title')}</h3>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4 text-xs font-semibold">

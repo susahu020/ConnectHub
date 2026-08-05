@@ -112,7 +112,7 @@ export const buildNotificationEmail = (title: string, message: string, orgName: 
       <hr style="border: 0; border-top: 1px solid #eaeaea; margin: 20px 0;">
       <p style="font-size: 11px; color: #888; line-height: 1.5;">
         This is an automated notification from ${orgName}. To change how you receive these updates, visit your 
-        <a href="http://localhost:3000/settings" style="color: #2563eb; text-decoration: none; font-weight: bold;">Account Settings</a>.
+        <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/settings" style="color: #2563eb; text-decoration: none; font-weight: bold;">Account Settings</a>.
       </p>
     </div>
   `;

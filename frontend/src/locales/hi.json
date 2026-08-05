@@ -1,0 +1,118 @@
+{
+  "common": {
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "close": "बंद करें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "loading": "लोड हो रहा है...",
+    "search": "खोजें",
+    "confirm": "पुष्टि करें",
+    "back": "वापस",
+    "next": "अगला",
+    "yes": "हाँ",
+    "no": "नहीं",
+    "on": "चालू",
+    "off": "बंद",
+    "enabled": "सक्षम",
+    "disabled": "अक्षम",
+    "notSpecified": "निर्दिष्ट नहीं"
+  },
+  "nav": {
+    "sections": {
+      "overview": "अवलोकन",
+      "collaborate": "सहयोग करें",
+      "work": "कार्य",
+      "resources": "संसाधन",
+      "people": "लोग",
+      "organization": "संगठन",
+      "general": "सामान्य"
+    },
+    "items": {
+      "dashboard": "डैशबोर्ड",
+      "directChat": "डायरेक्ट चैट",
+      "channels": "चैनल",
+      "meetings": "मीटिंग्स",
+      "announcements": "घोषणाएं",
+      "tasks": "कार्य सूची",
+      "calendar": "कैलेंडर",
+      "automations": "ऑटोमेशन",
+      "knowledgeBase": "नॉलेज बेस",
+      "fileStorage": "फ़ाइल स्टोरेज",
+      "hrPortal": "एचआर पोर्टल",
+      "directory": "डायरेक्टरी",
+      "orgChart": "ऑर्ग चार्ट",
+      "analytics": "एनालिटिक्स",
+      "organization": "संगठन",
+      "settings": "सेटिंग्स",
+      "adminPanel": "एडमिन पैनल"
+    },
+    "signOut": "साइन आउट करें"
+  },
+  "topbar": {
+    "searchPlaceholder": "ConnectHub में खोजें...",
+    "notifications": "सूचनाएं",
+    "unreadOnly": "केवल अपठित",
+    "noNotifications": "अभी तक कोई {{filter}}सूचना नहीं है।",
+    "unread": "अपठित ",
+    "markAllRead": "सभी को पढ़ा हुआ चिह्नित करें",
+    "viewProfile": "प्रोफ़ाइल देखें",
+    "myStatus": "मेरी स्थिति"
+  },
+  "dashboard": {
+    "greetingMorning": "सुप्रभात",
+    "greetingAfternoon": "नमस्कार",
+    "greetingEvening": "शुभ संध्या",
+    "editLayout": "लेआउट संपादित करें",
+    "save": "लेआउट सहेजें",
+    "discard": "रद्द करें",
+    "customizeWidgets": "विजेट अनुकूलित करें"
+  },
+  "tasks": {
+    "projectsDirectory": "प्रोजेक्ट्स डायरेक्टरी",
+    "projectsSubtitle": "इसकी कनबन टास्क, मासिक कैलेंडर एजेंडा, और गैंट चार्ट देखने के लिए नीचे सूची से एक वर्कस्पेस चुनें।",
+    "createProject": "प्रोजेक्ट बनाएं"
+  },
+  "hr": {
+    "title": "एचआर पोर्टल"
+  },
+  "settings": {
+    "title": "सिस्टम प्राथमिकताएं",
+    "subtitle": "यूआई की दिखावट, सूचना ट्रिगर, सक्रिय सत्र और पासवर्ड को अनुकूलित करें।",
+    "preferences": {
+      "title": "प्राथमिकताएं",
+      "theme": "थीम",
+      "themeLight": "लाइट",
+      "themeDark": "डार्क",
+      "themeSystem": "सिस्टम",
+      "language": "भाषा",
+      "alertChannels": "अलर्ट चैनल",
+      "pushLabel": "रीयल-टाइम सॉकेट पुश सूचनाएं सक्षम करें",
+      "emailLabel": "ईमेल सूचनाएं सक्षम करें",
+      "desktopLabel": "डेस्कटॉप सूचनाएं सक्षम करें"
+    },
+    "notificationPreferences": {
+      "title": "सूचना प्राथमिकताएं",
+      "description": "चुनें कि आपको हर श्रेणी के लिए किस बारे में सूचित किया जाए। ये ऊपर दिए गए अलर्ट चैनलों को सीमित करते हैं — वहां किसी चैनल को बंद करने से यहां चाहे जो भी चुना हो, सब कुछ म्यूट हो जाता है।",
+      "category": "श्रेणी",
+      "inApp": "ऐप के भीतर",
+      "email": "ईमेल"
+    },
+    "password": {
+      "title": "पासवर्ड बदलें",
+      "current": "वर्तमान पासवर्ड",
+      "new": "नया पासवर्ड",
+      "confirm": "नए पासवर्ड की पुष्टि करें",
+      "submit": "पासवर्ड अपडेट करें"
+    },
+    "twoFactor": {
+      "title": "दो-चरणीय सत्यापन"
+    },
+    "privacy": {
+      "title": "गोपनीयता और डेटा"
+    },
+    "sessions": {
+      "title": "सक्रिय सत्र"
+    }
+  }
+}

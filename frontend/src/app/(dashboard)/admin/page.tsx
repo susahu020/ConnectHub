@@ -124,6 +124,10 @@ export default function AdminPage() {
   const [dupRoleOpen, setDupRoleOpen] = useState(false);
   const [dupTargetRole, setDupTargetRole] = useState<any>(null);
   const [dupNewName, setDupNewName] = useState('');
+  const [tempRoleOpen, setTempRoleOpen] = useState(false);
+  const [tempRoleTargetUser, setTempRoleTargetUser] = useState<any>(null);
+  const [tempRoleId, setTempRoleId] = useState('');
+  const [tempRoleExpiresAt, setTempRoleExpiresAt] = useState('');
   const [dupDesc, setDupDesc] = useState('');
 
   // Admin User controls state
@@ -362,11 +366,15 @@ export default function AdminPage() {
 
   // User Role Update Mutation (Dynamic)
   const assignRoleMutation = useMutation({
-    mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) =>
-      api.assignUserRole(userId, roleId),
+    mutationFn: ({ userId, roleId, expiresAt }: { userId: string; roleId: string | null; expiresAt?: string | null }) =>
+      api.assignUserRole(userId, roleId, expiresAt),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success('User role successfully updated.');
+      setTempRoleOpen(false);
+      setTempRoleTargetUser(null);
+      setTempRoleId('');
+      setTempRoleExpiresAt('');
     },
     onError: (err: any) => {
       toast.error(err.message || 'Failed to assign role.');
@@ -498,8 +506,20 @@ export default function AdminPage() {
   };
 
   const handleUserRoleAssign = (userId: string, roleId: string) => {
-    if (!roleId) return;
-    assignRoleMutation.mutate({ userId, roleId });
+    // Previously `if (!roleId) return;` silently ignored picking "-- No
+    // custom role --", meaning there was no way to remove a role assignment
+    // once set. roleId is now nullable end-to-end (see assignRole in
+    // rbac.controller.ts), so an empty selection now actually unassigns.
+    assignRoleMutation.mutate({ userId, roleId: roleId || null });
+  };
+
+  const handleGrantTemporaryRole = () => {
+    if (!tempRoleTargetUser || !tempRoleId || !tempRoleExpiresAt) return;
+    assignRoleMutation.mutate({
+      userId: tempRoleTargetUser.id,
+      roleId: tempRoleId,
+      expiresAt: new Date(tempRoleExpiresAt).toISOString(),
+    });
   };
 
   const handleSuspensionToggle = (userId: string, currentlySuspended: boolean) => {
@@ -819,16 +839,37 @@ export default function AdminPage() {
                       <td className="py-3.5">{u.email}</td>
                       <td className="py-3.5">{u.designation || 'Engineer'}</td>
                       <td className="py-3.5">
-                        <select
-                          value={u.customRoleId || ''}
-                          onChange={(e) => handleUserRoleAssign(u.id, e.target.value)}
-                          className="bg-transparent border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] focus:outline-none"
-                        >
-                          <option value="">-- No custom role --</option>
-                          {roles?.map((r: any) => (
-                            <option key={r.id} value={r.id}>{r.name}</option>
-                          ))}
-                        </select>
+                        <div className="flex items-center gap-1">
+                          <select
+                            value={u.customRoleId || ''}
+                            onChange={(e) => handleUserRoleAssign(u.id, e.target.value)}
+                            className="bg-transparent border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] focus:outline-none"
+                          >
+                            <option value="">-- No custom role --</option>
+                            {roles?.map((r: any) => (
+                              <option key={r.id} value={r.id}>{r.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTempRoleTargetUser(u);
+                              setTempRoleId('');
+                              setTempRoleExpiresAt('');
+                              setTempRoleOpen(true);
+                            }}
+                            className="p-1 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                            title="Grant a role temporarily"
+                            aria-label={`Grant ${u.firstName} ${u.lastName} a temporary role`}
+                          >
+                            <Clock className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        {u.customRoleId && u.customRoleExpiresAt && (
+                          <p className="text-[9px] text-amber-500 font-semibold mt-0.5">
+                            Expires {new Date(u.customRoleExpiresAt).toLocaleDateString()}
+                          </p>
+                        )}
                       </td>
                       <td className="py-3.5">
                         <div className="flex items-center gap-1.5">
@@ -836,7 +877,11 @@ export default function AdminPage() {
                             value={u.isActive === false ? 'INACTIVE' : 'ACTIVE'}
                             onChange={(e) => handleActiveStatusChange(u, e.target.value === 'ACTIVE')}
                             disabled={u.id === user?.id}
-                            title={u.id === user?.id ? "You can't deactivate your own account." : undefined}
+                            title={
+                              u.id === user?.id
+                                ? "You can't deactivate your own account."
+                                : 'Lifecycle status — for offboarding, extended leave, etc. Blocks login but is otherwise a routine, reversible state change. For a security concern, use Suspend instead.'
+                            }
                             className={`px-2 py-1 rounded-lg text-[9px] uppercase font-extrabold border focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${
                               u.isActive === false
                                 ? 'bg-red-500/10 text-red-500 border-red-200 dark:border-red-950'
@@ -896,7 +941,13 @@ export default function AdminPage() {
                         <button
                           onClick={() => handleSuspensionToggle(u.id, u.isSuspended)}
                           disabled={u.id === user?.id}
-                          title={u.id === user?.id ? "You can't suspend your own account." : undefined}
+                          title={
+                            u.id === user?.id
+                              ? "You can't suspend your own account."
+                              : u.isSuspended
+                                ? 'Lift the security suspension and let this person sign in again (their Active/Inactive lifecycle status is unaffected either way).'
+                                : 'Security action — immediately blocks login and signs them out everywhere, independent of the Active/Inactive status above. Use this for a security concern; use Active/Inactive for routine offboarding.'
+                          }
                           className={`text-[10px] font-bold px-2.5 py-1 border rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                             u.isSuspended
                               ? 'text-green-500 border-green-200 dark:border-green-955 hover:bg-green-55/20'
@@ -923,6 +974,7 @@ export default function AdminPage() {
                             onClick={() => handleDeleteUser(u.id, u.email)}
                             className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-1.5 rounded-lg border border-transparent hover:border-red-200 dark:hover:border-red-955 inline-flex items-center justify-center align-middle"
                             title="Delete User Account"
+                            aria-label={`Delete ${u.firstName} ${u.lastName}'s account`}
                             type="button"
                             id={`delete-user-btn-${u.id}`}
                           >
@@ -1001,6 +1053,7 @@ export default function AdminPage() {
                               disabled={resendInvitationMutation.isPending}
                               className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded disabled:opacity-40"
                               title="Resend invitation"
+                              aria-label={`Resend invitation to ${inv.email}`}
                             >
                               <Send className="h-4 w-4" />
                             </button>
@@ -1008,6 +1061,7 @@ export default function AdminPage() {
                               onClick={() => handleRevokeInvitation(inv)}
                               className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded"
                               title="Revoke invitation"
+                              aria-label={`Revoke invitation to ${inv.email}`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -1080,6 +1134,8 @@ export default function AdminPage() {
                             setDupRoleOpen(true);
                           }}
                           className="p-1.5 border hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg inline-flex text-slate-500"
+                          title="Duplicate role"
+                          aria-label={`Duplicate role ${r.name}`}
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </button>
@@ -1087,6 +1143,8 @@ export default function AdminPage() {
                           onClick={() => handleDeleteRole(r.id)}
                           disabled={r._count?.users > 0}
                           className="p-1.5 border border-red-200 dark:border-red-950 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded-lg inline-flex disabled:opacity-30"
+                          title={r._count?.users > 0 ? 'Cannot delete a role with assigned users' : 'Delete role'}
+                          aria-label={`Delete role ${r.name}`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -1566,6 +1624,7 @@ export default function AdminPage() {
                           type="button"
                           role="switch"
                           aria-checked={isEnabled}
+                          aria-label={`${label} email notifications`}
                           onClick={() => handleToggleEmailFeature(key, isEnabled)}
                           disabled={updateEmailFeatureMutation.isPending}
                           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
@@ -1607,9 +1666,9 @@ export default function AdminPage() {
 
       {/* Create Custom Role Modal */}
       {createRoleOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Create Custom Role">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setCreateRoleOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+            <button onClick={() => setCreateRoleOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
@@ -1679,9 +1738,9 @@ export default function AdminPage() {
 
       {/* Duplicate Role Modal */}
       {dupRoleOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Duplicate Custom Role">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => { setDupRoleOpen(false); setDupTargetRole(null); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+            <button onClick={() => { setDupRoleOpen(false); setDupTargetRole(null); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
@@ -1719,14 +1778,81 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Grant Temporary Role Modal */}
+      {tempRoleOpen && tempRoleTargetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Grant Temporary Role">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => { setTempRoleOpen(false); setTempRoleTargetUser(null); }}
+              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base">Grant Temporary Role</h3>
+              <p className="text-xs text-slate-400">
+                Give {tempRoleTargetUser.firstName} {tempRoleTargetUser.lastName} elevated access that automatically
+                reverts on its own — no need to remember to revoke it later.
+              </p>
+            </div>
+            <form
+              onSubmit={(e) => { e.preventDefault(); handleGrantTemporaryRole(); }}
+              className="space-y-4 text-xs font-semibold"
+            >
+              <div className="space-y-2">
+                <label className="text-slate-400 uppercase text-[10px]" htmlFor="temp-role-select">Role</label>
+                <select
+                  id="temp-role-select"
+                  required
+                  value={tempRoleId}
+                  onChange={(e) => setTempRoleId(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                >
+                  <option value="" disabled>Select a role...</option>
+                  {roles?.map((r: any) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-slate-400 uppercase text-[10px]" htmlFor="temp-role-expiry">Expires On</label>
+                <input
+                  id="temp-role-expiry"
+                  type="datetime-local"
+                  required
+                  min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                  value={tempRoleExpiresAt}
+                  onChange={(e) => setTempRoleExpiresAt(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 normal-case font-normal">
+                  Permissions revert automatically the moment this passes — no follow-up action needed.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={assignRoleMutation.isPending}
+                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+              >
+                {assignRoleMutation.isPending ? 'Granting...' : 'Grant Temporary Access'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Invite Teammate Onboarding Modal */}
       {inviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Invite Teammate">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setInviteModalOpen(false); setGeneratedLink(''); }} 
               className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
               id="close-invite-modal-btn"
+              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1804,12 +1930,13 @@ export default function AdminPage() {
 
       {/* Edit User Details Modal */}
       {editUserOpen && selectedEditUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Edit Teammate Profile">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setEditUserOpen(false); setSelectedEditUser(null); }} 
               className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
               id="close-edit-user-modal-btn"
+              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1967,12 +2094,13 @@ export default function AdminPage() {
 
       {/* Force Change Password Modal */}
       {changePasswordOpen && selectedPasswordUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Reset User Password">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setChangePasswordOpen(false); setSelectedPasswordUser(null); }} 
               className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
               id="close-password-modal-btn"
+              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>

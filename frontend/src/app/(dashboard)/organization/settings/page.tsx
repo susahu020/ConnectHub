@@ -18,6 +18,8 @@ import {
   HeartPulse,
   Loader2,
   MonitorSmartphone,
+  AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { api } from '../../../../services/api';
 import { useAuthStore } from '../../../../lib/store';
@@ -79,6 +81,7 @@ export default function OrganizationSettingsPage() {
   const [allowedDomainsInput, setAllowedDomainsInput] = useState('');
   const [ssoGoogleEnabled, setSsoGoogleEnabled] = useState(true);
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [recycleBinRetentionDays, setRecycleBinRetentionDays] = useState('');
 
   useEffect(() => {
     if (orgSettingsData) {
@@ -100,6 +103,7 @@ export default function OrganizationSettingsPage() {
       setAllowedDomainsInput((orgSettingsData.allowedDomains || []).join(', '));
       setSsoGoogleEnabled(orgSettingsData.ssoGoogleEnabled !== false);
       setMfaRequired(orgSettingsData.mfaRequired === true);
+      setRecycleBinRetentionDays(orgSettingsData.recycleBinRetentionDays ? String(orgSettingsData.recycleBinRetentionDays) : '');
     }
   }, [orgSettingsData]);
 
@@ -123,7 +127,7 @@ export default function OrganizationSettingsPage() {
       .split(',')
       .map((d) => d.trim())
       .filter(Boolean);
-    updateOrgSettingsMutation.mutate({ ...orgForm, allowedDomains, ssoGoogleEnabled, mfaRequired });
+    updateOrgSettingsMutation.mutate({ ...orgForm, allowedDomains, ssoGoogleEnabled, mfaRequired, recycleBinRetentionDays: recycleBinRetentionDays.trim() === '' ? null : Number(recycleBinRetentionDays) });
   };
 
   const sendTestAlertMutation = useMutation({
@@ -578,13 +582,43 @@ export default function OrganizationSettingsPage() {
               </div>
 
               <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Recycle Bin Retention</span>
+                </div>
+                <p className="text-[10px] text-slate-400 -mt-1">
+                  How long a deleted file or folder sits in someone's Recycle Bin before it's automatically and
+                  permanently purged. Leave blank to keep deleted items forever until someone manually empties
+                  their own trash.
+                </p>
+                <div className="flex items-center gap-2 max-w-xs">
+                  <input
+                    type="number"
+                    min={1}
+                    max={3650}
+                    placeholder="Forever"
+                    value={recycleBinRetentionDays}
+                    onChange={(e) => setRecycleBinRetentionDays(e.target.value)}
+                    className="w-24 px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 text-xs font-bold focus:outline-none"
+                  />
+                  <span className="text-xs text-slate-400 font-semibold">days</span>
+                </div>
+              </div>
+
+              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
                 <div className="flex items-center justify-between border-b pb-2">
                   <div className="flex items-center gap-2 font-bold text-xs text-foreground">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     <span>Single Sign-On (Google)</span>
                   </div>
-                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${orgSettingsData?.ssoGoogleAvailable ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
-                    {orgSettingsData?.ssoGoogleAvailable ? 'Active' : 'Not Configured'}
+                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    orgSettingsData?.ssoGoogleUsingDemoCredentials
+                      ? 'bg-amber-500/10 text-amber-600'
+                      : orgSettingsData?.ssoGoogleAvailable
+                        ? 'bg-emerald-500/10 text-emerald-600'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+                  }`}>
+                    {orgSettingsData?.ssoGoogleUsingDemoCredentials ? 'Demo Credentials' : orgSettingsData?.ssoGoogleAvailable ? 'Active' : 'Not Configured'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 -mt-1">
@@ -593,6 +627,17 @@ export default function OrganizationSettingsPage() {
                   that part is infra-level config, not editable here. This toggle lets you turn it off for the
                   workspace even when the server has it configured.
                 </p>
+                {orgSettingsData?.ssoGoogleUsingDemoCredentials && (
+                  <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-3">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-normal">
+                      <strong>This is still using the template's shared demo Google credentials.</strong> "Continue
+                      with Google" will show up but won't actually work for your users. Create your own OAuth
+                      Client ID in Google Cloud Console and set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET on the
+                      server to fix this.
+                    </p>
+                  </div>
+                )}
                 <label className="flex items-center gap-3 cursor-pointer w-fit">
                   <button
                     type="button"

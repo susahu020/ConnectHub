@@ -351,7 +351,7 @@ export const deleteRole = async (req: AuthenticatedRequest, res: Response, next:
 export const assignRole = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId } = req.params;
-    const { roleId } = req.body; // customRoleId
+    const { roleId, expiresAt } = req.body; // customRoleId; expiresAt is optional (time-bound elevation)
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -359,10 +359,29 @@ export const assignRole = async (req: AuthenticatedRequest, res: Response, next:
       return;
     }
 
-    const role = await prisma.customRole.findUnique({ where: { id: roleId } });
-    if (!role) {
-      res.status(404).json({ message: 'Custom role not found.' });
-      return;
+    // roleId is nullable — this doubles as the unassign path (revert to
+    // base permissions only), which previously had no way to be reached
+    // from this endpoint at all.
+    let role: { name: string } | null = null;
+    if (roleId) {
+      role = await prisma.customRole.findUnique({ where: { id: roleId }, select: { name: true } });
+      if (!role) {
+        res.status(404).json({ message: 'Custom role not found.' });
+        return;
+      }
+    }
+
+    let parsedExpiresAt: Date | null = null;
+    if (roleId && expiresAt) {
+      parsedExpiresAt = new Date(expiresAt);
+      if (Number.isNaN(parsedExpiresAt.getTime())) {
+        res.status(400).json({ message: 'expiresAt is not a valid date.' });
+        return;
+      }
+      if (parsedExpiresAt <= new Date()) {
+        res.status(400).json({ message: 'expiresAt must be in the future.' });
+        return;
+      }
     }
 
     // Only the granular RBAC role is updated here. This must NOT also set
@@ -374,18 +393,22 @@ export const assignRole = async (req: AuthenticatedRequest, res: Response, next:
     // adminUpdateUser), which carry their own self- and last-admin guards.
     await prisma.user.update({
       where: { id: userId },
-      data: { customRoleId: roleId },
+      data: { customRoleId: roleId || null, customRoleExpiresAt: parsedExpiresAt },
     });
 
     // Invalidate session cache in Redis to refresh permissions immediately
-    await redis.del(`permissions:role:${roleId}`);
+    if (roleId) {
+      await redis.del(`permissions:role:${roleId}`);
+    }
 
     // Audit Log
     await prisma.auditLog.create({
       data: {
         userId: req.user?.id,
-        action: 'ASSIGN_ROLE',
-        details: `Assigned custom role "${role.name}" to user ${user.email}`,
+        action: role ? 'ASSIGN_ROLE' : 'UNASSIGN_ROLE',
+        details: role
+          ? `Assigned custom role "${role.name}" to user ${user.email}${parsedExpiresAt ? ` until ${parsedExpiresAt.toISOString()}` : ''}`
+          : `Removed custom role assignment from user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'] || null,
       },
@@ -404,15 +427,17 @@ export const assignRole = async (req: AuthenticatedRequest, res: Response, next:
     // making a follow-up round trip.
     const io = req.app.get('io');
     if (io) {
-      const permissions = await getRolePermissions(roleId);
+      const permissions = roleId ? await getRolePermissions(roleId) : {};
       io.to(`user:${userId}`).emit('role_assignment_updated', {
-        customRoleId: roleId,
-        roleName: role.name,
+        customRoleId: roleId || null,
+        roleName: role?.name || '',
         permissions,
       });
     }
 
-    res.status(200).json({ message: `Role "${role.name}" successfully assigned.` });
+    res.status(200).json({
+      message: role ? `Role "${role.name}" successfully assigned.` : 'Custom role assignment removed.',
+    });
 
   } catch (error) {
     next(error);

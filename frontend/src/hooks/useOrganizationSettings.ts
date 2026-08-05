@@ -25,9 +25,14 @@ export interface OrganizationSettings {
   duplicateLoginPolicy: 'SINGLE_SESSION' | 'LIMIT_3' | 'UNLIMITED';
   // Whether every user must have 2FA enabled to use the app.
   mfaRequired: boolean;
+  // Days before a soft-deleted file/folder is auto-purged. Null = forever.
+  recycleBinRetentionDays: number | null;
   // Computed server-side — true only when the server has real Google OAuth
   // credentials configured AND the admin hasn't turned it off.
   ssoGoogleAvailable: boolean;
+  // True when GOOGLE_CLIENT_ID still matches the template's placeholder
+  // value — SSO looks "available" but will fail when actually tried.
+  ssoGoogleUsingDemoCredentials: boolean;
   // Computed server-side (not a stored column) — true only until the very
   // first Admin account exists. See organization.controller.ts.
   needsInitialSetup: boolean;
@@ -53,7 +58,9 @@ export const DEFAULT_ORG_SETTINGS: OrganizationSettings = {
   ssoGoogleEnabled: true,
   duplicateLoginPolicy: 'SINGLE_SESSION',
   mfaRequired: false,
+  recycleBinRetentionDays: null,
   ssoGoogleAvailable: false,
+  ssoGoogleUsingDemoCredentials: false,
   // Defaults to false (not true) while loading — safer to briefly hide the
   // public signup form than to briefly show it before we actually know.
   needsInitialSetup: false,

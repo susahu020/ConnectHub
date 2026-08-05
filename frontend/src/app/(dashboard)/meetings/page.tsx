@@ -16,6 +16,7 @@ import {
   MessageSquare, 
   Eraser, 
   Download, 
+  Rss,
   PhoneOff, 
   Plus, 
   X, 
@@ -38,6 +39,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../../../hooks/useSocket';
 import { api } from '../../../services/api';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 // Remote video stream binder for WebRTC
 const RemoteVideo = ({ stream, className }: { stream: MediaStream; className?: string }) => {
@@ -52,6 +54,7 @@ const RemoteVideo = ({ stream, className }: { stream: MediaStream; className?: s
 
 export default function MeetingsPage() {
   const { user } = useAuthStore();
+  const confirm = useConfirm();
   const { socket } = useSocket();
   const { settings: orgSettings } = useOrganizationSettings();
   
@@ -170,6 +173,8 @@ export default function MeetingsPage() {
   const [scheduleTime, setScheduleTime] = useState('');
   const [scheduleDuration, setScheduleDuration] = useState('30');
   const [scheduleInviteeIds, setScheduleInviteeIds] = useState<string[]>([]);
+  const [scheduleRecurrenceRule, setScheduleRecurrenceRule] = useState(''); // '' = one-off
+  const [scheduleRecurrenceEndDate, setScheduleRecurrenceEndDate] = useState('');
   const [directoryUsers, setDirectoryUsers] = useState<any[]>([]);
   const [myMeetings, setMyMeetings] = useState<any[]>([]);
   const [loadingMyMeetings, setLoadingMyMeetings] = useState(true);
@@ -1436,21 +1441,35 @@ export default function MeetingsPage() {
       return;
     }
 
+    if (scheduleRecurrenceRule && !scheduleRecurrenceEndDate) {
+      toast.error('Pick when the recurring series should stop.');
+      return;
+    }
+
     setScheduling(true);
     try {
-      await api.scheduleMeeting({
+      const result: any = await api.scheduleMeeting({
         title: scheduleTitle.trim() || undefined,
         scheduledFor: scheduledFor.toISOString(),
         durationMins: parseInt(scheduleDuration, 10) || 30,
         inviteeIds: scheduleInviteeIds,
+        recurrenceRule: scheduleRecurrenceRule || undefined,
+        recurrenceEndDate: scheduleRecurrenceRule && scheduleRecurrenceEndDate ? new Date(scheduleRecurrenceEndDate).toISOString() : undefined,
       });
-      toast.success(scheduleInviteeIds.length > 0 ? 'Meeting scheduled and invites sent!' : 'Meeting scheduled!');
+      const occurrences = result?.occurrencesCreated || 1;
+      toast.success(
+        occurrences > 1
+          ? `${occurrences} occurrences scheduled${scheduleInviteeIds.length > 0 ? ' and invites sent' : ''}!`
+          : scheduleInviteeIds.length > 0 ? 'Meeting scheduled and invites sent!' : 'Meeting scheduled!'
+      );
       setShowScheduleModal(false);
       setScheduleTitle('');
       setScheduleDate('');
       setScheduleTime('');
       setScheduleDuration('30');
       setScheduleInviteeIds([]);
+      setScheduleRecurrenceRule('');
+      setScheduleRecurrenceEndDate('');
       refetchMyMeetings();
     } catch (err: any) {
       toast.error(err.message || 'Failed to schedule the meeting.');
@@ -1469,6 +1488,87 @@ export default function MeetingsPage() {
       toast.error(err.message || 'Failed to respond to the invite.');
     } finally {
       setRespondingInviteId('');
+    }
+  };
+
+  const [cancellingMeetingId, setCancellingMeetingId] = useState('');
+  const [downloadingIcsId, setDownloadingIcsId] = useState('');
+  const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+  const [subscribingFeed, setSubscribingFeed] = useState(false);
+  const [feedUrls, setFeedUrls] = useState<{ feedUrl: string; webcalUrl: string } | null>(null);
+  const handleGetCalendarFeed = async () => {
+    setShowSubscribeModal(true);
+    if (feedUrls) return; // already fetched this session, no need to regenerate every open
+    setSubscribingFeed(true);
+    try {
+      const result = await api.regenerateCalendarFeedToken();
+      setFeedUrls(result);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to set up your calendar subscription.');
+      setShowSubscribeModal(false);
+    } finally {
+      setSubscribingFeed(false);
+    }
+  };
+  const handleRegenerateFeed = async () => {
+    setSubscribingFeed(true);
+    try {
+      const result = await api.regenerateCalendarFeedToken();
+      setFeedUrls(result);
+      toast.success('New link generated — the old one no longer works.');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to regenerate your calendar link.');
+    } finally {
+      setSubscribingFeed(false);
+    }
+  };
+
+  const handleDownloadIcs = async (meeting: any) => {
+    setDownloadingIcsId(meeting.id);
+    try {
+      await api.downloadMeetingIcs(meeting.id, meeting.code);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download this meeting.');
+    } finally {
+      setDownloadingIcsId('');
+    }
+  };
+
+  const handleCancelMeeting = async (meeting: any) => {
+    const ok = await confirm({
+      title: 'Cancel Meeting',
+      message: `Cancel "${meeting.title || 'this meeting'}"? Everyone invited will be able to see it was cancelled.`,
+      confirmText: 'Cancel Meeting',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    // useConfirm only ever resolves true/false, so a recurring meeting
+    // needs a second, separate confirm rather than trying to squeeze a
+    // three-way answer (cancel series / cancel one / do nothing) out of one
+    // dialog — dismissing this second one safely falls back to the less
+    // destructive choice (just this occurrence), not the whole series.
+    let scope: 'occurrence' | 'series' = 'occurrence';
+    if (meeting.recurrenceRule) {
+      const cancelSeries = await confirm({
+        title: 'Cancel the Whole Series?',
+        message: `This meeting repeats ${meeting.recurrenceRule.toLowerCase()}. Cancel every future occurrence too, or just this one?`,
+        confirmText: 'Cancel Whole Series',
+        cancelText: 'Just This One',
+        type: 'danger',
+      });
+      scope = cancelSeries ? 'series' : 'occurrence';
+    }
+
+    setCancellingMeetingId(meeting.id);
+    try {
+      const result: any = await api.cancelMeeting(meeting.id, scope);
+      toast.success(scope === 'series' ? `Series cancelled (${result?.cancelledCount || ''} occurrences).` : 'Meeting cancelled.');
+      refetchMyMeetings();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to cancel the meeting.');
+    } finally {
+      setCancellingMeetingId('');
     }
   };
 
@@ -1646,6 +1746,15 @@ export default function MeetingsPage() {
                 <span>Schedule</span>
               </button>
 
+              <button
+                onClick={handleGetCalendarFeed}
+                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm rounded-xl transition-all flex items-center space-x-2"
+                title="Subscribe to your meetings from Google Calendar, Outlook, or Apple Calendar"
+              >
+                <Rss className="h-4.5 w-4.5" />
+                <span>Sync to Calendar App</span>
+              </button>
+
               {/* Unified code-entry pill: icon + input + attached Join action, so
                   the join button is always visible rather than appearing/disappearing. */}
               <div className="flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-3.5 pr-1.5 py-1.5 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
@@ -1682,7 +1791,7 @@ export default function MeetingsPage() {
                 </div>
               ) : (() => {
                 const upcoming = myMeetings
-                  .filter((m: any) => m.status !== 'ENDED' && m.scheduledFor)
+                  .filter((m: any) => m.status !== 'ENDED' && m.status !== 'CANCELLED' && m.scheduledFor)
                   .sort((a: any, b: any) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime())
                   .slice(0, 5);
 
@@ -1706,6 +1815,11 @@ export default function MeetingsPage() {
                             <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
                               {m.title || 'Untitled Meeting'}
                               {isLive && <span className="ml-2 text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded align-middle">LIVE</span>}
+                              {m.recurrenceRule && (
+                                <span className="ml-2 text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded align-middle capitalize">
+                                  Repeats {m.recurrenceRule.toLowerCase()}
+                                </span>
+                              )}
                             </p>
                             <p className="text-[10px] text-slate-450 mt-0.5">
                               {when} {m.isHost ? '· You\'re hosting' : `· Hosted by ${m.host?.firstName} ${m.host?.lastName}`}
@@ -1713,13 +1827,37 @@ export default function MeetingsPage() {
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {m.isHost ? (
+                            {m.status !== 'CANCELLED' && (
                               <button
-                                onClick={() => isLive ? handleJoinExisting(m.code) : handleStartScheduledMeeting(m.code)}
-                                className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-[10px] font-bold transition-all"
+                                disabled={downloadingIcsId === m.id}
+                                onClick={() => handleDownloadIcs(m)}
+                                title="Add to your calendar app (.ics)"
+                                aria-label={`Add ${m.title || 'meeting'} to calendar`}
+                                className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50"
                               >
-                                {isLive ? 'Join' : 'Start'}
+                                <Download className="h-3.5 w-3.5" />
                               </button>
+                            )}
+                            {m.isHost ? (
+                              <>
+                                <button
+                                  onClick={() => isLive ? handleJoinExisting(m.code) : handleStartScheduledMeeting(m.code)}
+                                  className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-[10px] font-bold transition-all"
+                                >
+                                  {isLive ? 'Join' : 'Start'}
+                                </button>
+                                {!isLive && (
+                                  <button
+                                    disabled={cancellingMeetingId === m.id}
+                                    onClick={() => handleCancelMeeting(m)}
+                                    title="Cancel meeting"
+                                    aria-label={`Cancel ${m.title || 'meeting'}`}
+                                    className="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 text-red-600 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </>
                             ) : m.myInviteStatus === 'DECLINED' ? (
                               <span className="text-[10px] font-bold text-slate-400 px-2">Declined</span>
                             ) : m.myInviteStatus === 'PENDING' ? (
@@ -1864,6 +2002,35 @@ export default function MeetingsPage() {
               </div>
 
               <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Repeats</label>
+                <select
+                  value={scheduleRecurrenceRule}
+                  onChange={(e) => setScheduleRecurrenceRule(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                >
+                  <option value="">Doesn't repeat</option>
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="BIWEEKLY">Every 2 weeks</option>
+                  <option value="MONTHLY">Monthly</option>
+                </select>
+              </div>
+
+              {scheduleRecurrenceRule && (
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Repeat Until</label>
+                  <input
+                    type="date"
+                    value={scheduleRecurrenceEndDate}
+                    min={scheduleDate || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setScheduleRecurrenceEndDate(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Capped at {52} occurrences either way.</p>
+                </div>
+              )}
+
+              <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
                   Invite teammates {scheduleInviteeIds.length > 0 && `(${scheduleInviteeIds.length} selected)`}
                 </label>
@@ -1961,6 +2128,60 @@ export default function MeetingsPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* CALENDAR SUBSCRIPTION MODAL */}
+      {showSubscribeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Sync to Calendar App">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => setShowSubscribeModal(false)}
+              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base flex items-center gap-2"><Rss className="h-4 w-4 text-primary" /> Sync to Your Calendar App</h3>
+              <p className="text-xs text-slate-400">
+                Paste this link into Google Calendar, Outlook, or Apple Calendar as a subscription — new meetings
+                you're invited to will show up automatically, no manual export needed.
+              </p>
+            </div>
+
+            {subscribingFeed && !feedUrls ? (
+              <div className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+            ) : feedUrls ? (
+              <>
+                <div className="flex items-start justify-between gap-2 bg-slate-50 dark:bg-slate-950 px-4 py-3 rounded-xl border text-left">
+                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-350 break-all select-all leading-relaxed">
+                    {feedUrls.feedUrl}
+                  </span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(feedUrls.feedUrl); toast.success('Copied!'); }}
+                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all shrink-0"
+                    title="Copy link"
+                  >
+                    <Copy className="h-4.5 w-4.5" />
+                  </button>
+                </div>
+                <a
+                  href={feedUrls.webcalUrl}
+                  className="block text-center px-4 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-xl shadow-md transition-all"
+                >
+                  Open directly in my calendar app
+                </a>
+                <button
+                  onClick={handleRegenerateFeed}
+                  disabled={subscribingFeed}
+                  className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                >
+                  Link not working, or shared by mistake? Generate a new one
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {/* WAITING ROOM / PERMISSIONS GATEWAY */}
       {meetingStep === 'waiting' && (

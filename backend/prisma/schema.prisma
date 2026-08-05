@@ -48,6 +48,7 @@ enum MeetingStatus {
   SCHEDULED
   LIVE
   ENDED
+  CANCELLED
 }
 
 enum GroupType {
@@ -145,6 +146,13 @@ model User {
   settings         UserSettings?
   customRoleId     String?
   customRole       CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  // Optional expiry for the current customRoleId assignment — lets an admin
+  // grant a role temporarily (e.g. elevated access for a migration/incident)
+  // instead of only ever permanently. Checked lazily in
+  // middleware/auth.middleware.ts on the next authenticated request after
+  // expiry, which clears both fields and reverts the user to their base
+  // permissions. Meaningless (and ignored) when customRoleId is null.
+  customRoleExpiresAt DateTime?
   dashboardLayouts DashboardWidgetLayout[]
   messageBookmarks MessageBookmark[]
   messagePollVotes MessagePollVote[]
@@ -153,6 +161,14 @@ model User {
   twoFactorSecret  String?
   twoFactorEnabled Boolean @default(false)
   twoFactorBackupCodes String?
+  // Long random token embedded in a personal .ics subscription URL (see
+  // getCalendarFeed in meeting.controller.ts). Calendar apps (Google
+  // Calendar, Outlook, Apple Calendar) poll a subscription URL periodically
+  // via a plain unauthenticated GET — they can't send a JWT — so the token
+  // itself has to be the credential. Null until the user first generates
+  // it from Settings; regenerable if it ever leaks, which immediately
+  // invalidates the old URL.
+  calendarFeedToken     String?  @unique
   loginAttempts    Int @default(0)
   lockoutUntil     DateTime?
   deletedConversations DeletedConversation[]
@@ -332,6 +348,11 @@ model File {
   folder       Folder?       @relation(fields: [folderId], references: [id], onDelete: SetNull)
   version      Int           @default(1)
   isDeleted    Boolean       @default(false)
+  // When the file was soft-deleted (moved to the Recycle Bin). Null while
+  // not deleted. Powers "deleted N days ago" / retention auto-purge — see
+  // OrganizationSettings.recycleBinRetentionDays and getRecycleBin's lazy
+  // purge in file.controller.ts.
+  deletedAt    DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   versions     FileVersion[]
@@ -359,6 +380,7 @@ model Folder {
   createdById String
   files       File[]
   isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -531,7 +553,20 @@ model Meeting {
   endedAt      DateTime?
   scheduledFor DateTime?
   durationMins Int?
+  // Recurrence: when set, this meeting is one occurrence of a repeating
+  // series. recurrenceGroupId links every occurrence of the same series
+  // together (shared by all of them, including the first) so the whole
+  // series — or just this one occurrence — can be found/cancelled as a
+  // unit. recurrenceRule/recurrenceEndDate are duplicated onto every
+  // occurrence rather than only the first, so any single occurrence is
+  // self-descriptive ("repeats weekly until Dec 1") without needing to
+  // look up a different row.
+  recurrenceRule     String?   // 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+  recurrenceGroupId  String?
+  recurrenceEndDate  DateTime?
   invites      MeetingInvite[]
+
+  @@index([recurrenceGroupId])
 }
 
 enum MeetingInviteStatus {
@@ -713,6 +748,12 @@ model OrganizationSettings {
   // default so flipping it on doesn't instantly lock out an org that
   // hasn't rolled 2FA out to everyone yet.
   mfaRequired          Boolean  @default(false)
+  // Days a soft-deleted file/folder sits in someone's Recycle Bin before
+  // being auto-purged permanently. Null = keep forever (default — no
+  // existing org's storage behavior changes until an admin opts in).
+  // Enforced lazily in getRecycleBin (file.controller.ts), same pattern as
+  // the time-bound role expiry check in auth.middleware.ts.
+  recycleBinRetentionDays Int?
   updatedAt            DateTime @updatedAt
   updatedById          String?
 }

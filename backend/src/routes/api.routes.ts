@@ -15,6 +15,10 @@ import {
   getMeetingByCode,
   startMeeting,
   endMeeting,
+  cancelMeeting,
+  getMeetingIcs,
+  regenerateCalendarFeedToken,
+  getCalendarFeed,
   getMeetings,
 } from '../controllers/meeting.controller';
 
@@ -185,6 +189,7 @@ import {
   getRecycleBin,
   restoreItem,
   deletePermanently,
+  emptyRecycleBin,
   moveItem,
   createShareLink,
   accessSharedFile,
@@ -373,6 +378,13 @@ router.patch('/meetings/:id/invite', authenticate as any, respondToInvite as any
 router.get('/meetings/:code', authenticate as any, getMeetingByCode as any);
 router.post('/meetings/:code/start', authenticate as any, startMeeting as any);
 router.post('/meetings/:code/end', authenticate as any, endMeeting as any);
+router.delete('/meetings/:id', authenticate as any, cancelMeeting as any);
+router.get('/meetings/:id/ics', authenticate as any, getMeetingIcs as any);
+router.post('/meetings/calendar-feed/token', authenticate as any, regenerateCalendarFeedToken as any);
+// No `authenticate` here on purpose — calendar apps poll this URL with a
+// plain unauthenticated GET on their own schedule; the token in the path is
+// the credential instead (see getCalendarFeed's doc comment).
+router.get('/meetings/calendar-feed/:token', getCalendarFeed as any);
 
 // ==========================================
 // CHAT & MESSAGING
@@ -450,6 +462,7 @@ router.put('/files/:id', authenticate as any, upload.single('file'), updateFile 
 router.delete('/files/:id', authenticate as any, checkPermission('Files', 'Delete'), deleteFile as any);
 router.delete('/files/folders/:id', authenticate as any, deleteFolder as any);
 router.get('/files/recycle-bin', authenticate as any, getRecycleBin as any);
+router.delete('/files/recycle-bin', authenticate as any, emptyRecycleBin as any);
 router.post('/files/:id/restore', authenticate as any, restoreItem as any);
 router.delete('/files/:id/permanent', authenticate as any, deletePermanently as any);
 router.post('/files/:id/move', authenticate as any, moveItem as any);
@@ -479,7 +492,7 @@ router.get('/search', authenticate as any, globalSearch as any);
 router.get('/admin/audit-logs', authenticate as any, authorize(['ADMIN']), getAuditLogs as any);
 router.get('/admin/audit-logs/export', authenticate as any, authorize(['ADMIN']), exportAuditLogs as any);
 router.get('/admin/users', authenticate as any, authorize(['ADMIN']), getSystemUsers as any);
-router.put('/admin/users/:userId/role', authenticate as any, checkPermission('Users', 'Update'), updateUserRole as any);
+router.put('/admin/users/:userId/role', authenticate as any, authorize(['ADMIN']), updateUserRole as any);
 router.put('/admin/users/:userId/suspension', authenticate as any, authorize(['ADMIN']), toggleUserSuspension as any);
 router.put('/admin/users/:userId/active', authenticate as any, authorize(['ADMIN']), toggleUserActive as any);
 router.put('/admin/users/:id', authenticate as any, authorize(['ADMIN']), adminUpdateUser as any);

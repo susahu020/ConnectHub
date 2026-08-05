@@ -1,0 +1,118 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "search": "Search",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "yes": "Yes",
+    "no": "No",
+    "on": "On",
+    "off": "Off",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "notSpecified": "Not Specified"
+  },
+  "nav": {
+    "sections": {
+      "overview": "Overview",
+      "collaborate": "Collaborate",
+      "work": "Work",
+      "resources": "Resources",
+      "people": "People",
+      "organization": "Organization",
+      "general": "General"
+    },
+    "items": {
+      "dashboard": "Dashboard",
+      "directChat": "Direct Chat",
+      "channels": "Channels",
+      "meetings": "Meetings",
+      "announcements": "Announcements",
+      "tasks": "Tasks",
+      "calendar": "Calendar",
+      "automations": "Automations",
+      "knowledgeBase": "Knowledge Base",
+      "fileStorage": "File Storage",
+      "hrPortal": "HR Portal",
+      "directory": "Directory",
+      "orgChart": "Org Chart",
+      "analytics": "Analytics",
+      "organization": "Organization",
+      "settings": "Settings",
+      "adminPanel": "Admin Panel"
+    },
+    "signOut": "Sign out"
+  },
+  "topbar": {
+    "searchPlaceholder": "Search ConnectHub...",
+    "notifications": "Notifications",
+    "unreadOnly": "Unread only",
+    "noNotifications": "No {{filter}}notifications yet.",
+    "unread": "unread ",
+    "markAllRead": "Mark all read",
+    "viewProfile": "View Profile",
+    "myStatus": "My Status"
+  },
+  "dashboard": {
+    "greetingMorning": "Good morning",
+    "greetingAfternoon": "Good afternoon",
+    "greetingEvening": "Good evening",
+    "editLayout": "Edit Layout",
+    "save": "Save Layout",
+    "discard": "Discard",
+    "customizeWidgets": "Customize Widgets"
+  },
+  "tasks": {
+    "projectsDirectory": "Projects Directory",
+    "projectsSubtitle": "Select a workspace from the list below to access its Kanban tasks, month calendar agendas, and Gantt charts.",
+    "createProject": "Create Project"
+  },
+  "hr": {
+    "title": "HR Portal"
+  },
+  "settings": {
+    "title": "System Preferences",
+    "subtitle": "Customize UI appearances, notification triggers, active sessions, and passwords.",
+    "preferences": {
+      "title": "Preferences",
+      "theme": "Theme",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeSystem": "System",
+      "language": "Language",
+      "alertChannels": "Alert Channels",
+      "pushLabel": "Enable Real-Time Sockets Push Notifications",
+      "emailLabel": "Enable Email Notifications",
+      "desktopLabel": "Enable Desktop Notifications"
+    },
+    "notificationPreferences": {
+      "title": "Notification Preferences",
+      "description": "Choose what you get notified about, per category. These narrow down the Alert Channels above — turning a channel off there mutes everything, regardless of what's checked here.",
+      "category": "Category",
+      "inApp": "In-app",
+      "email": "Email"
+    },
+    "password": {
+      "title": "Change Password",
+      "current": "Current Password",
+      "new": "New Password",
+      "confirm": "Confirm New Password",
+      "submit": "Update Password"
+    },
+    "twoFactor": {
+      "title": "Two-Factor Authentication"
+    },
+    "privacy": {
+      "title": "Privacy & Data"
+    },
+    "sessions": {
+      "title": "Active Sessions"
+    }
+  }
+}

@@ -9,6 +9,9 @@ import { Toaster, toast } from 'react-hot-toast';
 import { ConfirmProvider } from '../context/ConfirmContext';
 import { useOrganizationSettings } from '../hooks/useOrganizationSettings';
 import { AUTH_SESSION_EXPIRED_EVENT, AUTH_MFA_REQUIRED_EVENT } from '../services/api';
+import { I18nextProvider } from 'react-i18next';
+import i18n from '../lib/i18n';
+import { useAuthStore } from '../lib/store';
 
 export { useSocket };
 
@@ -93,6 +96,27 @@ function OrgBrandingSync() {
   return null;
 }
 
+// Applies the signed-in user's saved UserSettings.language (see the
+// Preferences card in Settings) to i18next, so every translated string in
+// the app actually reflects their choice — not just the Settings page
+// itself. Runs on login and whenever the saved value changes (including a
+// live update pushed from another of the user's own open tabs, since
+// settings changes go through the same store update path as everywhere
+// else in the app). Falls back to English for a user who's never touched
+// the setting, matching the field's own DB default.
+function LanguageSync() {
+  const { user } = useAuthStore();
+  const language = user?.settings?.language;
+
+  useEffect(() => {
+    if (language && i18n.language !== language) {
+      i18n.changeLanguage(language);
+    }
+  }, [language]);
+
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -108,18 +132,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <ConfirmProvider>
-          <SocketProvider>
-            <SessionExpiryListener />
-            <MfaRequiredListener />
-            <OrgBrandingSync />
-            {children}
-            <Toaster position="top-right" reverseOrder={false} />
-          </SocketProvider>
-        </ConfirmProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <I18nextProvider i18n={i18n}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ConfirmProvider>
+            <SocketProvider>
+              <SessionExpiryListener />
+              <MfaRequiredListener />
+              <OrgBrandingSync />
+              <LanguageSync />
+              {children}
+              <Toaster position="top-right" reverseOrder={false} />
+            </SocketProvider>
+          </ConfirmProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </I18nextProvider>
   );
 }

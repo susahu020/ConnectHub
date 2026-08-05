@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock, Check, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function WelcomeHeader({
   greeting,
@@ -20,6 +21,7 @@ export function WelcomeHeader({
   onSave: () => void;
   onStartEditing: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
@@ -44,7 +46,7 @@ export function WelcomeHeader({
               onClick={onDiscard}
               className="px-4 py-2 border border-border rounded-xl text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors bg-white dark:bg-slate-900 shadow-sm"
             >
-              Discard
+              {t('dashboard.discard')}
             </button>
             <button
               onClick={onSave}
@@ -52,7 +54,7 @@ export function WelcomeHeader({
               className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-semibold hover:bg-primary-dark transition-colors shadow-md flex items-center gap-1.5 disabled:opacity-50"
             >
               <Check className="h-4 w-4" />
-              <span>Save Layout</span>
+              <span>{t('dashboard.save')}</span>
             </button>
           </>
         ) : (
@@ -61,7 +63,7 @@ export function WelcomeHeader({
             className="px-4 py-2 border border-border/70 rounded-xl text-xs font-semibold text-foreground hover:bg-muted/60 hover:border-primary/30 transition-colors bg-white/70 dark:bg-slate-900/60 shadow-sm flex items-center gap-1.5 backdrop-blur-md"
           >
             <Settings className="h-4 w-4 text-primary shrink-0" />
-            <span>Customize Widgets</span>
+            <span>{t('dashboard.customizeWidgets')}</span>
           </button>
         )}
       </div>

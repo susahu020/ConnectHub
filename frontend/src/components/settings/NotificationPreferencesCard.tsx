@@ -1,5 +1,6 @@
 import React from 'react';
 import { BellRing } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export type NotificationCategory =
   | 'TASK_ASSIGNED'
@@ -49,25 +50,25 @@ export function NotificationPreferencesCard({
     });
   };
 
+  const { t } = useTranslation();
   return (
     <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm space-y-4">
       <div className="border-b pb-3 flex items-center space-x-2">
         <BellRing className="h-5 w-5 text-primary" />
-        <h3 className="font-bold text-sm">Notification Preferences</h3>
+        <h3 className="font-bold text-sm">{t('settings.notificationPreferences.title')}</h3>
       </div>
 
       <p className="text-xs text-slate-400">
-        Choose what you get notified about, per category. These narrow down the Alert Channels above — turning a
-        channel off there mutes everything, regardless of what's checked here.
+        {t('settings.notificationPreferences.description')}
       </p>
 
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="text-slate-400 uppercase text-[10px] tracking-wider border-b">
-              <th className="text-left font-semibold py-2">Category</th>
-              <th className="text-center font-semibold py-2 w-20">In-app</th>
-              <th className="text-center font-semibold py-2 w-20">Email</th>
+              <th className="text-left font-semibold py-2">{t('settings.notificationPreferences.category')}</th>
+              <th className="text-center font-semibold py-2 w-20">{t('settings.notificationPreferences.inApp')}</th>
+              <th className="text-center font-semibold py-2 w-20">{t('settings.notificationPreferences.email')}</th>
             </tr>
           </thead>
           <tbody>

@@ -34,6 +34,30 @@ import {
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'default-local-jwt-refresh-secret-123456';
 
+// Options for the HttpOnly refresh-token cookie. This was previously always
+// `sameSite: 'lax'`, which quietly breaks the moment the frontend and
+// backend are on different domains (e.g. a Vercel frontend + a Render
+// backend, or any other split-hosting setup) — Lax cookies are not sent on
+// cross-site fetch/XHR requests (only on top-level navigations), so the
+// browser would just never attach this cookie to the cross-origin
+// `credentials: 'include'` call to /auth/refresh. Login itself would look
+// like it worked (the Set-Cookie response succeeds either way), but the
+// first token refresh after that would silently fail and the user would be
+// logged out with no clear cause.
+//
+// SameSite=None is required for a cross-site cookie to actually be sent,
+// but browsers reject SameSite=None unless Secure is also set — which in
+// turn requires HTTPS, so this only applies when NODE_ENV=production (where
+// both Render and Vercel serve over HTTPS by default). In local dev, both
+// sides are on http://localhost, so Lax (and non-Secure) is correct there.
+const isProd = process.env.NODE_ENV === 'production';
+const getRefreshCookieOptions = (maxAge?: number) => ({
+  httpOnly: true,
+  secure: isProd,
+  sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+  ...(maxAge !== undefined ? { maxAge } : {}),
+});
+
 // Helper to generate access and refresh tokens
 const generateTokens = (userId: string, email: string, sessionId: string, rememberMe: boolean) => {
   const accessToken = jwt.sign(
@@ -426,16 +450,14 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       },
     });
 
-    // Strip password
-    const { passwordHash: _, ...safeUser } = user;
+    // Strip password and 2FA secret material — the frontend never reads
+    // these off a user object (only the dedicated /auth/2fa/setup response
+    // carries a secret, once, during enrollment), so there's no reason for
+    // them to go out over the wire on every login.
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = user;
 
     // Set refresh token in secure HttpOnly cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: sessionLifespan,
-    });
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions(sessionLifespan));
 
     res.status(200).json({
       message: 'Login successful',
@@ -481,7 +503,7 @@ export const logout = async (req: AuthenticatedRequest, res: Response, next: Nex
       });
     }
 
-    res.clearCookie('refreshToken');
+    res.clearCookie('refreshToken', getRefreshCookieOptions());
     res.status(200).json({ message: 'Logged out successfully.' });
   } catch (error) {
     next(error);
@@ -551,7 +573,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
         },
       });
 
-      res.clearCookie('refreshToken');
+      res.clearCookie('refreshToken', getRefreshCookieOptions());
       res.status(401).json({ message: 'Session compromised. Forced logout triggered.' });
       return;
     }
@@ -588,12 +610,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
     }, sessionLifespan / 1000);
 
     // Set new refresh token cookie
-    res.cookie('refreshToken', newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: sessionLifespan,
-    });
+    res.cookie('refreshToken', newRefreshToken, getRefreshCookieOptions(sessionLifespan));
 
     res.status(200).json({
       accessToken,
@@ -1026,14 +1043,9 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
       },
     });
 
-    const { passwordHash: _, ...safeUser } = user;
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = user;
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: sessionLifespan,
-    });
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions(sessionLifespan));
 
     res.status(200).json({
       message: 'Login successful',
@@ -1419,12 +1431,7 @@ export const googleSsoCallback = async (req: Request, res: Response, next: NextF
       },
     });
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: sessionLifespan,
-    });
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions(sessionLifespan));
 
     res.redirect(`${frontendUrl}/sso-callback?accessToken=${encodeURIComponent(accessToken)}`);
   } catch (error) {

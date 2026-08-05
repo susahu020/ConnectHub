@@ -1,5 +1,6 @@
 import React from 'react';
 import { Smartphone, Laptop, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function ActiveSessionsPanel({
   sessions,
@@ -12,12 +13,13 @@ export function ActiveSessionsPanel({
   onLogoutOtherDevices: () => void;
   onLogoutAllDevices: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm space-y-5">
       <div className="border-b pb-3 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Smartphone className="h-5 w-5 text-emerald-500" />
-          <h3 className="font-bold text-sm">Active Sessions</h3>
+          <h3 className="font-bold text-sm">{t('settings.sessions.title')}</h3>
         </div>
       </div>
 

@@ -114,6 +114,35 @@ export const authenticate = async (
       return;
     }
 
+    // Time-bound role elevation: a custom role assignment can carry an
+    // expiresAt (set via rbac.controller.ts's assignRole). Checked lazily
+    // here — the single choke point every authenticated request already
+    // passes through — rather than a background job: the first request
+    // after expiry clears it, logs it, and the user falls back to their
+    // base permissions immediately, no cron/worker needed.
+    if (user.customRoleId && user.customRoleExpiresAt && user.customRoleExpiresAt < new Date()) {
+      const expiredRoleId = user.customRoleId;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { customRoleId: null, customRoleExpiresAt: null },
+      });
+      await prisma.auditLog.create({
+        data: {
+          action: 'ROLE_EXPIRED',
+          details: `Temporary role assignment (role ${expiredRoleId}) for ${user.email} expired and was automatically revoked.`,
+        },
+      });
+      user.customRoleId = null;
+      user.customRoleExpiresAt = null;
+      // Let this user's own other open tabs/sessions know immediately,
+      // same event assignRole itself pushes on a manual change.
+      req.app.get('io')?.to(`user:${user.id}`).emit('role_assignment_updated', {
+        customRoleId: null,
+        roleName: '',
+        permissions: {},
+      });
+    }
+
     // Org-wide MFA enforcement (Organization Settings > Security). Blocks
     // everything except the handful of endpoints needed to view your own
     // name/email, set up 2FA, or log out — not a full lockout, just no

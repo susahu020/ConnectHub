@@ -143,10 +143,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       });
     });
 
-    // Sent directly to this user's own room when an admin assigns them a
-    // different custom role (see assignRole in rbac.controller.ts). Applies
-    // the new role/permissions to local state immediately — no page refresh,
-    // no waiting for the next login — and lets them know it happened.
+    // Sent directly to this user's own room when an admin assigns, changes,
+    // or removes their custom role (see assignRole in rbac.controller.ts),
+    // or when a time-bound role assignment expires on its own (see
+    // middleware/auth.middleware.ts). Applies the new role/permissions to
+    // local state immediately — no page refresh, no waiting for the next
+    // login — and lets them know it happened.
     socketInstance.on(
       'role_assignment_updated',
       ({
@@ -154,12 +156,16 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         roleName,
         permissions,
       }: {
-        customRoleId: string;
+        customRoleId: string | null;
         roleName: string;
         permissions: Record<string, Record<string, boolean>>;
       }) => {
         updateUser({ customRoleId, customRoleName: roleName, permissions });
-        toast.success(`Your role was updated to "${roleName}". New permissions are now active.`);
+        if (customRoleId && roleName) {
+          toast.success(`Your role was updated to "${roleName}". New permissions are now active.`);
+        } else {
+          toast(`Your custom role was removed — you're back to your base permissions.`, { icon: '🔄' });
+        }
         // Any screen showing this user's role (e.g. an admin viewing the
         // directory) should also pick up the change right away.
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });

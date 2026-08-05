@@ -174,7 +174,12 @@ export const getSystemUsers = async (req: AuthenticatedRequest, res: Response, n
         include: { department: { select: { id: true, name: true } } },
         orderBy: { firstName: 'asc' },
       });
-      const safeUsers = users.map(({ passwordHash, ...user }) => user);
+      // Same class of bug as getProfileById in user.controller.ts: stripping
+      // only passwordHash still sent every user's raw twoFactorSecret and
+      // twoFactorBackupCodes to the browser — nothing in the frontend reads
+      // them off a user list, so there's no reason to send them at all,
+      // Admin-only endpoint or not.
+      const safeUsers = users.map(({ passwordHash, twoFactorSecret, twoFactorBackupCodes, ...user }) => user);
       res.status(200).json(safeUsers);
       return;
     }
@@ -195,7 +200,7 @@ export const getSystemUsers = async (req: AuthenticatedRequest, res: Response, n
       prisma.user.count({ where }),
     ]);
 
-    const safeUsers = users.map(({ passwordHash, ...user }) => user);
+    const safeUsers = users.map(({ passwordHash, twoFactorSecret, twoFactorBackupCodes, ...user }) => user);
     res.status(200).json({ users: safeUsers, total, page, limit, totalPages: Math.max(Math.ceil(total / limit), 1) });
   } catch (error) {
     next(error);
@@ -652,7 +657,13 @@ export const adminUpdateUser = async (req: AuthenticatedRequest, res: Response, 
       }
     }
 
-    res.status(200).json({ message: 'User updated successfully.', user: updated });
+    // Same class of leak fixed earlier in getProfileById/getSystemUsers:
+    // `updated` comes straight from prisma.user.update with no select, so
+    // it carries the target user's raw passwordHash and 2FA secret material
+    // — nothing in the frontend reads these off an admin-edit response, so
+    // there's no reason to send them back at all.
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUpdatedUser } = updated;
+    res.status(200).json({ message: 'User updated successfully.', user: safeUpdatedUser });
   } catch (error) {
     next(error);
   }
@@ -716,6 +727,18 @@ export const adminChangeUserPassword = async (req: AuthenticatedRequest, res: Re
       where: { id },
       data: { passwordHash }
     });
+
+    // Consistent with the self-service resetPassword/changePassword flows,
+    // which both already revoke existing sessions on a password change —
+    // this admin-initiated path previously didn't, which mattered most in
+    // exactly the scenario this action is usually taken for: resetting a
+    // compromised account's password while leaving an attacker's existing
+    // session valid until it happened to expire on its own.
+    await revokeSessions(
+      { userId: id, isRevoked: false },
+      'PASSWORD_CHANGE',
+      'Forced session termination due to admin-initiated password reset'
+    );
 
     await prisma.auditLog.create({
       data: {

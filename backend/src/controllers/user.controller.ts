@@ -57,7 +57,10 @@ export const getProfile = async (req: AuthenticatedRequest, res: Response, next:
       return;
     }
 
-    const { passwordHash: _, ...safeUser } = user;
+    // Strip password and 2FA secret material — never read by the frontend
+    // off a user object, so there's no reason to send it back on every
+    // profile load.
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = user;
     res.status(200).json(safeUser);
   } catch (error) {
     next(error);
@@ -144,7 +147,7 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response, ne
       },
     });
 
-    const { passwordHash: _, ...safeUser } = updatedUser;
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = updatedUser;
     emitDataUpdate(req, 'users');
     emitProfileUpdated(req, userId!);
     res.status(200).json({ message: 'Profile updated successfully.', user: safeUser });
@@ -555,7 +558,20 @@ export const getProfileById = async (req: AuthenticatedRequest, res: Response, n
       return;
     }
 
-    const { passwordHash: _, ...safeUser } = user;
+    // This endpoint is hit by any authenticated colleague viewing someone
+    // else's profile, not just the owner — unlike getProfile above, so this
+    // needs to strip more than just the password. Previously only
+    // passwordHash was excluded, which meant every viewer also received the
+    // viewed user's raw twoFactorSecret and twoFactorBackupCodes (enough to
+    // generate valid 2FA codes for their account — a complete bypass of
+    // their 2FA) and emergencyContact (private personal info nobody but the
+    // owner or an Admin has a reason to see).
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = user;
+    const isSelf = req.user?.id === userId;
+    const isPrivileged = req.user?.role === 'ADMIN';
+    if (!isSelf && !isPrivileged) {
+      delete (safeUser as any).emergencyContact;
+    }
     res.status(200).json(safeUser);
   } catch (error) {
     next(error);
@@ -999,7 +1015,7 @@ export const updateProfileById = async (req: AuthenticatedRequest, res: Response
       },
     });
 
-    const { passwordHash: _, ...safeUser } = updatedUser;
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = updatedUser;
     emitDataUpdate(req, 'users');
     emitProfileUpdated(req, userId);
     logAudit(req, 'UPDATE_PROFILE', `Updated own profile information (${userId}).`);

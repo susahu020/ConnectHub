@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -38,6 +39,7 @@ import { CelebrationModal } from '../../components/layout/CelebrationModal';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useTranslation();
   const { user, logout, token, isAuthenticated, updateUser } = useAuthStore();
   const { socket } = useSocket();
   const { settings: orgSettings } = useOrganizationSettings();
@@ -412,52 +414,59 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navGroups: NavGroup[] = [
     {
       label: 'Overview',
-      items: [{ name: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard /> }],
+      translatedLabel: t('nav.sections.overview'),
+      items: [{ name: 'Dashboard', label: t('nav.items.dashboard'), href: '/dashboard', icon: <LayoutDashboard /> }],
     },
     {
       label: 'Collaborate',
+      translatedLabel: t('nav.sections.collaborate'),
       items: [
-        { name: 'Direct Chat', href: '/chat', icon: <MessageSquare /> },
-        { name: 'Channels', href: '/groups', icon: <Users /> },
-        { name: 'Meetings', href: '/meetings', icon: <Video /> },
-        { name: 'Announcements', href: '/announcements', icon: <Megaphone /> },
+        { name: 'Direct Chat', label: t('nav.items.directChat'), href: '/chat', icon: <MessageSquare /> },
+        { name: 'Channels', label: t('nav.items.channels'), href: '/groups', icon: <Users /> },
+        { name: 'Meetings', label: t('nav.items.meetings'), href: '/meetings', icon: <Video /> },
+        { name: 'Announcements', label: t('nav.items.announcements'), href: '/announcements', icon: <Megaphone /> },
       ],
     },
     {
       label: 'Work',
+      translatedLabel: t('nav.sections.work'),
       items: [
-        { name: 'Tasks', href: '/tasks', icon: <Trello /> },
-        { name: 'Calendar', href: '/calendar', icon: <Calendar /> },
-        ...(isAdmin ? [{ name: 'Automations', href: '/workflows', icon: <Sparkles /> }] : []),
+        { name: 'Tasks', label: t('nav.items.tasks'), href: '/tasks', icon: <Trello /> },
+        { name: 'Calendar', label: t('nav.items.calendar'), href: '/calendar', icon: <Calendar /> },
+        ...(isAdmin ? [{ name: 'Automations', label: t('nav.items.automations'), href: '/workflows', icon: <Sparkles /> }] : []),
       ],
     },
     {
       label: 'Resources',
+      translatedLabel: t('nav.sections.resources'),
       items: [
-        { name: 'Knowledge Base', href: '/wiki', icon: <BookOpen /> },
-        { name: 'File Storage', href: '/files', icon: <FolderHeart /> },
+        { name: 'Knowledge Base', label: t('nav.items.knowledgeBase'), href: '/wiki', icon: <BookOpen /> },
+        { name: 'File Storage', label: t('nav.items.fileStorage'), href: '/files', icon: <FolderHeart /> },
       ],
     },
     {
       label: 'People',
+      translatedLabel: t('nav.sections.people'),
       items: [
-        { name: 'HR Portal', href: '/hr', icon: <Briefcase /> },
-        { name: 'Directory', href: '/directory', icon: <Contact /> },
-        { name: 'Org Chart', href: '/org-chart', icon: <Network /> },
-        ...(isManagerOrAdmin ? [{ name: 'Analytics', href: '/analytics', icon: <BarChart3 /> }] : []),
+        { name: 'HR Portal', label: t('nav.items.hrPortal'), href: '/hr', icon: <Briefcase /> },
+        { name: 'Directory', label: t('nav.items.directory'), href: '/directory', icon: <Contact /> },
+        { name: 'Org Chart', label: t('nav.items.orgChart'), href: '/org-chart', icon: <Network /> },
+        ...(isManagerOrAdmin ? [{ name: 'Analytics', label: t('nav.items.analytics'), href: '/analytics', icon: <BarChart3 /> }] : []),
       ],
     },
     ...(isAdmin ? [{
       label: 'Organization',
+      translatedLabel: t('nav.sections.organization'),
       items: [
-        { name: 'Organization', href: '/organization', icon: <Building2 /> },
+        { name: 'Organization', label: t('nav.items.organization'), href: '/organization', icon: <Building2 /> },
       ],
     }] : []),
     {
       label: 'General',
+      translatedLabel: t('nav.sections.general'),
       items: [
-        { name: 'Settings', href: '/settings', icon: <Settings2 /> },
-        ...(isAdmin ? [{ name: 'Admin Panel', href: '/admin', icon: <ShieldAlert /> }] : []),
+        { name: 'Settings', label: t('nav.items.settings'), href: '/settings', icon: <Settings2 /> },
+        ...(isAdmin ? [{ name: 'Admin Panel', label: t('nav.items.adminPanel'), href: '/admin', icon: <ShieldAlert /> }] : []),
       ],
     },
   ];

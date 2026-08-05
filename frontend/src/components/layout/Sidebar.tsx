@@ -3,16 +3,23 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Check, LogOut, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { OrganizationSettings } from '../../hooks/useOrganizationSettings';
 
 export interface NavItem {
   name: string;
+  // Translated display text (see dashboard layout.tsx's navGroups). Falls
+  // back to `name` when absent, so anything still passing plain NavItems
+  // without a label keeps working exactly as before.
+  label?: string;
   href: string;
   icon: React.ReactNode;
 }
 
 export interface NavGroup {
   label: string;
+  // Translated section heading — same fallback behavior as NavItem.label.
+  translatedLabel?: string;
   items: NavItem[];
 }
 
@@ -74,6 +81,7 @@ export function Sidebar({
   onSetStatus: (status: string) => void;
   onLogout: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       {mobileOpen && (
@@ -128,7 +136,7 @@ export function Sidebar({
             <div key={group.label} className="mb-4 last:mb-0">
               {!collapsed && (
                 <p className="px-2.5 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
-                  {group.label}
+                  {group.translatedLabel || group.label}
                 </p>
               )}
               <div className="space-y-0.5">
@@ -140,7 +148,7 @@ export function Sidebar({
                       key={link.name}
                       href={link.href}
                       onClick={onCloseMobile}
-                      title={collapsed ? link.name : undefined}
+                      title={collapsed ? (link.label || link.name) : undefined}
                       aria-current={active ? 'page' : undefined}
                       className={`group relative flex items-center rounded-lg text-[13px] font-medium transition-colors duration-150 ${
                         collapsed ? 'justify-center p-2.5' : 'gap-2.5 px-2.5 py-2'
@@ -156,7 +164,7 @@ export function Sidebar({
                       <span className="shrink-0 [&>svg]:h-[18px] [&>svg]:w-[18px]">
                         {link.icon}
                       </span>
-                      {!collapsed && <span className="truncate">{link.name}</span>}
+                      {!collapsed && <span className="truncate">{link.label || link.name}</span>}
                     </Link>
                   );
                 })}
@@ -257,13 +265,14 @@ export function Sidebar({
 
           <button
             onClick={onLogout}
-            title={collapsed ? 'Sign out' : undefined}
+            title={collapsed ? t('nav.signOut') : undefined}
+            aria-label={t('nav.signOut')}
             className={`flex items-center justify-center border border-red-200 dark:border-red-950/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-[13px] font-semibold transition-colors ${
               collapsed ? 'p-2.5 w-full' : 'gap-2 py-2 px-3 w-full'
             }`}
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Sign out</span>}
+            {!collapsed && <span>{t('nav.signOut')}</span>}
           </button>
         </div>
       </aside>

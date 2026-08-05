@@ -5,7 +5,7 @@ import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { invalidateOrganizationSettingsCache } from '../services/organization.service';
 import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cloudinary';
-import { isGoogleSsoConfigured } from '../services/sso.service';
+import { isGoogleSsoConfigured, isUsingTemplateDemoGoogleCredentials } from '../services/sso.service';
 import { emitDataUpdate } from '../utils/realtime';
 
 // The set of columns an admin is allowed to update. An explicit whitelist
@@ -30,6 +30,28 @@ const ORG_SETTINGS_KEYS = [
 const VALID_REGISTRATION_MODES = ['INVITE_ONLY', 'DOMAIN_RESTRICTED', 'OPEN'];
 const VALID_DUPLICATE_LOGIN_POLICIES = ['SINGLE_SESSION', 'LIMIT_3', 'UNLIMITED'];
 
+// Shared response shaping: computes the same derived flags
+// (ssoGoogleAvailable, ssoGoogleUsingDemoCredentials, needsInitialSetup) that
+// getPublicOrganizationSettings sends, so every endpoint that returns an
+// OrganizationSettings row — the read endpoint and all three write endpoints
+// below — returns an identically-shaped object. Without this, a save/upload
+// response was missing these computed fields (they're not real DB columns),
+// and the frontend was writing that incomplete response straight into the
+// shared ['organization-settings'] query cache via queryClient.setQueryData —
+// so right after saving settings or uploading a logo/favicon, the SSO status
+// badge would flash to a wrong "Not Configured" state until the next full
+// page load silently corrected it.
+const buildOrgSettingsResponse = async (settings: any) => {
+  const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
+  const ssoGoogleAvailable = isGoogleSsoConfigured() && settings.ssoGoogleEnabled !== false;
+  return {
+    ...settings,
+    needsInitialSetup: adminCount === 0,
+    ssoGoogleAvailable,
+    ssoGoogleUsingDemoCredentials: ssoGoogleAvailable && isUsingTemplateDemoGoogleCredentials(),
+  };
+};
+
 /**
  * Public: fetch org-wide branding/config (name, logo, colors, etc.).
  * No auth required — the login/register screens and public landing page
@@ -43,15 +65,7 @@ export const getPublicOrganizationSettings = async (req: Request, res: Response,
       settings = await prisma.organizationSettings.create({ data: {} });
     }
 
-    // The very first account ever created always becomes Admin during initial
-    // setup (see auth.controller.ts register()), regardless of registrationMode —
-    // there has to be one owner before anyone can configure anything. The
-    // login/register screens use this flag to show the signup form during
-    // that one-time setup even when the org has since locked registration down.
-    const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
-
-    const ssoGoogleAvailable = isGoogleSsoConfigured() && settings.ssoGoogleEnabled !== false;
-    res.status(200).json({ ...settings, needsInitialSetup: adminCount === 0, ssoGoogleAvailable });
+    res.status(200).json(await buildOrgSettingsResponse(settings));
   } catch (error) {
     next(error);
   }
@@ -115,7 +129,7 @@ export const uploadOrganizationLogo = async (req: AuthenticatedRequest, res: Res
       data: { userId: req.user?.id, action: 'UPDATE_ORGANIZATION_SETTINGS', details: 'Uploaded new organization logo' },
     });
 
-    res.status(200).json(settings);
+    res.status(200).json(await buildOrgSettingsResponse(settings));
   } catch (error) {
     next(error);
   }
@@ -151,7 +165,7 @@ export const uploadOrganizationFavicon = async (req: AuthenticatedRequest, res: 
       data: { userId: req.user?.id, action: 'UPDATE_ORGANIZATION_SETTINGS', details: 'Uploaded new organization favicon' },
     });
 
-    res.status(200).json(settings);
+    res.status(200).json(await buildOrgSettingsResponse(settings));
   } catch (error) {
     next(error);
   }
@@ -212,6 +226,19 @@ export const updateOrganizationSettings = async (req: AuthenticatedRequest, res:
     if (typeof req.body.mfaRequired === 'boolean') {
       updates.mfaRequired = req.body.mfaRequired;
     }
+    // Nullable integer — null/undefined means "keep forever" (no auto-purge).
+    if (req.body.recycleBinRetentionDays !== undefined) {
+      if (req.body.recycleBinRetentionDays === null || req.body.recycleBinRetentionDays === '') {
+        updates.recycleBinRetentionDays = null;
+      } else {
+        const days = Number(req.body.recycleBinRetentionDays);
+        if (!Number.isInteger(days) || days < 1 || days > 3650) {
+          res.status(400).json({ message: 'recycleBinRetentionDays must be a whole number of days between 1 and 3650, or empty to keep items forever.' });
+          return;
+        }
+        updates.recycleBinRetentionDays = days;
+      }
+    }
 
     if (updates.registrationMode === 'DOMAIN_RESTRICTED') {
       const existingDomains = (await prisma.organizationSettings.findFirst())?.allowedDomains || [];
@@ -254,7 +281,7 @@ export const updateOrganizationSettings = async (req: AuthenticatedRequest, res:
       },
     });
 
-    res.status(200).json(settings);
+    res.status(200).json(await buildOrgSettingsResponse(settings));
   } catch (error) {
     next(error);
   }

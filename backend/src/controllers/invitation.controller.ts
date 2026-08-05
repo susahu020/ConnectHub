@@ -57,10 +57,16 @@ export const inviteUser = async (req: AuthenticatedRequest, res: Response, next:
 
     // The route-level checkPermission('Users','Update') only confirms this
     // requester is allowed to invite *someone* — it doesn't distinguish which
-    // role they're allowed to hand out. Admins can invite into any role;
-    // Managers can only bring on Employees, not other Managers or Admins.
-    if (req.user?.role === 'MANAGER' && role !== 'EMPLOYEE') {
-      res.status(403).json({ message: 'Managers can only invite new Employees. Ask an Admin to invite a Manager or Admin.' });
+    // role they're allowed to hand out. Only real Admins can invite into any
+    // role; everyone else (Managers, or any custom RBAC role an Admin has
+    // separately granted Users:Update to) can only bring on Employees. This
+    // is deliberately an allow-list on 'ADMIN' rather than a deny-list on
+    // 'MANAGER' specifically — the whole point of the custom RBAC system is
+    // that Users:Update isn't only ever held by the built-in Manager role,
+    // so a check that only special-cased MANAGER would leave a gap open for
+    // any other role an Admin grants this permission to.
+    if (req.user?.role !== 'ADMIN' && role !== 'EMPLOYEE') {
+      res.status(403).json({ message: 'Only Admins can invite a new Manager or Admin. You can invite new Employees.' });
       return;
     }
 
@@ -96,7 +102,7 @@ export const inviteUser = async (req: AuthenticatedRequest, res: Response, next:
       },
     });
 
-    const inviteLink = `http://localhost:3000/register?token=${token}`;
+    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/register?token=${token}`;
 
     // Send invitation email
     const orgName = await getOrgName();
@@ -188,9 +194,12 @@ export const revokeInvitation = async (req: AuthenticatedRequest, res: Response,
     }
 
     // Managers may only send Employee invites (see inviteUser) — hold them
-    // to the same boundary when revoking someone else's invite.
-    if (req.user?.role === 'MANAGER' && invite.role !== 'EMPLOYEE') {
-      res.status(403).json({ message: 'Managers can only manage invitations for the Employee role.' });
+    // to the same boundary when revoking someone else's invite. Allow-listed
+    // on 'ADMIN' rather than deny-listed on 'MANAGER' for the same reason as
+    // inviteUser: Users:Update isn't only ever held by the built-in Manager
+    // role once custom RBAC roles are involved.
+    if (req.user?.role !== 'ADMIN' && invite.role !== 'EMPLOYEE') {
+      res.status(403).json({ message: 'Only Admins can manage a Manager or Admin invitation. You can manage Employee invitations.' });
       return;
     }
 
@@ -231,8 +240,8 @@ export const resendInvitation = async (req: AuthenticatedRequest, res: Response,
       res.status(400).json({ message: 'This invitation was already accepted — there is nothing to resend.' });
       return;
     }
-    if (req.user?.role === 'MANAGER' && invite.role !== 'EMPLOYEE') {
-      res.status(403).json({ message: 'Managers can only manage invitations for the Employee role.' });
+    if (req.user?.role !== 'ADMIN' && invite.role !== 'EMPLOYEE') {
+      res.status(403).json({ message: 'Only Admins can manage a Manager or Admin invitation. You can manage Employee invitations.' });
       return;
     }
 
@@ -251,7 +260,7 @@ export const resendInvitation = async (req: AuthenticatedRequest, res: Response,
       data: { token, expiresAt, isUsed: false },
     });
 
-    const inviteLink = `http://localhost:3000/register?token=${token}`;
+    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/register?token=${token}`;
     const orgName = await getOrgName();
     const { subject, text, html } = buildInvitationEmail(orgName, invite.role, inviteLink);
 

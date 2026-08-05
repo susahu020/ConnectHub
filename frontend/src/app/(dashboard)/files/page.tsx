@@ -360,6 +360,26 @@ export default function FilesPage() {
     }
   };
 
+  const handleEmptyTrash = async () => {
+    if (
+      !(await confirm({
+        title: 'Empty Recycle Bin',
+        message: 'Permanently delete everything in your Recycle Bin? This action is IRREVERSIBLE.',
+        confirmText: 'Empty Trash',
+        type: 'danger',
+      }))
+    )
+      return;
+    try {
+      const result = await api.emptyRecycleBin();
+      refetchRecycleBin();
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+      toast.success(result.message || 'Recycle Bin emptied.');
+    } catch (err) {
+      toast.error('Failed to empty the Recycle Bin.');
+    }
+  };
+
   // Compile list of other folders for target selection inside Move Modal
   // Filter out the currently moving folder itself to prevent recursive loop
   const driveFolders = explorer?.folders || [];
@@ -422,7 +442,7 @@ export default function FilesPage() {
       </div>
 
       {showRecycleBin ? (
-        <RecycleBinView loading={loadingRecycle} recycleBin={recycleBin} onRestore={handleRestore} onPermanentDelete={handlePermanentDelete} />
+        <RecycleBinView loading={loadingRecycle} recycleBin={recycleBin} onRestore={handleRestore} onPermanentDelete={handlePermanentDelete} onEmptyTrash={handleEmptyTrash} />
       ) : (
         <div className="space-y-6">
           <FilesMetricsBar explorer={explorer} fileTypeFilter={fileTypeFilter} />
