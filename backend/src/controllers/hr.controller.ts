@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { logAudit } from '../utils/auditLog';
-import { isAuthorizedApprover, isManagerOrAdmin } from '../services/approval.service';
+import { isAuthorizedApprover, isManagerOrAdmin, getVisibleUserIds } from '../services/approval.service';
 
 // Real-time update helper via Socket.io
 const emitHRUpdate = (req: any, type: string) => {
@@ -19,25 +19,20 @@ const emitHRUpdate = (req: any, type: string) => {
 export const getLeaves = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const role = req.user?.role!;
-    let leaves;
+    // Admins see every request; Managers see their own plus their direct
+    // reports' (not the whole company's — see getVisibleUserIds); Employees
+    // see only their own. Mirrors the scope `isAuthorizedApprover` already
+    // enforces on the approve/reject action for the same data.
+    const visibleUserIds = await getVisibleUserIds(req.user?.id!, role);
 
-    if (isManagerOrAdmin(role)) {
-      leaves = await prisma.leaveRequest.findMany({
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true, email: true, designation: true } },
-          approvedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    } else {
-      leaves = await prisma.leaveRequest.findMany({
-        where: { userId: req.user?.id! },
-        include: {
-          approvedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
+    const leaves = await prisma.leaveRequest.findMany({
+      where: visibleUserIds ? { userId: { in: visibleUserIds } } : undefined,
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, designation: true } },
+        approvedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
     res.status(200).json(leaves);
   } catch (error) {
@@ -73,6 +68,14 @@ export const requestLeave = async (req: AuthenticatedRequest, res: Response, nex
         status: 'PENDING',
       },
     });
+
+    // Trigger workflow automation engine on new leave request submission
+    const { AutomationService } = require('../services/automation.service');
+    const automationIo = req.app.get('io');
+    AutomationService.trigger('LEAVE_REQUESTED', {
+      requesterId: userId,
+      leaveType,
+    }, automationIo).catch((err: any) => console.error('[Automation] LEAVE_REQUESTED trigger failed:', err));
 
     emitHRUpdate(req, 'LEAVE');
     res.status(201).json(leave);
@@ -187,6 +190,19 @@ export const updateLeaveStatus = async (req: AuthenticatedRequest, res: Response
             used: 0,
           },
         });
+      }
+
+      // Nothing anywhere — not this endpoint, not requestLeave, not the
+      // frontend — previously checked this request against what's actually
+      // left, so approving enough leave requests could push `used` past
+      // `total` with no warning to the approving manager (who also has no
+      // visibility into the requester's balance in the approval UI). That
+      // silently defeats the entire point of tracking a balance.
+      if (balance.used + diffDays > balance.total) {
+        res.status(400).json({
+          message: `Cannot approve: this would use ${balance.used + diffDays} of ${balance.total} ${leaveRequest.leaveType.toLowerCase()} days allocated for ${year} (${balance.total - balance.used} remaining). Reject it, or ask the employee to adjust the date range.`,
+        });
+        return;
       }
 
       await prisma.leaveBalance.update({
@@ -393,10 +409,15 @@ export const getAttendanceLogs = async (req: AuthenticatedRequest, res: Response
   try {
     const role = req.user?.role!;
     const { userId: queryUserId, all } = req.query;
+    const visibleUserIds = await getVisibleUserIds(req.user?.id!, role);
     let logs;
 
     if (all === 'true' && isManagerOrAdmin(role)) {
+      // "All" means all records the caller may see — every user in the
+      // company for an Admin, or the caller's own + their direct reports'
+      // for a Manager (not every employee regardless of who they report to).
       logs = await prisma.attendance.findMany({
+        where: visibleUserIds ? { userId: { in: visibleUserIds } } : undefined,
         include: {
           user: { select: { id: true, firstName: true, lastName: true, email: true, designation: true } },
           breaks: true,
@@ -404,7 +425,14 @@ export const getAttendanceLogs = async (req: AuthenticatedRequest, res: Response
         orderBy: { date: 'desc' },
       });
     } else {
-      const targetUserId = (isManagerOrAdmin(role) && queryUserId) ? String(queryUserId) : req.user?.id!;
+      // A single-user lookup via ?userId= is only honored if that user is
+      // actually within the caller's visibility (self, or — for a Manager —
+      // a direct report). Otherwise it silently falls back to "my own",
+      // rather than letting a Manager pull an arbitrary employee's
+      // attendance by guessing/enumerating their userId.
+      const requestedId = queryUserId ? String(queryUserId) : req.user?.id!;
+      const targetUserId =
+        !visibleUserIds || visibleUserIds.includes(requestedId) ? requestedId : req.user?.id!;
       logs = await prisma.attendance.findMany({
         where: { userId: targetUserId },
         include: { breaks: true },
@@ -504,25 +532,16 @@ export const deleteHoliday = async (req: AuthenticatedRequest, res: Response, ne
 export const getExpenseClaims = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const role = req.user?.role!;
-    let claims;
+    const visibleUserIds = await getVisibleUserIds(req.user?.id!, role);
 
-    if (isManagerOrAdmin(role)) {
-      claims = await prisma.expenseClaim.findMany({
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true, email: true, designation: true } },
-          approvedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    } else {
-      claims = await prisma.expenseClaim.findMany({
-        where: { userId: req.user?.id! },
-        include: {
-          approvedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
+    const claims = await prisma.expenseClaim.findMany({
+      where: visibleUserIds ? { userId: { in: visibleUserIds } } : undefined,
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, email: true, designation: true } },
+        approvedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
     res.status(200).json(claims);
   } catch (error) {
@@ -872,9 +891,10 @@ export const createSwapRequest = async (req: AuthenticatedRequest, res: Response
 export const getSwapRequests = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const role = req.user?.role!;
+    const visibleUserIds = await getVisibleUserIds(req.user?.id!, role);
     let swaps;
 
-    if (isManagerOrAdmin(role)) {
+    if (!visibleUserIds) {
       swaps = await prisma.shiftSwapRequest.findMany({
         include: {
           requester: { select: { id: true, firstName: true, lastName: true } },
@@ -886,11 +906,14 @@ export const getSwapRequests = async (req: AuthenticatedRequest, res: Response, 
         orderBy: { createdAt: 'desc' },
       });
     } else {
+      // A Manager sees swap requests involving themselves, their direct
+      // reports, or where a direct report is on either side of the swap —
+      // not every swap request in the company.
       swaps = await prisma.shiftSwapRequest.findMany({
         where: {
           OR: [
-            { requesterId: req.user?.id! },
-            { assigneeId: req.user?.id! },
+            { requesterId: { in: visibleUserIds } },
+            { assigneeId: { in: visibleUserIds } },
           ],
         },
         include: {
@@ -1171,6 +1194,29 @@ export const deleteLeaveRequest = async (req: AuthenticatedRequest, res: Respons
       if (leave.status !== 'PENDING') {
         res.status(400).json({ message: 'This request has already been processed and can no longer be cancelled. Contact an admin if you need it removed.' });
         return;
+      }
+    }
+
+    // Approving a leave deducts its day count from the employee's balance
+    // (see updateLeaveStatus above). Deleting an approved request — which
+    // only an admin can do, e.g. correcting a mistaken approval or removing
+    // a record for leave the employee ultimately didn't take — needs to
+    // give those days back, or the employee is left permanently short by
+    // however many days this request used, with nothing in the UI to
+    // reveal why their balance looks wrong.
+    if (leave.status === 'APPROVED') {
+      const diffTime = Math.abs(leave.endDate.getTime() - leave.startDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      const year = leave.startDate.getFullYear();
+
+      const balance = await prisma.leaveBalance.findUnique({
+        where: { userId_leaveType_year: { userId: leave.userId, leaveType: leave.leaveType, year } },
+      });
+      if (balance) {
+        await prisma.leaveBalance.update({
+          where: { id: balance.id },
+          data: { used: Math.max(0, balance.used - diffDays) },
+        });
       }
     }
 

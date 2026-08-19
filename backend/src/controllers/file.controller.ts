@@ -71,6 +71,7 @@ export const uploadFile = async (req: AuthenticatedRequest, res: Response, next:
       fileId: dbFile.id,
       fileName: dbFile.name,
       uploaderId: dbFile.uploaderId,
+      departmentId: req.user?.departmentId || null,
     }, automationIo).catch((err: any) => console.error('[Automation] DOCUMENT_UPLOADED trigger failed:', err));
 
     res.status(201).json(dbFile);

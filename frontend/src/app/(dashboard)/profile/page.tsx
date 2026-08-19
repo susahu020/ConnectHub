@@ -5,10 +5,9 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { Loader2, ShieldAlert } from 'lucide-react';
 import ImageCropperModal from '../../../components/ImageCropperModal';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
-import { useSocket } from '../../../hooks/useSocket';
 import { ProfileHeader } from '../../../components/profile/ProfileHeader';
 import { ProfileTabsNav } from '../../../components/profile/ProfileTabsNav';
 import { OverviewTab } from '../../../components/profile/tabs/OverviewTab';
@@ -34,10 +33,33 @@ export default function ProfilePage() {
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropperImageSrc, setCropperImageSrc] = useState('');
 
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'security' ? 'security' : 'overview');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'security' && isOwnProfile ? 'security' : 'overview');
   const mfaSetupRequired = searchParams.get('mfaRequired') === 'true';
+
+  // Profile data now goes through React Query (queryKey: ['profile', id]) so
+  // it's covered by the generic data_update broadcast system (see
+  // hooks/useSocket.tsx's MODULE_QUERY_KEYS['profile']) instead of the
+  // bespoke 'profile_updated' socket event this page used to listen for
+  // directly.
+  const queryClient = useQueryClient();
+  const profileUserId = targetUserId || currentUser?.id;
+  const profileQueryKey = ['profile', profileUserId];
+  const {
+    data: profile,
+    isLoading: loading,
+    isError: profileLoadError,
+    refetch: refetchProfile,
+  } = useQuery({
+    queryKey: profileQueryKey,
+    queryFn: () => (targetUserId ? api.getProfileById(targetUserId) : api.getProfile()),
+    enabled: !!profileUserId,
+  });
+
+  useEffect(() => {
+    if (profileLoadError) {
+      toast.error('Failed to load profile details.');
+    }
+  }, [profileLoadError]);
 
   const { data: userTasks, isLoading: loadingTasks } = useQuery({
     queryKey: ['profile-tasks', profile?.id],
@@ -122,70 +144,44 @@ export default function ProfilePage() {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
-  // Fetch full profile info
-  const fetchProfile = async () => {
-    setLoading(true);
-    try {
-      const data = targetUserId ? await api.getProfileById(targetUserId) : await api.getProfile();
-      setProfile(data);
+  // Seed the basic-info edit form whenever the fetched profile changes
+  // (initial load, refetch after a save, or a live update pushed in via the
+  // data_update socket event from another tab/device).
+  useEffect(() => {
+    if (!profile) return;
+    setBasicForm({
+      firstName: profile.firstName || '',
+      lastName: profile.lastName || '',
+      designation: profile.designation || '',
+      bio: profile.bio || '',
+      location: profile.location || '',
+      phone: profile.phone || '',
+      employeeId: profile.employeeId || '',
+      employmentType: profile.employmentType || 'FULL_TIME',
+      officeLocation: profile.officeLocation || '',
+      emergencyContact: profile.emergencyContact || '',
+      birthday: profile.birthday ? profile.birthday.split('T')[0] : '',
+      joiningDate: profile.joiningDate ? profile.joiningDate.split('T')[0] : '',
+      timezone: profile.timezone || 'UTC',
+      workingHours: profile.workingHours || '9:00 AM - 5:00 PM',
+      managerId: profile.managerId || '',
+      departmentId: profile.departmentId || '',
+      status: profile.status || 'ONLINE',
+      socialLinks: {
+        linkedin: profile.socialLinks?.linkedin || '',
+        github: profile.socialLinks?.github || '',
+        twitter: profile.socialLinks?.twitter || '',
+        portfolio: profile.socialLinks?.portfolio || '',
+        instagram: profile.socialLinks?.instagram || '',
+      },
+    });
+  }, [profile]);
 
-      // Seed basic edit form
-      setBasicForm({
-        firstName: data.firstName || '',
-        lastName: data.lastName || '',
-        designation: data.designation || '',
-        bio: data.bio || '',
-        location: data.location || '',
-        phone: data.phone || '',
-        employeeId: data.employeeId || '',
-        employmentType: data.employmentType || 'FULL_TIME',
-        officeLocation: data.officeLocation || '',
-        emergencyContact: data.emergencyContact || '',
-        birthday: data.birthday ? data.birthday.split('T')[0] : '',
-        joiningDate: data.createdAt ? data.createdAt.split('T')[0] : '',
-        timezone: data.timezone || 'UTC',
-        workingHours: data.workingHours || '9:00 AM - 5:00 PM',
-        managerId: data.managerId || '',
-        departmentId: data.departmentId || '',
-        status: data.status || 'ONLINE',
-        socialLinks: {
-          linkedin: data.socialLinks?.linkedin || '',
-          github: data.socialLinks?.github || '',
-          twitter: data.socialLinks?.twitter || '',
-          portfolio: data.socialLinks?.portfolio || '',
-          instagram: data.socialLinks?.instagram || '',
-        },
-      });
-    } catch (err) {
-      toast.error('Failed to load profile details.');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (activeTab === 'security' && !isOwnProfile) {
+      setActiveTab('overview');
     }
-  };
-
-  useEffect(() => {
-    fetchProfile();
-  }, [targetUserId]);
-
-  // Live updates: the profile page fetches with a plain useState/fetch
-  // rather than React Query, so it isn't covered by the generic data_update
-  // system (see hooks/useSocket.tsx). Listen directly instead — if someone
-  // (possibly this same person in another tab) changes the profile currently
-  // being viewed, refetch it instead of requiring a manual reload.
-  const { socket } = useSocket();
-  useEffect(() => {
-    if (!socket) return;
-    const viewedUserId = targetUserId || currentUser?.id;
-    const handleProfileUpdated = ({ userId }: { userId: string }) => {
-      if (userId === viewedUserId) {
-        fetchProfile();
-      }
-    };
-    socket.on('profile_updated', handleProfileUpdated);
-    return () => {
-      socket.off('profile_updated', handleProfileUpdated);
-    };
-  }, [socket, targetUserId, currentUser?.id]);
+  }, [activeTab, isOwnProfile]);
 
   // Load activities when activeTab changes
   useEffect(() => {
@@ -233,13 +229,13 @@ export default function ProfilePage() {
         birthday: basicForm.birthday ? new Date(basicForm.birthday).toISOString() : null,
       };
       const res = await api.updateProfile(payload);
-      setProfile(res.user);
+      queryClient.setQueryData(profileQueryKey, res.user);
       if (isOwnProfile) {
         syncCurrentUserStore(res.user);
       }
       setEditingBasic(false);
       toast.success('Profile details updated successfully.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Failed to update profile.');
     }
@@ -275,12 +271,12 @@ export default function ProfilePage() {
 
     try {
       const res = await api.uploadAvatar(formData);
-      setProfile((prev: any) => ({ ...prev, avatarUrl: res.avatarUrl }));
+      queryClient.setQueryData(profileQueryKey, (prev: any) => ({ ...prev, avatarUrl: res.avatarUrl }));
       if (isOwnProfile) {
         syncCurrentUserStore({ ...currentUser!, avatarUrl: res.avatarUrl });
       }
       toast.success('Avatar updated successfully.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Avatar upload failed.');
     } finally {
@@ -308,9 +304,9 @@ export default function ProfilePage() {
 
     try {
       const res = await api.uploadCover(formData);
-      setProfile((prev: any) => ({ ...prev, coverUrl: res.coverUrl }));
+      queryClient.setQueryData(profileQueryKey, (prev: any) => ({ ...prev, coverUrl: res.coverUrl }));
       toast.success('Cover banner updated successfully.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Cover photo upload failed.');
     } finally {
@@ -326,7 +322,7 @@ export default function ProfilePage() {
       setAddingSkill(false);
       setSkillForm({ skillName: '', level: 'INTERMEDIATE', yearsOfExp: 1, category: 'Engineering', order: 0 });
       toast.success('Skill added successfully.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Failed to add skill.');
     }
@@ -336,7 +332,7 @@ export default function ProfilePage() {
     try {
       await api.deleteSkill(id);
       toast.success('Skill removed.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete skill.');
     }
@@ -365,7 +361,7 @@ export default function ProfilePage() {
         isCurrent: false,
       });
       toast.success('Work experience record added.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Failed to add experience.');
     }
@@ -375,7 +371,7 @@ export default function ProfilePage() {
     try {
       await api.deleteExperience(id);
       toast.success('Experience record deleted.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete experience.');
     }
@@ -389,7 +385,7 @@ export default function ProfilePage() {
       setAddingEdu(false);
       setEduForm({ institution: '', degree: '', branch: '', startDate: '', endDate: '', grade: '' });
       toast.success('Education record added.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Failed to add education.');
     }
@@ -399,7 +395,7 @@ export default function ProfilePage() {
     try {
       await api.deleteEducation(id);
       toast.success('Education record deleted.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete education.');
     }
@@ -413,7 +409,7 @@ export default function ProfilePage() {
       setAddingCert(false);
       setCertForm({ name: '', issuedBy: '', issueDate: '', expiryDate: '', credentialUrl: '', certificateUrl: '' });
       toast.success('Certification credential added.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Failed to add certification.');
     }
@@ -423,7 +419,7 @@ export default function ProfilePage() {
     try {
       await api.deleteCertification(id);
       toast.success('Certification removed.');
-      fetchProfile();
+      refetchProfile();
     } catch (err: any) {
       toast.error(err.message || 'Failed to remove certification.');
     }
@@ -476,10 +472,10 @@ export default function ProfilePage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        <ProfileTabsNav activeTab={activeTab} onChange={setActiveTab} />
+        <ProfileTabsNav activeTab={activeTab} onChange={setActiveTab} isOwnProfile={isOwnProfile} />
 
         <div className="lg:col-span-3 space-y-6">
-          {activeTab === 'overview' && <OverviewTab profile={profile} userTasks={userTasks} loadingTasks={loadingTasks} />}
+          {activeTab === 'overview' && <OverviewTab profile={profile} userTasks={userTasks} loadingTasks={loadingTasks} isOwnProfile={isOwnProfile} />}
 
           {activeTab === 'activity' && (
             <ActivityTab
@@ -514,7 +510,7 @@ export default function ProfilePage() {
             />
           )}
 
-          {activeTab === 'security' && <SecurityTab profile={profile} />}
+          {activeTab === 'security' && isOwnProfile && <SecurityTab profile={profile} />}
         </div>
       </div>
 

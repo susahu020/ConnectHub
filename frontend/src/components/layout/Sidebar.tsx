@@ -77,7 +77,7 @@ export function Sidebar({
   onToggleCollapsed: () => void;
   statusMenuOpen: boolean;
   onToggleStatusMenu: () => void;
-  statusRef: React.RefObject<HTMLDivElement>;
+  statusRef: React.RefObject<HTMLDivElement | null>;
   onSetStatus: (status: string) => void;
   onLogout: () => void;
 }) {
@@ -131,11 +131,11 @@ export function Sidebar({
         </div>
 
         {/* Nav groups */}
-        <nav className={`flex-1 py-4 overflow-y-auto ${collapsed ? 'px-2.5' : 'px-3'}`}>
+        <nav className={`flex-1 py-4 overflow-y-auto ${collapsed ? 'px-2.5' : 'pl-3 pr-0'}`}>
           {navGroups.map((group) => (
             <div key={group.label} className="mb-4 last:mb-0">
               {!collapsed && (
-                <p className="px-2.5 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                <p className="pl-2.5 pr-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
                   {group.translatedLabel || group.label}
                 </p>
               )}
@@ -150,16 +150,37 @@ export function Sidebar({
                       onClick={onCloseMobile}
                       title={collapsed ? (link.label || link.name) : undefined}
                       aria-current={active ? 'page' : undefined}
-                      className={`group relative flex items-center rounded-lg text-[13px] font-medium transition-colors duration-150 ${
-                        collapsed ? 'justify-center p-2.5' : 'gap-2.5 px-2.5 py-2'
+                      className={`group relative flex items-center text-[13px] font-medium transition-colors duration-150 ${
+                        collapsed
+                          ? 'justify-center p-2.5 rounded-lg'
+                          : 'gap-2.5 pl-2.5 pr-3 py-2 rounded-l-lg rounded-r-none'
                       } ${
                         active
                           ? 'bg-primary/10 text-primary font-semibold'
                           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       }`}
                     >
+                      {/* Curved connector: the active pill sits flush against
+                          the sidebar's right edge, and these two corner
+                          "notches" fillet its sharp top-right/bottom-right
+                          corners into the surrounding row gap — the same
+                          concave-into-convex curve used for the active tab
+                          in the reference design, rotated for a vertical
+                          nav. Matches the pill's own bg-primary/10 tint via
+                          the CSS var so it tracks dark mode automatically. */}
                       {active && !collapsed && (
-                        <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-primary" />
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="absolute right-0 -top-1.5 h-1.5 w-1.5 pointer-events-none"
+                            style={{ background: 'radial-gradient(circle at bottom right, hsl(var(--primary) / 0.1) 6px, transparent 6px)' }}
+                          />
+                          <span
+                            aria-hidden="true"
+                            className="absolute right-0 -bottom-1.5 h-1.5 w-1.5 pointer-events-none"
+                            style={{ background: 'radial-gradient(circle at top right, hsl(var(--primary) / 0.1) 6px, transparent 6px)' }}
+                          />
+                        </>
                       )}
                       <span className="shrink-0 [&>svg]:h-[18px] [&>svg]:w-[18px]">
                         {link.icon}

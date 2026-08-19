@@ -77,6 +77,16 @@ export function EditBasicModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
+              <label className="text-slate-400 uppercase text-[10px] tracking-wider">Location</label>
+              <input
+                type="text"
+                value={form.location}
+                onChange={(e) => onFormChange({ ...form, location: e.target.value })}
+                placeholder="e.g. Bengaluru, India or Remote"
+                className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:outline-none"
+              />
+            </div>
+            <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Office Location</label>
               <input
                 type="text"
@@ -85,6 +95,9 @@ export function EditBasicModal({
                 className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:outline-none"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Employment Type</label>
               <select
@@ -98,9 +111,6 @@ export function EditBasicModal({
                 <option value="INTERN">Internship</option>
               </select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Contact Phone</label>
               <input
@@ -110,6 +120,9 @@ export function EditBasicModal({
                 className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:outline-none"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Emergency Contact</label>
               <input
@@ -119,9 +132,6 @@ export function EditBasicModal({
                 className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:outline-none"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Birthday</label>
               <input
@@ -131,18 +141,19 @@ export function EditBasicModal({
                 className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:outline-none"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Joining Date (Read-Only)</label>
               <input
                 type="date"
                 value={form.joiningDate}
                 disabled
+                title="Joining date is set by HR/an admin and cannot be self-edited."
                 className="w-full px-4 py-2.5 rounded-xl border bg-slate-100 dark:bg-slate-800 dark:border-slate-700 text-slate-500 cursor-not-allowed focus:outline-none"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Reporting Manager (Read-Only)</label>
               <input
@@ -154,6 +165,9 @@ export function EditBasicModal({
                 className="w-full px-4 py-2.5 rounded-xl border bg-slate-100 dark:bg-slate-850 dark:border-slate-700 text-slate-400 cursor-not-allowed focus:outline-none"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Department (Read-Only)</label>
               <input
@@ -165,9 +179,6 @@ export function EditBasicModal({
                 className="w-full px-4 py-2.5 rounded-xl border bg-slate-100 dark:bg-slate-850 dark:border-slate-700 text-slate-400 cursor-not-allowed focus:outline-none"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Timezone</label>
               <input
@@ -178,6 +189,9 @@ export function EditBasicModal({
                 className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 dark:border-slate-700 focus:outline-none"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-1.5">
               <label className="text-slate-400 uppercase text-[10px] tracking-wider">Working Hours</label>
               <input

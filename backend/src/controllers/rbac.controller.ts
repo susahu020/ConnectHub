@@ -95,7 +95,16 @@ export const getRoleDetails = async (req: AuthenticatedRequest, res: Response, n
       return;
     }
 
-    res.status(200).json(role);
+    // `permissions` above is only the rows explicitly set ON this role —
+    // it does not include values this role inherits from its parent chain.
+    // `effectivePermissions` is the fully compiled module/action map (same
+    // compiler `hasPermission()` uses at request time) so the client can
+    // show what a role can *actually* do right now, and tell "explicitly
+    // granted on this role" apart from "granted only via inheritance" —
+    // see the note on updateRolePermissions for why that distinction matters.
+    const effectivePermissions = await getRolePermissions(id);
+
+    res.status(200).json({ ...role, effectivePermissions });
   } catch (error) {
     next(error);
   }
@@ -172,7 +181,19 @@ export const createRole = async (req: AuthenticatedRequest, res: Response, next:
 export const updateRolePermissions = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id: roleId } = req.params;
-    const { permissions } = req.body; // Array of { module: string, action: string, isEnabled: boolean }
+    // Array of { module, action, isEnabled }. IMPORTANT: this should only
+    // contain cells the caller wants to explicitly set (override) on THIS
+    // role — every entry becomes a real CustomPermission row via the upsert
+    // below. Submitting the full MODULES x ACTIONS cross-product (including
+    // entries the admin never touched) would create an explicit `false` row
+    // for everything this role currently gets only via inheritance from its
+    // parent, silently wiping that inheritance out — because getRolePermissions()
+    // only falls back to the parent's value when the child has NO row at all
+    // for that module/action, explicit `false` included. See the frontend's
+    // permission-matrix editor (admin/page.tsx), which now submits only the
+    // cells the admin actually interacted with, plus any pre-existing
+    // explicit rows — never the full grid.
+    const { permissions } = req.body;
 
     if (!Array.isArray(permissions)) {
       res.status(400).json({ message: 'Permissions array is required.' });

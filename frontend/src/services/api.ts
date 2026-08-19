@@ -200,6 +200,7 @@ export const api = {
   
   // Users & Profile
   getProfile: () => request('/users/profile'),
+  getMyPermissions: () => request('/users/permissions'),
   getProfileById: (userId: string) => request(`/users/profile/${userId}`),
   updateProfile: (body: any) => request('/users/profile', 'PUT', body),
   updateProfileById: (userId: string, body: any) => request(`/users/profile/${userId}`, 'PUT', body),
@@ -247,8 +248,8 @@ export const api = {
     request(`/rbac/users/${userId}/role`, 'POST', { roleId, expiresAt }),
 
   // Meetings (REST source of truth backing the live socket signaling)
-  createMeeting: (body?: { title?: string }) => request('/meetings', 'POST', body || {}),
-  scheduleMeeting: (body: { title?: string; scheduledFor: string; durationMins?: number; inviteeIds: string[]; recurrenceRule?: string; recurrenceEndDate?: string }) =>
+  createMeeting: (body?: { title?: string; muteOnEntry?: boolean }) => request('/meetings', 'POST', body || {}),
+  scheduleMeeting: (body: { title?: string; scheduledFor: string; durationMins?: number; inviteeIds: string[]; recurrenceRule?: string; recurrenceEndDate?: string; coHostIds?: string[]; muteOnEntry?: boolean }) =>
     request('/meetings/schedule', 'POST', body),
   cancelMeeting: (id: string, scope: 'occurrence' | 'series' = 'occurrence') =>
     request(`/meetings/${id}?scope=${scope}`, 'DELETE'),
@@ -258,6 +259,8 @@ export const api = {
   getMeetingByCode: (code: string) => request(`/meetings/${encodeURIComponent(code)}`),
   startMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/start`, 'POST'),
   endMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/end`, 'POST'),
+  updateMeetingCoHosts: (code: string, coHostIds: string[]) =>
+    request(`/meetings/${encodeURIComponent(code)}/co-hosts`, 'PATCH', { coHostIds }),
   downloadMeetingIcs: async (meetingId: string, filenameHint?: string) => {
     const token = useAuthStore.getState().token;
     const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/ics`, {
@@ -394,6 +397,7 @@ export const api = {
   updateWorkflow: (id: string, body: { name?: string; trigger?: string; action?: string; isActive?: boolean }) => 
     request(`/workflows/${id}`, 'PUT', body),
   deleteWorkflow: (id: string) => request(`/workflows/${id}`, 'DELETE'),
+  getWorkflowRuns: (id: string) => request(`/workflows/${id}/runs`),
 
   // Admin Panel
   getAuditLogs: (params?: { page?: number; limit?: number; startDate?: string; endDate?: string; action?: string; search?: string }) => {
@@ -470,7 +474,7 @@ export const api = {
   getSystemHealth: () => request('/admin/system-health'),
   sendTestHealthAlert: (webhookUrl?: string) => request('/admin/system-health/test-alert', 'POST', webhookUrl ? { webhookUrl } : {}),
   getOrganizationSettings: () => request('/organization/settings'),
-  updateOrganizationSettings: (body: Record<string, string | null | string[] | boolean>) => request('/admin/organization-settings', 'PUT', body),
+  updateOrganizationSettings: (body: Record<string, string | number | null | string[] | boolean>) => request('/admin/organization-settings', 'PUT', body),
   uploadOrganizationLogo: (formData: FormData) => request('/admin/organization-settings/logo', 'POST', formData, true),
   uploadOrganizationFavicon: (formData: FormData) => request('/admin/organization-settings/favicon', 'POST', formData, true),
   getTeams: (departmentId?: string) => request(`/teams${departmentId ? `?departmentId=${departmentId}` : ''}`),

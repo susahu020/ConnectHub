@@ -56,7 +56,7 @@ export default function SettingsPage() {
   const [emailEnabled, setEmailEnabled] = useState(user?.settings?.emailEnabled ?? true);
   const [desktopEnabled, setDesktopEnabled] = useState(user?.settings?.desktopEnabled ?? true);
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(
-    (user?.settings?.notificationPreferences as NotificationPreferences) || {}
+    user?.settings?.notificationPreferences || {}
   );
 
   // 2FA management state

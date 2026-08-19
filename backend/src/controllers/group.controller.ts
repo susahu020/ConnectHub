@@ -189,9 +189,11 @@ export const getGroupMessages = async (req: AuthenticatedRequest, res: Response,
     const messages = await prisma.message.findMany(queryArgs);
     const sortedMessages = messages.reverse();
 
+    // See chat.controller.ts's getDirectMessages for why this is
+    // messages[messages.length - 1] (oldest in the page) and not messages[0].
     res.status(200).json({
       messages: sortedMessages,
-      nextCursor: messages.length === parsedLimit ? messages[0].id : null,
+      nextCursor: messages.length === parsedLimit ? messages[messages.length - 1].id : null,
     });
   } catch (error) {
     next(error);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Coffee, Edit, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { statusBadgeClass } from '../statusBadge';
 
 export function AttendanceTab({
@@ -27,25 +28,26 @@ export function AttendanceTab({
   onEditLog: (log: any) => void;
   onDeleteLog: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const onBreak = todayAttendance?.breaks?.some((b: any) => b.endTime === null);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Live Office Punch Clock</span>
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('hr.attendance.punchClock')}</span>
         <p className="text-4xl font-black text-slate-800 dark:text-white tabular-nums tracking-tight mb-4">{timeStr}</p>
 
         <div className="flex items-center gap-2 mb-6">
           <span className={`h-2.5 w-2.5 rounded-full ${todayAttendance ? (todayAttendance.clockOut ? 'bg-rose-500' : 'bg-green-500') : 'bg-slate-300'}`} />
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-            {todayAttendance ? (todayAttendance.clockOut ? 'Clocked Out' : 'Active Duty') : 'Offline / Signed Out'}
+            {todayAttendance ? (todayAttendance.clockOut ? t('hr.attendance.clockedOut') : t('hr.attendance.activeDuty')) : t('hr.attendance.offline')}
           </span>
         </div>
 
         <div className="w-full space-y-3">
           {!todayAttendance && (
             <button onClick={onClockIn} className="w-full py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-black shadow-md hover:shadow-lg transition-all">
-              Clock In
+              {t('hr.attendance.clockIn')}
             </button>
           )}
 
@@ -53,7 +55,7 @@ export function AttendanceTab({
             <div className="grid grid-cols-2 gap-3 w-full">
               {onBreak ? (
                 <button onClick={onEndBreak} className="py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-black shadow-sm transition-all">
-                  End Break
+                  {t('hr.attendance.endBreak')}
                 </button>
               ) : (
                 <button
@@ -61,18 +63,18 @@ export function AttendanceTab({
                   className="py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350 rounded-xl font-black shadow-sm transition-all flex items-center justify-center gap-1.5"
                 >
                   <Coffee className="h-4 w-4" />
-                  Start Break
+                  {t('hr.attendance.startBreak')}
                 </button>
               )}
 
               <button
                 onClick={() => {
-                  const note = prompt('Leave a clock out note (optional):') || undefined;
+                  const note = prompt(t('hr.attendance.clockOutNotePrompt')) || undefined;
                   onClockOut(note);
                 }}
                 className="py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-black shadow-sm transition-all"
               >
-                Clock Out
+                {t('hr.attendance.clockOut')}
               </button>
             </div>
           )}
@@ -81,26 +83,26 @@ export function AttendanceTab({
 
       <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
         <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-850 flex items-center justify-between">
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isManager ? 'Company Attendance Feed' : 'My Attendance History'}</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isManager ? t('hr.attendance.companyFeed') : t('hr.attendance.myHistory')}</p>
         </div>
 
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-400 tracking-wider border-b">
-                {isManager && <th className="px-5 py-3">Employee</th>}
-                <th className="px-5 py-3">Date</th>
-                <th className="px-5 py-3">Clock In</th>
-                <th className="px-5 py-3">Clock Out</th>
-                <th className="px-5 py-3">Status</th>
-                {isAdmin && <th className="px-5 py-3 text-right">Actions</th>}
+                {isManager && <th className="px-5 py-3">{t('hr.attendance.employee')}</th>}
+                <th className="px-5 py-3">{t('hr.attendance.date')}</th>
+                <th className="px-5 py-3">{t('hr.attendance.clockInCol')}</th>
+                <th className="px-5 py-3">{t('hr.attendance.clockOutCol')}</th>
+                <th className="px-5 py-3">{t('hr.attendance.status')}</th>
+                {isAdmin && <th className="px-5 py-3 text-right">{t('hr.attendance.actions')}</th>}
               </tr>
             </thead>
             <tbody className="divide-y text-xs">
               {attendanceLogs.length === 0 ? (
                 <tr>
                   <td colSpan={isManager ? 6 : 5} className="text-center py-8 text-slate-400">
-                    No attendance logs.
+                    {t('hr.attendance.noLogs')}
                   </td>
                 </tr>
               ) : (
@@ -127,17 +129,17 @@ export function AttendanceTab({
                     {isAdmin && (
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => onEditLog(log)} className="p-1 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-850" title="Edit punch times">
+                          <button onClick={() => onEditLog(log)} className="p-1 rounded text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-850" title={t('hr.attendance.editPunchTimes')}>
                             <Edit className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => {
-                              if (confirm('Are you sure you want to delete this attendance log?')) {
+                              if (confirm(t('hr.attendance.deleteConfirm'))) {
                                 onDeleteLog(log.id);
                               }
                             }}
                             className="p-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-                            title="Delete record"
+                            title={t('hr.attendance.deleteRecord')}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>

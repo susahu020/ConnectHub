@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { emitDataUpdateToUser } from '../utils/realtime';
 
 export const getNotifications = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -30,12 +31,11 @@ export const markNotificationAsRead = async (req: AuthenticatedRequest, res: Res
 
     res.status(200).json({ message: 'Notification marked as read.', count: updated.count });
 
-    // Notifications are read from a plain useState in the dashboard layout,
-    // not React Query, so they aren't covered by the generic data_update
-    // system. Push directly to this user's own other active sessions (a
-    // second browser tab/device) so the same notification doesn't stay
-    // showing as unread there until they happen to reload.
-    req.app.get('io')?.to(`user:${userId}`).emit('notification_read', { id });
+    // Push to this user's own other active sessions (a second browser
+    // tab/device) via the generic data_update system, scoped to just this
+    // user's room, so the same notification doesn't stay showing as unread
+    // there until they happen to reload.
+    emitDataUpdateToUser(req, userId, 'notifications');
   } catch (error) {
     next(error);
   }
@@ -52,7 +52,7 @@ export const markAllNotificationsAsRead = async (req: AuthenticatedRequest, res:
 
     res.status(200).json({ message: 'All notifications marked as read.', count: updated.count });
 
-    req.app.get('io')?.to(`user:${userId}`).emit('all_notifications_read');
+    emitDataUpdateToUser(req, userId, 'notifications');
   } catch (error) {
     next(error);
   }
@@ -69,7 +69,7 @@ export const deleteNotification = async (req: AuthenticatedRequest, res: Respons
 
     res.status(200).json({ message: 'Notification deleted successfully.', notificationId: id });
 
-    req.app.get('io')?.to(`user:${userId}`).emit('notification_deleted', { id });
+    emitDataUpdateToUser(req, userId, 'notifications');
   } catch (error) {
     next(error);
   }

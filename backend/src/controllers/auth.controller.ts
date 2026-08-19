@@ -23,6 +23,9 @@ import {
   checkFailedLoginLockout,
   registerFailedLogin,
   clearFailedLogins,
+  checkFailedTwoFactorLockout,
+  registerFailedTwoFactor,
+  clearFailedTwoFactor,
   enforceDuplicateLoginPolicy,
   cacheSession,
   invalidateSessionCache,
@@ -948,6 +951,21 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
+    // Account-level lockout for the 2FA code itself. A TOTP code is only 6
+    // digits (1,000,000 combinations) and a stolen/guessed password already
+    // gets an attacker past step one, so this step needs its own brute-force
+    // protection — mirrors the password lockout in login() above, tracked
+    // as a separate counter (by userId) so it doesn't share state with
+    // failed password attempts.
+    const lockoutEndTime = await checkFailedTwoFactorLockout(user.id);
+    if (lockoutEndTime) {
+      const minutesLeft = Math.ceil((lockoutEndTime.getTime() - Date.now()) / 60000);
+      res.status(423).json({
+        message: `Too many failed authentication attempts. Please try again in ${minutesLeft} minute(s).`,
+      });
+      return;
+    }
+
     let isValid = verifyTOTP(code, user.twoFactorSecret);
 
     // Support backup recovery code login
@@ -965,9 +983,31 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
     }
 
     if (!isValid) {
-      res.status(401).json({ message: 'Invalid authentication token code.' });
+      const { locked, remainingAttempts } = await registerFailedTwoFactor(user.id);
+
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'FAILED_LOGIN',
+          details: `Failed 2FA code attempt. Locked: ${locked}`,
+          ipAddress: req.ip,
+          userAgent: (req.headers['user-agent'] as string) || null,
+        },
+      });
+
+      if (locked) {
+        res.status(423).json({
+          message: 'Too many failed authentication attempts. Please try again in 15 minutes.',
+        });
+      } else {
+        res.status(401).json({
+          message: `Invalid authentication token code. ${remainingAttempts} attempt(s) remaining before lockout.`,
+        });
+      }
       return;
     }
+
+    await clearFailedTwoFactor(user.id);
 
     // Re-check suspension/active status here too — the account could have
     // been suspended or deactivated in the window between the password step

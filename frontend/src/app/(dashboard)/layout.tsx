@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
@@ -43,12 +43,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, logout, token, isAuthenticated, updateUser } = useAuthStore();
   const { socket } = useSocket();
   const { settings: orgSettings } = useOrganizationSettings();
+  const queryClient = useQueryClient();
+
+  // Notification bell state — React Query now (queryKey: ['notifications']),
+  // so cross-tab/device sync (read/all-read/deleted elsewhere) is handled by
+  // the generic data_update system (see hooks/useSocket.tsx) instead of the
+  // bespoke notification_read/all_notifications_read/notification_deleted
+  // socket events this layout used to listen for directly.
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.getNotifications(),
+    enabled: isAuthenticated,
+  });
 
   // State
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState('light');
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [showUnreadOnly, setShowUnreadOnly] = useState(true);
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -259,21 +270,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   };
 
-  // Load Notifications
-  const fetchNotifications = async () => {
-    if (!isAuthenticated) return;
-    try {
-      const data = await api.getNotifications();
-      setNotifications(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [isAuthenticated]);
-
   // Handle incoming real-time notifications
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -287,7 +283,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!socket) return;
 
     const handleNewNotification = (notification: any) => {
-      setNotifications((prev) => [notification, ...prev]);
+      queryClient.setQueryData(['notifications'], (prev: any[] = []) => [notification, ...prev]);
       toast((t) => (
         <span className="flex flex-col text-xs font-semibold">
           <strong className="text-primary">{notification.title}</strong>
@@ -320,35 +316,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     socket.on('message', (msg) => {
       // If it's a message notification, re-fetch notifications
       if (msg.senderId !== user?.id) {
-        fetchNotifications();
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
       }
     });
 
-    // Cross-device sync: mirrors the local state updates markNotifRead/
-    // markAllNotifRead/deleteNotification already make in this tab, so a
-    // notification read or dismissed on another of this user's devices
-    // doesn't keep showing here until a manual reload.
-    const handleNotificationRead = ({ id }: { id: string }) => {
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
-    };
-    const handleAllNotificationsRead = () => {
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    };
-    const handleNotificationDeleted = ({ id }: { id: string }) => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    };
-    socket.on('notification_read', handleNotificationRead);
-    socket.on('all_notifications_read', handleAllNotificationsRead);
-    socket.on('notification_deleted', handleNotificationDeleted);
+    // Read/all-read/deleted cross-device sync is handled generically now —
+    // see MODULE_QUERY_KEYS['notifications'] in hooks/useSocket.tsx, which
+    // invalidates this same ['notifications'] query on the data_update event.
 
     return () => {
       socket.off('notification_received', handleNewNotification);
       socket.off('message');
-      socket.off('notification_read', handleNotificationRead);
-      socket.off('all_notifications_read', handleAllNotificationsRead);
-      socket.off('notification_deleted', handleNotificationDeleted);
     };
-  }, [socket, user]);
+  }, [socket, user, queryClient]);
 
   // Sync theme
   useEffect(() => {
@@ -381,7 +361,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const markNotifRead = async (id: string) => {
     try {
       await api.markNotificationRead(id);
-      setNotifications((prev) =>
+      queryClient.setQueryData(['notifications'], (prev: any[] = []) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
     } catch (err) {
@@ -392,7 +372,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const markAllNotifRead = async () => {
     try {
       await api.markAllNotificationsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      queryClient.setQueryData(['notifications'], (prev: any[] = []) => prev.map((n) => ({ ...n, isRead: true })));
       toast.success('All notifications marked as read.');
     } catch (err) {
       console.error(err);

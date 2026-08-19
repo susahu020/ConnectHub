@@ -46,7 +46,11 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-// Lockout check helpers (returns lockout end time, or null if not locked)
+// Lockout check helpers (returns lockout end time, or null if not locked).
+// Redis is the primary store (cheap, TTL-based); when it's unreachable we
+// fall back to the User row itself so this protection doesn't just switch
+// off. The DB fallback needs a real row to read/write, so unlike the Redis
+// path it costs a query even for a lockout check.
 export async function checkFailedLoginLockout(email: string): Promise<Date | null> {
   const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
   if (isRedisAvailable) {
@@ -56,6 +60,12 @@ export async function checkFailedLoginLockout(email: string): Promise<Date | nul
       const ttl = await redis.ttl(lockoutKey);
       return new Date(Date.now() + ttl * 1000);
     }
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({ where: { email }, select: { lockoutUntil: true } });
+  if (user?.lockoutUntil && user.lockoutUntil > new Date()) {
+    return user.lockoutUntil;
   }
   return null;
 }
@@ -80,7 +90,20 @@ export async function registerFailedLogin(email: string): Promise<{ locked: bool
     
     return { locked: false, remainingAttempts: 5 - attempts };
   }
-  return { locked: false, remainingAttempts: 4 }; // Fallback
+
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, failedLoginAttempts: true } });
+  if (!user) return { locked: false, remainingAttempts: 4 };
+
+  const attempts = user.failedLoginAttempts + 1;
+  if (attempts >= 5) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockoutUntil: new Date(Date.now() + 15 * 60 * 1000) },
+    });
+    return { locked: true, remainingAttempts: 0 };
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: attempts } });
+  return { locked: false, remainingAttempts: 5 - attempts };
 }
 
 export async function clearFailedLogins(email: string): Promise<void> {
@@ -88,7 +111,76 @@ export async function clearFailedLogins(email: string): Promise<void> {
   if (isRedisAvailable) {
     await redis.del(`login_attempts:${email}`);
     await redis.del(`lockout:${email}`);
+    return;
   }
+  await prisma.user.updateMany({ where: { email }, data: { failedLoginAttempts: 0, lockoutUntil: null } });
+}
+
+// Same idea as the three functions above, but for the 2FA-code step
+// (see verifyLogin2FA in auth.controller.ts). Kept as a separate counter,
+// keyed by userId rather than email, so a run of failed 2FA codes doesn't
+// share state with — or get cleared by — failed password attempts.
+export async function checkFailedTwoFactorLockout(userId: string): Promise<Date | null> {
+  const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
+  if (isRedisAvailable) {
+    const lockoutKey = `2fa_lockout:${userId}`;
+    const lockoutVal = await redis.get(lockoutKey);
+    if (lockoutVal) {
+      const ttl = await redis.ttl(lockoutKey);
+      return new Date(Date.now() + ttl * 1000);
+    }
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { twoFactorLockoutUntil: true } });
+  if (user?.twoFactorLockoutUntil && user.twoFactorLockoutUntil > new Date()) {
+    return user.twoFactorLockoutUntil;
+  }
+  return null;
+}
+
+export async function registerFailedTwoFactor(userId: string): Promise<{ locked: boolean; remainingAttempts: number }> {
+  const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
+  if (isRedisAvailable) {
+    const attemptsKey = `2fa_attempts:${userId}`;
+    const attempts = await redis.incr(attemptsKey);
+
+    if (attempts === 1) {
+      await redis.expire(attemptsKey, 15 * 60);
+    }
+
+    if (attempts >= 5) {
+      await redis.set(`2fa_lockout:${userId}`, 'true', 'EX', 15 * 60);
+      await redis.del(attemptsKey);
+      return { locked: true, remainingAttempts: 0 };
+    }
+
+    return { locked: false, remainingAttempts: 5 - attempts };
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { failedTwoFactorAttempts: true } });
+  if (!user) return { locked: false, remainingAttempts: 4 };
+
+  const attempts = user.failedTwoFactorAttempts + 1;
+  if (attempts >= 5) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { failedTwoFactorAttempts: 0, twoFactorLockoutUntil: new Date(Date.now() + 15 * 60 * 1000) },
+    });
+    return { locked: true, remainingAttempts: 0 };
+  }
+  await prisma.user.update({ where: { id: userId }, data: { failedTwoFactorAttempts: attempts } });
+  return { locked: false, remainingAttempts: 5 - attempts };
+}
+
+export async function clearFailedTwoFactor(userId: string): Promise<void> {
+  const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
+  if (isRedisAvailable) {
+    await redis.del(`2fa_attempts:${userId}`);
+    await redis.del(`2fa_lockout:${userId}`);
+    return;
+  }
+  await prisma.user.update({ where: { id: userId }, data: { failedTwoFactorAttempts: 0, twoFactorLockoutUntil: null } });
 }
 
 const VALID_DUPLICATE_LOGIN_POLICIES = ['SINGLE_SESSION', 'LIMIT_3', 'UNLIMITED'] as const;

@@ -108,7 +108,7 @@ export default function OrganizationSettingsPage() {
   }, [orgSettingsData]);
 
   const updateOrgSettingsMutation = useMutation({
-    mutationFn: (updates: Record<string, string | null | string[] | boolean>) => api.updateOrganizationSettings(updates),
+    mutationFn: (updates: Record<string, string | number | null | string[] | boolean>) => api.updateOrganizationSettings(updates),
     onSuccess: (data) => {
       // Keep this page's own cache entry in sync, and also update the
       // shared ['organization-settings'] key that every page in the app

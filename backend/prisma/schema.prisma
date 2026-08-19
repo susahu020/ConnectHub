@@ -161,6 +161,15 @@ model User {
   twoFactorSecret  String?
   twoFactorEnabled Boolean @default(false)
   twoFactorBackupCodes String?
+  // Brute-force lockout state for password and 2FA-code login attempts.
+  // Redis (see session.service.ts) is the primary store for these counters
+  // because it gives per-attempt TTL expiry for free; these columns are a
+  // fallback so lockout protection doesn't silently disable itself if Redis
+  // is unreachable. Kept in sync with, not instead of, the Redis counters.
+  failedLoginAttempts      Int       @default(0)
+  lockoutUntil             DateTime?
+  failedTwoFactorAttempts  Int       @default(0)
+  twoFactorLockoutUntil    DateTime?
   // Long random token embedded in a personal .ics subscription URL (see
   // getCalendarFeed in meeting.controller.ts). Calendar apps (Google
   // Calendar, Outlook, Apple Calendar) poll a subscription URL periodically
@@ -169,8 +178,6 @@ model User {
   // it from Settings; regenerable if it ever leaks, which immediately
   // invalidates the old URL.
   calendarFeedToken     String?  @unique
-  loginAttempts    Int @default(0)
-  lockoutUntil     DateTime?
   deletedConversations DeletedConversation[]
   hostedMeetings   Meeting[]
   meetingInvites   MeetingInvite[]
@@ -566,6 +573,23 @@ model Meeting {
   recurrenceEndDate  DateTime?
   invites      MeetingInvite[]
 
+  // Co-organizers (Meet "co-host" / Teams "co-organizer"): everything the
+  // host can do in-call (admit guests, mute/remove participants, lock the
+  // meeting, manage breakout rooms, run polls, end the meeting for
+  // everyone) EXCEPT changing who the co-hosts are — only the primary host
+  // can promote/demote. Stored as user ids so the role survives a server
+  // restart / socket reconnect, unlike the in-memory-only room state.
+  coHostIds     String[] @default([])
+  // Participants the host removed-and-banned (as opposed to a plain
+  // removal, which only ends their current session but doesn't stop them
+  // requesting to rejoin). A banned user's join request is rejected before
+  // it ever reaches the host. Persisted so a ban survives a server restart.
+  bannedUserIds String[] @default([])
+  // Host setting, applied the moment a participant's media connects: mirrors
+  // Meet/Teams "mute participants on entry" so a large call doesn't open
+  // with everyone's live mic.
+  muteOnEntry   Boolean  @default(false)
+
   @@index([recurrenceGroupId])
 }
 
@@ -711,6 +735,7 @@ model OrganizationSettings {
   faviconUrl           String?
   primaryColor         String   @default("#4f46e5")
   supportEmail         String?
+  supportPhone         String?
   website              String?
   address              String?
   defaultWatermarkText String   @default("ConnectHub CONFIDENTIAL")
@@ -978,16 +1003,57 @@ model WikiVersion {
   changedById String
   changedBy   User     @relation("WikiChangeAuthor", fields: [changedById], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
+
+  // The wiki is intentionally collaborative — any employee can edit a
+  // published page (see updateWikiPage's doc comment) — so two people
+  // saving the same page within milliseconds of each other is a real,
+  // expected scenario, not a rare edge case. Without this constraint,
+  // both requests can independently compute the same "next version
+  // number" and both succeed, leaving two version rows silently
+  // mislabeled with the same number. This turns that into a loud,
+  // retryable error instead (see createNextWikiVersion in wiki.controller.ts).
+  @@unique([pageId, version])
 }
 
 model Workflow {
-  id          String   @id @default(uuid())
+  id          String        @id @default(uuid())
   name        String
-  trigger     String   // e.g. "TASK_COMPLETED", "EMPLOYEE_JOINED", "DOCUMENT_UPLOADED"
-  action      String   // e.g. "NOTIFY_MANAGER", "ASSIGN_ONBOARDING_TASKS", "NOTIFY_TEAM"
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  trigger     String   // e.g. "TASK_COMPLETED", "EMPLOYEE_JOINED", "DOCUMENT_UPLOADED", "LEAVE_REQUESTED"
+  action      String   // e.g. "NOTIFY_MANAGER", "ASSIGN_ONBOARDING_TASKS", "NOTIFY_TEAM", "SEND_EMAIL_ONLY"
+  // Optional scoping filter, e.g. { "departmentId": "..." }. When present,
+  // a key only matches if the trigger's payload has the same value for
+  // that key — lets a rule apply to one department instead of firing
+  // org-wide for every matching event. Null/empty = applies to everyone.
+  conditions  Json?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  runs        WorkflowRun[]
+
+  // An active rule is uniquely identified by what it does (trigger+action).
+  // Two active rows with the same pair would both fire on every event,
+  // double-executing the action (e.g. sending two notifications for one
+  // task completion) with no way to tell them apart in the UI.
+  @@unique([trigger, action, isActive])
+}
+
+enum WorkflowRunStatus {
+  SUCCESS
+  FAILED
+}
+
+model WorkflowRun {
+  id         String            @id @default(uuid())
+  workflowId String
+  workflow   Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  trigger    String
+  action     String
+  status     WorkflowRunStatus
+  error      String?
+  payload    Json?
+  ranAt      DateTime          @default(now())
+
+  @@index([workflowId, ranAt])
 }
 
 enum LeaveStatus {

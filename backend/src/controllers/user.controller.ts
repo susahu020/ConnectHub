@@ -6,21 +6,47 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cloudinary';
 import { emitDataUpdate } from '../utils/realtime';
 import { logAudit } from '../utils/auditLog';
+import { getRolePermissions } from '../services/rbac.service';
 
-// The profile page (skills/experience/education/certifications/cover/basic
-// info tabs) fetches with a plain useState + manual fetch — it predates the
-// React Query migration everything else uses, so the generic emitDataUpdate/
-// data_update/MODULE_QUERY_KEYS system (see utils/realtime.ts) can't reach
-// it. Without this, a colleague or manager already viewing someone's profile
-// page would not see skill/experience/education/certification/photo changes
-// that person makes in another tab until they manually reloaded. This emits
-// a small, targeted event instead: the frontend profile page listens for it
-// and — only when the userId matches whichever profile it's currently
-// showing — refetches.
-const emitProfileUpdated = (req: AuthenticatedRequest, userId: string): void => {
-  const io = req.app.get('io');
-  if (io) {
-    io.emit('profile_updated', { userId });
+/**
+ * Self-serve: the caller's own effective module/action permission map, so
+ * the frontend can show/hide/disable role-gated UI (e.g. "New Task",
+ * "New Announcement") to match what `checkPermission` will actually allow —
+ * instead of showing every action to everyone and only finding out via a
+ * 403 after submit. Intentionally read-only and scoped to `req.user` only;
+ * this is not a way to look up anyone else's permissions (use the
+ * ADMIN-only /rbac/roles/:id for that).
+ */
+export const getMyPermissions = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const role = req.user?.role!;
+
+    // Legacy ADMIN bypasses all permission checks in hasPermission() — mirror
+    // that here so the UI doesn't hide anything from an Admin just because
+    // they happen to have no (or a non-Admin) customRoleId assigned.
+    if (role === 'ADMIN') {
+      res.status(200).json({ role, isAdminBypass: true, roleName: 'Admin', permissions: null });
+      return;
+    }
+
+    if (!req.user?.customRoleId) {
+      res.status(200).json({ role, isAdminBypass: false, roleName: '', permissions: {} });
+      return;
+    }
+
+    const [permissions, roleRecord] = await Promise.all([
+      getRolePermissions(req.user.customRoleId),
+      prisma.customRole.findUnique({ where: { id: req.user.customRoleId }, select: { name: true } }),
+    ]);
+
+    res.status(200).json({
+      role,
+      isAdminBypass: false,
+      roleName: roleRecord?.name || '',
+      permissions,
+    });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -149,7 +175,7 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response, ne
 
     const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = updatedUser;
     emitDataUpdate(req, 'users');
-    emitProfileUpdated(req, userId!);
+    emitDataUpdate(req, 'profile');
     res.status(200).json({ message: 'Profile updated successfully.', user: safeUser });
   } catch (error) {
     next(error);
@@ -564,13 +590,14 @@ export const getProfileById = async (req: AuthenticatedRequest, res: Response, n
     // passwordHash was excluded, which meant every viewer also received the
     // viewed user's raw twoFactorSecret and twoFactorBackupCodes (enough to
     // generate valid 2FA codes for their account — a complete bypass of
-    // their 2FA) and emergencyContact (private personal info nobody but the
-    // owner or an Admin has a reason to see).
+    // their 2FA), their emergencyContact, and their birthday/DOB — private
+    // personal info nobody but the owner or an Admin has a reason to see.
     const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = user;
     const isSelf = req.user?.id === userId;
     const isPrivileged = req.user?.role === 'ADMIN';
     if (!isSelf && !isPrivileged) {
       delete (safeUser as any).emergencyContact;
+      delete (safeUser as any).birthday;
     }
     res.status(200).json(safeUser);
   } catch (error) {
@@ -621,7 +648,7 @@ export const uploadAvatar = async (req: AuthenticatedRequest, res: Response, nex
     });
 
     emitDataUpdate(req, 'users');
-    emitProfileUpdated(req, userId);
+    emitDataUpdate(req, 'profile');
     res.status(200).json({ message: 'Avatar uploaded successfully.', avatarUrl: fileUrl });
   } catch (error) {
     next(error);
@@ -671,7 +698,7 @@ export const uploadCover = async (req: AuthenticatedRequest, res: Response, next
     });
 
     emitDataUpdate(req, 'users');
-    emitProfileUpdated(req, userId);
+    emitDataUpdate(req, 'profile');
     res.status(200).json({ message: 'Cover banner uploaded successfully.', coverUrl: fileUrl });
   } catch (error) {
     next(error);
@@ -696,7 +723,7 @@ export const addSkill = async (req: AuthenticatedRequest, res: Response, next: N
       }
     });
     res.status(201).json(skill);
-    emitProfileUpdated(req, userId);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -718,7 +745,7 @@ export const updateSkill = async (req: AuthenticatedRequest, res: Response, next
       }
     });
     res.status(200).json(skill);
-    emitProfileUpdated(req, req.user!.id);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -729,7 +756,7 @@ export const deleteSkill = async (req: AuthenticatedRequest, res: Response, next
     const { id } = req.params;
     await prisma.userSkill.delete({ where: { id } });
     res.status(200).json({ message: 'Skill deleted successfully.' });
-    emitProfileUpdated(req, req.user!.id);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -757,7 +784,7 @@ export const addExperience = async (req: AuthenticatedRequest, res: Response, ne
       }
     });
     res.status(201).json(exp);
-    emitProfileUpdated(req, userId);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -782,7 +809,7 @@ export const updateExperience = async (req: AuthenticatedRequest, res: Response,
       }
     });
     res.status(200).json(exp);
-    emitProfileUpdated(req, req.user!.id);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -793,7 +820,7 @@ export const deleteExperience = async (req: AuthenticatedRequest, res: Response,
     const { id } = req.params;
     await prisma.experience.delete({ where: { id } });
     res.status(200).json({ message: 'Experience deleted successfully.' });
-    emitProfileUpdated(req, req.user!.id);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -818,7 +845,7 @@ export const addEducation = async (req: AuthenticatedRequest, res: Response, nex
       }
     });
     res.status(201).json(edu);
-    emitProfileUpdated(req, userId);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -840,7 +867,7 @@ export const updateEducation = async (req: AuthenticatedRequest, res: Response, 
       }
     });
     res.status(200).json(edu);
-    emitProfileUpdated(req, req.user!.id);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -851,7 +878,7 @@ export const deleteEducation = async (req: AuthenticatedRequest, res: Response, 
     const { id } = req.params;
     await prisma.education.delete({ where: { id } });
     res.status(200).json({ message: 'Education deleted successfully.' });
-    emitProfileUpdated(req, req.user!.id);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -876,7 +903,7 @@ export const addCertification = async (req: AuthenticatedRequest, res: Response,
       }
     });
     res.status(201).json(cert);
-    emitProfileUpdated(req, userId);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -898,7 +925,7 @@ export const updateCertification = async (req: AuthenticatedRequest, res: Respon
       }
     });
     res.status(200).json(cert);
-    emitProfileUpdated(req, req.user!.id);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -909,7 +936,7 @@ export const deleteCertification = async (req: AuthenticatedRequest, res: Respon
     const { id } = req.params;
     await prisma.certification.delete({ where: { id } });
     res.status(200).json({ message: 'Certification deleted successfully.' });
-    emitProfileUpdated(req, req.user!.id);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }
@@ -921,6 +948,18 @@ export const deleteCertification = async (req: AuthenticatedRequest, res: Respon
 export const getUserActivityLogs = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const targetUserId = (req.query.userId as string) || req.user?.id!;
+
+    // This previously trusted the ?userId= query param with no ownership
+    // check at all, so any authenticated user could page through any other
+    // user's activity log (logins, avatar/cover changes, profile edits,
+    // etc.) just by passing their id — a broken-access-control gap. Same
+    // rule as emergencyContact/birthday below: only the owner or an Admin
+    // may read it.
+    if (targetUserId !== req.user?.id && req.user?.role !== 'ADMIN') {
+      res.status(403).json({ message: 'Forbidden. You can only view your own activity log.' });
+      return;
+    }
+
     const { search, limit = '20', page = '1' } = req.query;
 
     const parsedLimit = parseInt(limit as string);
@@ -1017,7 +1056,7 @@ export const updateProfileById = async (req: AuthenticatedRequest, res: Response
 
     const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = updatedUser;
     emitDataUpdate(req, 'users');
-    emitProfileUpdated(req, userId);
+    emitDataUpdate(req, 'profile');
     logAudit(req, 'UPDATE_PROFILE', `Updated own profile information (${userId}).`);
     res.status(200).json({ message: 'Profile updated successfully.', user: safeUser });
   } catch (error) {
@@ -1070,7 +1109,7 @@ export const uploadAvatarById = async (req: AuthenticatedRequest, res: Response,
     res.status(200).json({ message: 'Avatar uploaded successfully.', avatarUrl: fileUrl, user: updatedUser });
 
     emitDataUpdate(req, 'users');
-    emitProfileUpdated(req, userId);
+    emitDataUpdate(req, 'profile');
   } catch (error) {
     next(error);
   }

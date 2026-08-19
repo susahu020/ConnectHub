@@ -16,6 +16,15 @@ const MFA_SETUP_ALLOWLIST = new Set([
   '/auth/2fa/activate',
   '/auth/logout',
   '/users/profile',
+  // A user with MFA_SETUP_REQUIRED can already view/edit their profile text
+  // fields (see '/users/profile' above) while completing mandatory 2FA
+  // setup — but avatar/cover uploads were missing here, so the same user
+  // hit a hard "Your organization requires two-factor authentication"
+  // error the moment they tried to change their photo instead. Photos are
+  // no more sensitive than the rest of the profile this allowlist already
+  // permits, so they're allowed through too.
+  '/users/avatar',
+  '/users/cover',
 ]);
 
 export interface AuthenticatedRequest extends Request {

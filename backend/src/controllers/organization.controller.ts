@@ -18,6 +18,7 @@ const ORG_SETTINGS_KEYS = [
   'faviconUrl',
   'primaryColor',
   'supportEmail',
+  'supportPhone',
   'website',
   'address',
   'defaultWatermarkText',
@@ -41,15 +42,28 @@ const VALID_DUPLICATE_LOGIN_POLICIES = ['SINGLE_SESSION', 'LIMIT_3', 'UNLIMITED'
 // so right after saving settings or uploading a logo/favicon, the SSO status
 // badge would flash to a wrong "Not Configured" state until the next full
 // page load silently corrected it.
-const buildOrgSettingsResponse = async (settings: any) => {
+const buildOrgSettingsResponse = async (settings: any, isPublic: boolean = false) => {
   const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
   const ssoGoogleAvailable = isGoogleSsoConfigured() && settings.ssoGoogleEnabled !== false;
-  return {
+  const result: any = {
     ...settings,
     needsInitialSetup: adminCount === 0,
     ssoGoogleAvailable,
     ssoGoogleUsingDemoCredentials: ssoGoogleAvailable && isUsingTemplateDemoGoogleCredentials(),
   };
+  // getPublicOrganizationSettings has no auth middleware at all — it's
+  // called from the login/register screen before a session exists — so
+  // whatever this function returns for isPublic=true is served to literally
+  // anyone on the internet. alertWebhookUrl is a Slack-style incoming
+  // webhook: the URL itself functions as the credential, so leaking it lets
+  // anyone post arbitrary content into the org's alert channel. It stays in
+  // the response for the three admin-only endpoints below (they need to
+  // echo it back so the settings page can show/edit the currently-
+  // configured value), just not this one.
+  if (isPublic) {
+    delete result.alertWebhookUrl;
+  }
+  return result;
 };
 
 /**
@@ -65,7 +79,7 @@ export const getPublicOrganizationSettings = async (req: Request, res: Response,
       settings = await prisma.organizationSettings.create({ data: {} });
     }
 
-    res.status(200).json(await buildOrgSettingsResponse(settings));
+    res.status(200).json(await buildOrgSettingsResponse(settings, true));
   } catch (error) {
     next(error);
   }

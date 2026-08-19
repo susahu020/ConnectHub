@@ -10,6 +10,7 @@ export interface OrganizationSettings {
   faviconUrl: string | null;
   primaryColor: string;
   supportEmail: string | null;
+  supportPhone: string | null;
   website: string | null;
   address: string | null;
   defaultWatermarkText: string;
@@ -48,6 +49,7 @@ export const DEFAULT_ORG_SETTINGS: OrganizationSettings = {
   faviconUrl: null,
   primaryColor: '#4f46e5',
   supportEmail: null,
+  supportPhone: null,
   website: null,
   address: null,
   defaultWatermarkText: 'ConnectHub CONFIDENTIAL',

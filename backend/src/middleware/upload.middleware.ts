@@ -26,7 +26,7 @@ const fileFilter = (req: any, file: any, cb: any) => {
     // the standard scalable-logo format, ICO the standard favicon format),
     // but they were missing here, so every one of those uploads failed
     // with "Unsupported file type" despite the UI inviting exactly that.
-    '.png', '.jpeg', '.jpg', '.gif', '.heic', '.svg', '.webp', '.ico',
+    '.png', '.jpeg', '.jpg', '.gif', '.heic', '.heif', '.svg', '.webp', '.ico',
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
     '.txt', '.zip', '.rar',
     '.mp3', '.wav',

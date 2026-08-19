@@ -64,6 +64,14 @@ const MODULE_QUERY_KEYS: Record<string, string[]> = {
   roles: ['admin-roles'],
   // Admin > Email notification feature toggles
   'email-settings': ['admin-email-settings'],
+  // A user's own notification bell state (read/all-read/deleted). Emitted
+  // room-scoped to just that user (see emitDataUpdateToUser in
+  // backend/src/utils/realtime.ts), not broadcast org-wide.
+  notifications: ['notifications'],
+  // Own profile / another user's profile page (basic info, skills,
+  // experience, education, certifications, avatar, cover). Broadcast
+  // org-wide since anyone could be viewing anyone else's profile.
+  profile: ['profile'],
 };
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {

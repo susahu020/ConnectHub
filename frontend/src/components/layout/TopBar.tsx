@@ -50,7 +50,7 @@ export function TopBar({
 }: {
   pageTitle: string;
   onOpenMobileSidebar: () => void;
-  searchRef: React.RefObject<HTMLDivElement>;
+  searchRef: React.RefObject<HTMLDivElement | null>;
   searchQuery: string;
   onSearchQueryChange: (v: string) => void;
   searchFocused: boolean;

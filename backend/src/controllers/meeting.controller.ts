@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { createManyNotifications } from '../services/notification.service';
 import { emitDataUpdate } from '../utils/realtime';
 import { buildIcsCalendar } from '../utils/ics';
+import { meetingCoHosts } from '../services/socket.service';
 
 // Google Meet style code: xxx-yyyy-zzz, always lowercase so string comparisons
 // (DB unique lookup, socket.io room names) never fail because of case.
@@ -58,7 +59,7 @@ const nextOccurrence = (date: Date, rule: string): Date => {
 export const createMeeting = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const hostId = req.user!.id;
-    const { title } = req.body || {};
+    const { title, muteOnEntry } = req.body || {};
 
     let code = generateMeetingCode();
     // Extremely unlikely collision, but guard anyway.
@@ -69,7 +70,7 @@ export const createMeeting = async (req: AuthenticatedRequest, res: Response, ne
     }
 
     const meeting = await prisma.meeting.create({
-      data: { code, title: title || null, hostId, status: 'SCHEDULED' },
+      data: { code, title: title || null, hostId, status: 'SCHEDULED', muteOnEntry: !!muteOnEntry },
     });
 
     res.status(201).json(meeting);
@@ -86,7 +87,7 @@ export const createMeeting = async (req: AuthenticatedRequest, res: Response, ne
 export const scheduleMeeting = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const hostId = req.user!.id;
-    const { title, scheduledFor, durationMins, inviteeIds, recurrenceRule, recurrenceEndDate } = req.body || {};
+    const { title, scheduledFor, durationMins, inviteeIds, recurrenceRule, recurrenceEndDate, coHostIds, muteOnEntry } = req.body || {};
 
     if (!scheduledFor || isNaN(new Date(scheduledFor).getTime())) {
       res.status(400).json({ message: 'A valid scheduledFor date/time is required.' });
@@ -116,6 +117,15 @@ export const scheduleMeeting = async (req: AuthenticatedRequest, res: Response, 
 
     const uniqueInviteeIds: string[] = Array.isArray(inviteeIds)
       ? [...new Set(inviteeIds.filter((id: any) => typeof id === 'string' && id !== hostId))]
+      : [];
+
+    // A co-host must be someone actually being invited to this meeting —
+    // otherwise they'd have host-level in-call powers over a meeting they
+    // were never told about. Silently drop anything outside the invite list
+    // rather than erroring, since the UI only ever offers co-host toggles
+    // next to a checked invitee in the first place.
+    const uniqueCoHostIds: string[] = Array.isArray(coHostIds)
+      ? [...new Set(coHostIds.filter((id: any) => typeof id === 'string' && uniqueInviteeIds.includes(id)))]
       : [];
 
     // Work out every occurrence date up front (bounded by both the
@@ -148,6 +158,8 @@ export const scheduleMeeting = async (req: AuthenticatedRequest, res: Response, 
           recurrenceRule: recurrenceRule || null,
           recurrenceGroupId,
           recurrenceEndDate: normalizedRecurrenceEndDate,
+          coHostIds: uniqueCoHostIds,
+          muteOnEntry: !!muteOnEntry,
           invites: {
             create: uniqueInviteeIds.map((userId) => ({ userId })),
           },
@@ -243,6 +255,14 @@ export const getMeetingByCode = async (req: AuthenticatedRequest, res: Response,
       return res.status(404).json({ message: 'No active meeting found for this code.' });
     }
 
+    // A banned participant shouldn't even see the waiting-room screen — same
+    // as Meet/Teams, being removed-and-blocked means the meeting no longer
+    // shows as joinable for them at all, not just that their entry request
+    // gets silently denied later.
+    if (meeting.hostId !== req.user!.id && meeting.bannedUserIds.includes(req.user!.id)) {
+      return res.status(403).json({ message: 'You have been removed from this meeting by the host.' });
+    }
+
     res.json({
       code: meeting.code,
       title: meeting.title,
@@ -251,7 +271,65 @@ export const getMeetingByCode = async (req: AuthenticatedRequest, res: Response,
       hostName: `${meeting.host.firstName} ${meeting.host.lastName}`.trim(),
       scheduledFor: meeting.scheduledFor,
       durationMins: meeting.durationMins,
+      startedAt: meeting.startedAt,
+      coHostIds: meeting.coHostIds,
+      muteOnEntry: meeting.muteOnEntry,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PATCH /api/meetings/:code/co-hosts — only the primary host can grant or
+// revoke co-host (Meet "co-host" / Teams "co-organizer") status. Co-hosts
+// get every in-call moderation power the host has except this one — they
+// can't promote/demote other co-hosts, which stays exclusive to whoever
+// created the meeting, so co-host status can never be handed around
+// peer-to-peer without the host's say-so.
+export const updateCoHosts = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const code = normalizeCode(req.params.code);
+    const { coHostIds } = req.body || {};
+
+    if (!Array.isArray(coHostIds) || coHostIds.some((id: any) => typeof id !== 'string')) {
+      res.status(400).json({ message: 'coHostIds must be an array of user ids.' });
+      return;
+    }
+
+    const meeting = await prisma.meeting.findUnique({
+      where: { code },
+      include: { invites: { select: { userId: true } } },
+    });
+    if (!meeting) {
+      res.status(404).json({ message: 'Meeting not found.' });
+      return;
+    }
+    if (meeting.hostId !== req.user!.id) {
+      res.status(403).json({ message: 'Only the host can manage co-hosts.' });
+      return;
+    }
+
+    // Same rule as scheduling: a co-host has to actually be an invitee of
+    // this meeting — never the host themself (already a superset of
+    // co-host), and never someone with no standing invite to be in the call
+    // at all.
+    const inviteeIds = new Set(meeting.invites.map((i) => i.userId));
+    const uniqueCoHostIds = [...new Set(coHostIds.filter((id: string) => id !== meeting.hostId && inviteeIds.has(id)))];
+
+    const updated = await prisma.meeting.update({
+      where: { code },
+      data: { coHostIds: uniqueCoHostIds },
+    });
+
+    // Keep the socket layer's in-memory cache (used by assertIsHostOrCoHost
+    // for every moderation action) current immediately, rather than letting
+    // it drift until the next self-heal DB lookup.
+    meetingCoHosts.set(code, new Set(uniqueCoHostIds));
+
+    res.json({ code: updated.code, coHostIds: updated.coHostIds });
+
+    const io = req.app.get('io');
+    io?.to(`meeting:${code}`).emit('co_hosts_updated', { coHostIds: uniqueCoHostIds });
   } catch (error) {
     next(error);
   }
@@ -266,8 +344,8 @@ export const startMeeting = async (req: AuthenticatedRequest, res: Response, nex
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found.' });
     }
-    if (meeting.hostId !== req.user!.id) {
-      return res.status(403).json({ message: 'Only the host can start this meeting.' });
+    if (meeting.hostId !== req.user!.id && !meeting.coHostIds.includes(req.user!.id)) {
+      return res.status(403).json({ message: 'Only the host or a co-host can start this meeting.' });
     }
 
     const updated = await prisma.meeting.update({
@@ -292,8 +370,8 @@ export const endMeeting = async (req: AuthenticatedRequest, res: Response, next:
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found.' });
     }
-    if (meeting.hostId !== req.user!.id) {
-      return res.status(403).json({ message: 'Only the host can end this meeting.' });
+    if (meeting.hostId !== req.user!.id && !meeting.coHostIds.includes(req.user!.id)) {
+      return res.status(403).json({ message: 'Only the host or a co-host can end this meeting.' });
     }
 
     const updated = await prisma.meeting.update({
@@ -376,11 +454,20 @@ export const getMeetings = async (req: AuthenticatedRequest, res: Response, next
       orderBy: [{ scheduledFor: 'desc' }, { createdAt: 'desc' }],
     });
 
-    const shaped = meetings.map((m) => ({
-      ...m,
-      isHost: m.hostId === userId,
-      myInviteStatus: m.hostId === userId ? null : (m.invites.find((i) => i.userId === userId)?.status ?? null),
-    }));
+    const shaped = meetings.map((m) => {
+      const isHost = m.hostId === userId;
+      // bannedUserIds is moderation data — only the host needs to see who's
+      // on it (it drives their own "Banned" chip in the participant list);
+      // exposing it to every invitee would leak who else got removed.
+      const { bannedUserIds, ...rest } = m;
+      return {
+        ...rest,
+        ...(isHost ? { bannedUserIds } : {}),
+        isHost,
+        isCoHost: !isHost && m.coHostIds.includes(userId),
+        myInviteStatus: isHost ? null : (m.invites.find((i) => i.userId === userId)?.status ?? null),
+      };
+    });
 
     res.json(shaped);
   } catch (error) {

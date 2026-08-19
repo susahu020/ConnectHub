@@ -122,6 +122,17 @@ export const buildNotificationEmail = (title: string, message: string, orgName: 
 export const createNotification = async (params: NotificationParams) => {
   const { userId, title, message, type, relatedId, io, emailFeature } = params;
 
+  // Every caller of this (task assignment, chat messages, meeting invites,
+  // announcements, group creation...) has already committed its primary
+  // write to the DB by the time it calls this. A failure in here — a
+  // malformed settings row, a transient DB hiccup — used to propagate as a
+  // thrown error, which meant the *caller's* request handler reported the
+  // whole action as failed (e.g. "task creation failed") even though the
+  // task/message/meeting genuinely was created. Worse, that false failure
+  // can prompt the client to retry and create a duplicate. Notifications
+  // are a side effect of the real action, not the real action itself, so
+  // failures here are caught and logged instead of bubbled up — the same
+  // treatment the email dispatch a few lines below already gets.
   try {
     // 1. Query user preferences first — a category the user has fully
     // muted (Notification Preferences > In-app off) shouldn't even create a
@@ -174,8 +185,8 @@ export const createNotification = async (params: NotificationParams) => {
 
     return notification;
   } catch (error) {
-    console.error('Notification Service Error:', error);
-    throw error;
+    console.error('Notification Service Error (non-fatal to caller):', error);
+    return null;
   }
 };
 
@@ -204,7 +215,11 @@ export const createManyNotifications = async (params: MultipleNotificationsParam
     );
     return results;
   } catch (error) {
-    console.error('Notification Service createMany Error:', error);
-    throw error;
+    // createNotification no longer throws (see above), so this branch isn't
+    // reachable today — kept non-fatal anyway, for the same reason: a batch
+    // of notifications failing shouldn't take down the caller's already-
+    // successful primary action (e.g. group creation, an announcement post).
+    console.error('Notification Service createMany Error (non-fatal to caller):', error);
+    return [];
   }
 };
