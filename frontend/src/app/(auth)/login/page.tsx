@@ -109,11 +109,11 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-6 py-12">
-      <div className="w-full max-w-md space-y-8 bg-white dark:bg-slate-900 p-8 rounded-3xl border shadow-xl relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-background px-6 py-12">
+      <div className="w-full max-w-md space-y-8 bg-card p-8 rounded-3xl border shadow-xl relative overflow-hidden">
         {/* Glow effects */}
         <div className="absolute -top-24 -right-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 h-48 w-48 bg-indigo-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 h-48 w-48 bg-warm/10 rounded-full blur-3xl" />
 
         <div className="flex flex-col items-center space-y-2 text-center">
           <Link href="/" className="flex items-center space-x-2 text-2xl font-bold tracking-tight mb-2">
@@ -150,7 +150,7 @@ function LoginForm() {
                 placeholder="e.g. 123456"
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 text-center font-mono text-lg tracking-widest"
+                className="w-full px-4 py-3 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 text-center font-mono text-lg tracking-widest"
               />
             </div>
 
@@ -158,7 +158,7 @@ function LoginForm() {
               <button
                 type="submit"
                 disabled={otpLoading}
-                className="w-full py-3 px-4 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
+                className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
               >
                 {otpLoading ? (
                   <>
@@ -177,7 +177,7 @@ function LoginForm() {
                   setOtpCode('');
                   setTemp2faToken('');
                 }}
-                className="w-full py-2.5 px-4 border rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center space-x-1.5"
+                className="w-full py-2.5 px-4 border rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted transition-all flex items-center justify-center space-x-1.5"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Back to Sign In</span>
@@ -191,7 +191,7 @@ function LoginForm() {
               <>
                 <a
                   href={`${API_BASE_URL}/auth/sso/google`}
-                  className="w-full flex items-center justify-center gap-2.5 py-2.5 border rounded-xl font-semibold text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  className="w-full flex items-center justify-center gap-2.5 py-2.5 border rounded-xl font-semibold text-sm hover:bg-muted transition-colors"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -202,9 +202,9 @@ function LoginForm() {
                   Continue with Google
                 </a>
                 <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                  <div className="h-px flex-1 bg-border" />
                   <span className="text-[10px] text-muted-foreground uppercase font-bold">or sign in with email</span>
-                  <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+                  <div className="h-px flex-1 bg-border" />
                 </div>
               </>
             )}            <div className="space-y-2">
@@ -216,7 +216,7 @@ function LoginForm() {
                 type="email"
                 placeholder="name@company.com"
                 {...register('email')}
-                className={`w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
+                className={`w-full px-4 py-3 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
                   errors.email ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' : ''
                 }`}
               />
@@ -238,7 +238,7 @@ function LoginForm() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   {...register('password')}
-                  className={`w-full pl-4 pr-10 py-3 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
+                  className={`w-full pl-4 pr-10 py-3 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
                     errors.password ? 'border-red-500 focus:ring-red-500/20' : ''
                   }`}
                 />
@@ -256,7 +256,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
+              className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -291,7 +291,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     }>

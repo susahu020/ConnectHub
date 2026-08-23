@@ -5,14 +5,16 @@ jest.mock('../../config/db', () => ({
   default: {
     user: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
     },
   },
 }));
 
 import prisma from '../../config/db';
-import { isAuthorizedApprover, isManagerOrAdmin } from '../approval.service';
+import { isAuthorizedApprover, isManagerOrAdmin, getVisibleUserIds } from '../approval.service';
 
 const mockedFindUnique = prisma.user.findUnique as jest.Mock;
+const mockedFindMany = prisma.user.findMany as jest.Mock;
 
 describe('isAuthorizedApprover', () => {
   beforeEach(() => {
@@ -77,5 +79,39 @@ describe('isManagerOrAdmin', () => {
 
   it('returns false for an unrecognized role string', () => {
     expect(isManagerOrAdmin('SUPERUSER')).toBe(false);
+  });
+});
+
+describe('getVisibleUserIds', () => {
+  beforeEach(() => {
+    mockedFindMany.mockReset();
+  });
+
+  it('returns null (unrestricted) for an Admin, without querying direct reports', async () => {
+    const result = await getVisibleUserIds('admin-1', 'ADMIN');
+    expect(result).toBeNull();
+    expect(mockedFindMany).not.toHaveBeenCalled();
+  });
+
+  it("returns the Manager's own id plus their direct reports' ids", async () => {
+    mockedFindMany.mockResolvedValue([{ id: 'employee-1' }, { id: 'employee-2' }]);
+    const result = await getVisibleUserIds('manager-1', 'MANAGER');
+    expect(result).toEqual(['manager-1', 'employee-1', 'employee-2']);
+    expect(mockedFindMany).toHaveBeenCalledWith({
+      where: { managerId: 'manager-1' },
+      select: { id: true },
+    });
+  });
+
+  it('returns only the Manager themselves when they have no direct reports — not org-wide access', async () => {
+    mockedFindMany.mockResolvedValue([]);
+    const result = await getVisibleUserIds('manager-1', 'MANAGER');
+    expect(result).toEqual(['manager-1']);
+  });
+
+  it('returns only the caller themselves for a plain Employee', async () => {
+    const result = await getVisibleUserIds('employee-1', 'EMPLOYEE');
+    expect(result).toEqual(['employee-1']);
+    expect(mockedFindMany).not.toHaveBeenCalled();
   });
 });

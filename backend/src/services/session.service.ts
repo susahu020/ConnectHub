@@ -1,6 +1,9 @@
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import prisma from '../config/db';
 import redis from '../config/redis';
+import { getOrganizationSettings } from './organization.service';
+import { sendEmail } from '../config/mailer';
 
 // Simple lightweight regex User-Agent parser to avoid external dependencies
 export function parseUserAgent(ua: string) {
@@ -43,7 +46,11 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-// Lockout check helpers (returns lockout end time, or null if not locked)
+// Lockout check helpers (returns lockout end time, or null if not locked).
+// Redis is the primary store (cheap, TTL-based); when it's unreachable we
+// fall back to the User row itself so this protection doesn't just switch
+// off. The DB fallback needs a real row to read/write, so unlike the Redis
+// path it costs a query even for a lockout check.
 export async function checkFailedLoginLockout(email: string): Promise<Date | null> {
   const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
   if (isRedisAvailable) {
@@ -53,6 +60,12 @@ export async function checkFailedLoginLockout(email: string): Promise<Date | nul
       const ttl = await redis.ttl(lockoutKey);
       return new Date(Date.now() + ttl * 1000);
     }
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({ where: { email }, select: { lockoutUntil: true } });
+  if (user?.lockoutUntil && user.lockoutUntil > new Date()) {
+    return user.lockoutUntil;
   }
   return null;
 }
@@ -77,7 +90,20 @@ export async function registerFailedLogin(email: string): Promise<{ locked: bool
     
     return { locked: false, remainingAttempts: 5 - attempts };
   }
-  return { locked: false, remainingAttempts: 4 }; // Fallback
+
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, failedLoginAttempts: true } });
+  if (!user) return { locked: false, remainingAttempts: 4 };
+
+  const attempts = user.failedLoginAttempts + 1;
+  if (attempts >= 5) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockoutUntil: new Date(Date.now() + 15 * 60 * 1000) },
+    });
+    return { locked: true, remainingAttempts: 0 };
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: attempts } });
+  return { locked: false, remainingAttempts: 5 - attempts };
 }
 
 export async function clearFailedLogins(email: string): Promise<void> {
@@ -85,32 +111,136 @@ export async function clearFailedLogins(email: string): Promise<void> {
   if (isRedisAvailable) {
     await redis.del(`login_attempts:${email}`);
     await redis.del(`lockout:${email}`);
+    return;
   }
+  await prisma.user.updateMany({ where: { email }, data: { failedLoginAttempts: 0, lockoutUntil: null } });
 }
 
-// Enforce configureable duplicate session limits
-export async function enforceDuplicateLoginPolicy(userId: string): Promise<void> {
-  // Mode configuration: "unlimited", "limit-3", "single"
-  const policy = process.env.DUPLICATE_LOGIN_POLICY || 'unlimited';
-  if (policy === 'unlimited') return;
-
-  const activeSessions = await prisma.session.findMany({
-    where: { userId, isRevoked: false },
-    orderBy: { lastActivity: 'asc' }, // Oldest first
-  });
-
-  if (policy === 'single' && activeSessions.length > 0) {
-    // Revoke all existing sessions
-    for (const session of activeSessions) {
-      await revokeSession(session.sessionId, 'FORCE_OUT', 'New login established on single-device policy');
+// Same idea as the three functions above, but for the 2FA-code step
+// (see verifyLogin2FA in auth.controller.ts). Kept as a separate counter,
+// keyed by userId rather than email, so a run of failed 2FA codes doesn't
+// share state with — or get cleared by — failed password attempts.
+export async function checkFailedTwoFactorLockout(userId: string): Promise<Date | null> {
+  const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
+  if (isRedisAvailable) {
+    const lockoutKey = `2fa_lockout:${userId}`;
+    const lockoutVal = await redis.get(lockoutKey);
+    if (lockoutVal) {
+      const ttl = await redis.ttl(lockoutKey);
+      return new Date(Date.now() + ttl * 1000);
     }
-  } else if (policy === 'limit-3' && activeSessions.length >= 3) {
-    // Evict oldest session to fit current new login (new login will make it 4 sessions, so we evict oldest 1)
-    const excessCount = activeSessions.length - 2; // Keep oldest 2 (room for current session)
-    for (let i = 0; i < excessCount; i++) {
-      if (activeSessions[i]) {
-        await revokeSession(activeSessions[i].sessionId, 'FORCE_OUT', 'Evicted under session limit policy');
-      }
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { twoFactorLockoutUntil: true } });
+  if (user?.twoFactorLockoutUntil && user.twoFactorLockoutUntil > new Date()) {
+    return user.twoFactorLockoutUntil;
+  }
+  return null;
+}
+
+export async function registerFailedTwoFactor(userId: string): Promise<{ locked: boolean; remainingAttempts: number }> {
+  const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
+  if (isRedisAvailable) {
+    const attemptsKey = `2fa_attempts:${userId}`;
+    const attempts = await redis.incr(attemptsKey);
+
+    if (attempts === 1) {
+      await redis.expire(attemptsKey, 15 * 60);
+    }
+
+    if (attempts >= 5) {
+      await redis.set(`2fa_lockout:${userId}`, 'true', 'EX', 15 * 60);
+      await redis.del(attemptsKey);
+      return { locked: true, remainingAttempts: 0 };
+    }
+
+    return { locked: false, remainingAttempts: 5 - attempts };
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { failedTwoFactorAttempts: true } });
+  if (!user) return { locked: false, remainingAttempts: 4 };
+
+  const attempts = user.failedTwoFactorAttempts + 1;
+  if (attempts >= 5) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { failedTwoFactorAttempts: 0, twoFactorLockoutUntil: new Date(Date.now() + 15 * 60 * 1000) },
+    });
+    return { locked: true, remainingAttempts: 0 };
+  }
+  await prisma.user.update({ where: { id: userId }, data: { failedTwoFactorAttempts: attempts } });
+  return { locked: false, remainingAttempts: 5 - attempts };
+}
+
+export async function clearFailedTwoFactor(userId: string): Promise<void> {
+  const isRedisAvailable = redis.status === 'ready' || redis.status === 'connecting';
+  if (isRedisAvailable) {
+    await redis.del(`2fa_attempts:${userId}`);
+    await redis.del(`2fa_lockout:${userId}`);
+    return;
+  }
+  await prisma.user.update({ where: { id: userId }, data: { failedTwoFactorAttempts: 0, twoFactorLockoutUntil: null } });
+}
+
+const VALID_DUPLICATE_LOGIN_POLICIES = ['SINGLE_SESSION', 'LIMIT_3', 'UNLIMITED'] as const;
+export type DuplicateLoginPolicy = (typeof VALID_DUPLICATE_LOGIN_POLICIES)[number];
+
+// Resolves the effective concurrent-session policy. Source of truth is the
+// admin-configurable OrganizationSettings.duplicateLoginPolicy (Organization
+// Settings > Security in the UI), so this can be changed at runtime without
+// a redeploy. DUPLICATE_LOGIN_POLICY in the environment is kept only as an
+// optional infra-level override (e.g. a hard requirement from ops/compliance
+// that shouldn't be changeable from the admin UI); it takes precedence when
+// set. Falls back to SINGLE_SESSION — the industry-standard default for an
+// internal collaboration tool that holds credentials to company data — if
+// neither is a recognized value, rather than silently defaulting to the
+// least-secure "unlimited" behavior.
+export async function getDuplicateLoginPolicy(): Promise<DuplicateLoginPolicy> {
+  const envOverride = process.env.DUPLICATE_LOGIN_POLICY?.toUpperCase();
+  if (envOverride && (VALID_DUPLICATE_LOGIN_POLICIES as readonly string[]).includes(envOverride)) {
+    return envOverride as DuplicateLoginPolicy;
+  }
+
+  const orgSettings = await getOrganizationSettings();
+  const configured = (orgSettings.duplicateLoginPolicy || '').toUpperCase();
+  if ((VALID_DUPLICATE_LOGIN_POLICIES as readonly string[]).includes(configured)) {
+    return configured as DuplicateLoginPolicy;
+  }
+
+  return 'SINGLE_SESSION';
+}
+
+// Enforce the configured duplicate-session policy. Called right before a new
+// session is created (see auth.controller.ts login/verify2fa/ssoCallback), so
+// that under SINGLE_SESSION the same credentials can never be simultaneously
+// authenticated in two different browsers/devices — the previous session is
+// revoked (and, on its next request, rejected by auth.middleware.ts) the
+// moment the new one is established.
+export async function enforceDuplicateLoginPolicy(userId: string): Promise<void> {
+  const policy = await getDuplicateLoginPolicy();
+  if (policy === 'UNLIMITED') return;
+
+  if (policy === 'SINGLE_SESSION') {
+    // Revoke every other existing session — only the new login stays valid,
+    // so the same credentials can't be active in more than one browser/device.
+    await revokeSessions(
+      { userId, isRevoked: false },
+      'FORCE_OUT',
+      'Signed out because your account was logged in from a new browser/device (single-session policy)'
+    );
+  } else if (policy === 'LIMIT_3') {
+    const activeSessions = await prisma.session.findMany({
+      where: { userId, isRevoked: false },
+      orderBy: { lastActivity: 'asc' }, // Oldest first
+    });
+    if (activeSessions.length >= 3) {
+      // Evict oldest session(s) to fit current new login (new login will make it 4 sessions, so we evict down to 2)
+      const excessCount = activeSessions.length - 2; // Keep oldest 2 (room for current session)
+      const toEvict = activeSessions.slice(0, excessCount);
+      await Promise.all(
+        toEvict.map((session) => revokeSession(session.sessionId, 'FORCE_OUT', 'Evicted under session limit policy'))
+      );
     }
   }
 }
@@ -154,4 +284,92 @@ export async function revokeSession(sessionId: string, reason: string, details?:
   
   // Invalidate Redis cache
   await invalidateSessionCache(sessionId);
+}
+
+// Revokes every session matching `where`, and returns how many were
+// revoked. This centralizes a pattern that was duplicated, near-verbatim,
+// across roughly eight call sites — logoutAll, adminLogoutUser,
+// adminLogoutAll, resetPassword, changePassword's logoutOthers,
+// admin.controller.ts's toggleUserSuspension and toggleUserActive, and
+// enforceDuplicateLoginPolicy above — each doing its own findMany()
+// followed by a sequential `for (const s of sessions) { await
+// revokeSession(...) }` loop.
+//
+// revokeSession is intentionally called per-session rather than a raw
+// session.updateMany, so the Redis-cached copy authenticate() checks first
+// gets invalidated too (see revokeSession above) — a plain updateMany would
+// leave stale cached sessions valid until their TTL expires even though the
+// Postgres row says revoked. That per-session requirement is real. What
+// wasn't necessary is doing those N revocations one after another: each
+// session's DB update + cache invalidation is independent of every other
+// session's, so sequential awaiting bought no correctness, only latency —
+// most severely in adminLogoutAll, which revokes every active session
+// company-wide and was doing it one HTTP request at a time.
+export async function revokeSessions(
+  where: Prisma.SessionWhereInput,
+  reason: string,
+  details?: string
+): Promise<number> {
+  const sessions = await prisma.session.findMany({ where });
+  await Promise.all(sessions.map((session) => revokeSession(session.sessionId, reason, details)));
+  return sessions.length;
+}
+
+// Emails the user when a login comes from a browser/OS combination or IP
+// address that isn't associated with any of their other sessions —
+// standard "new sign-in" security alert (GitHub, Google, Slack all do
+// this). Deliberately skipped on a user's very first-ever session (nothing
+// to compare against yet, and everyone's first login would otherwise
+// trigger a "new device" email on day one, which is just noise) and never
+// blocks or delays login — it's fire-and-forget from the caller's
+// perspective, same as the other post-login emails in auth.controller.ts.
+export async function notifyIfNewDevice(
+  userId: string,
+  email: string,
+  currentSessionId: string,
+  browser: string,
+  operatingSystem: string,
+  location: string | null,
+  ipAddress: string
+): Promise<void> {
+  try {
+    const priorSessionCount = await prisma.session.count({
+      where: { userId, sessionId: { not: currentSessionId } },
+    });
+    if (priorSessionCount === 0) return; // first-ever login, nothing to compare against
+
+    const matchingPriorSession = await prisma.session.findFirst({
+      where: {
+        userId,
+        sessionId: { not: currentSessionId },
+        OR: [
+          { browser, operatingSystem },
+          { ipAddress },
+        ],
+      },
+    });
+    if (matchingPriorSession) return; // recognized device or network, nothing to flag
+
+    const orgSettings = await getOrganizationSettings();
+    const orgName = orgSettings.orgName || 'ConnectHub';
+    const whenText = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+    const locationText = location || 'an unknown location';
+
+    await sendEmail(
+      email,
+      `${orgName} - New sign-in to your account`,
+      `We noticed a new sign-in to your account from ${browser} on ${operatingSystem}, near ${locationText} (${ipAddress}), at ${whenText}. If this was you, no action is needed. If you don't recognize this activity, change your password immediately and sign out of all other sessions from Settings > Security.`,
+      `<p>We noticed a new sign-in to your account:</p>
+       <ul>
+         <li><strong>Device:</strong> ${browser} on ${operatingSystem}</li>
+         <li><strong>Location:</strong> ${locationText} (${ipAddress})</li>
+         <li><strong>Time:</strong> ${whenText}</li>
+       </ul>
+       <p>If this was you, no action is needed.</p>
+       <p>If you don't recognize this activity, change your password immediately and sign out of all other sessions from Settings &gt; Security.</p>`
+    );
+  } catch (err) {
+    // Never let an alerting failure affect login itself.
+    console.error('[notifyIfNewDevice] Failed to send new-device alert:', err);
+  }
 }

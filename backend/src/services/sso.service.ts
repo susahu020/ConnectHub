@@ -26,6 +26,18 @@ const STATE_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-
 export const isGoogleSsoConfigured = (): boolean =>
   !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REDIRECT_URI);
 
+// The exact Client ID shipped in .env.example as a "fill in your own"
+// placeholder. isGoogleSsoConfigured() alone can't tell a real credential
+// from an unedited template — both are just non-empty strings — so without
+// this, an org that hasn't swapped in their own OAuth credentials yet would
+// see "Continue with Google" as if it's ready, click it, and hit a Google-
+// side failure (this demo project's redirect URIs won't match their
+// deployment). This is a courtesy warning, not a security control: it only
+// catches the literal example value, not "some other misconfiguration."
+const KNOWN_TEMPLATE_DEMO_CLIENT_ID = '589918863166-d0ggvv4vfr0q7ba3clnp8hr1tbmmmicn.apps.googleusercontent.com';
+export const isUsingTemplateDemoGoogleCredentials = (): boolean =>
+  process.env.GOOGLE_CLIENT_ID === KNOWN_TEMPLATE_DEMO_CLIENT_ID;
+
 export const isGoogleSsoAvailable = async (): Promise<boolean> => {
   if (!isGoogleSsoConfigured()) return false;
   const orgSettings = await getOrganizationSettings();

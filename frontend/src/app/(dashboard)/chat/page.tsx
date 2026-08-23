@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import ImageCropperModal from '../../../components/ImageCropperModal';
 import { 
   MessageSquare, 
@@ -77,7 +78,7 @@ const renderFormattedText = (text: string) => {
     const parts = line.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
     const elements = parts.map((part, pIdx) => {
       if (part.startsWith('`') && part.endsWith('`')) {
-        return <code key={pIdx} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-[10px] text-red-500">{part.slice(1, -1)}</code>;
+        return <code key={pIdx} className="px-1.5 py-0.5 bg-muted dark:bg-card rounded font-mono text-[10px] text-red-500">{part.slice(1, -1)}</code>;
       }
       if (part.startsWith('**') && part.endsWith('**')) {
         return <strong key={pIdx} className="font-extrabold">{part.slice(2, -2)}</strong>;
@@ -97,6 +98,7 @@ const renderFormattedText = (text: string) => {
 };
 
 export default function ChatPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
@@ -307,7 +309,11 @@ export default function ChatPage() {
       // 1. Focus search input (Ctrl + K or Cmd + K)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        const searchInput = document.querySelector('input[placeholder="Search colleagues..."]') as HTMLInputElement;
+        // Queried by id, not by placeholder text — placeholder is
+        // translated (see chat.searchColleagues), so matching against its
+        // literal English text would silently stop working the moment a
+        // non-English language is selected.
+        const searchInput = document.getElementById('chat-colleague-search') as HTMLInputElement;
         searchInput?.focus();
       }
 
@@ -316,7 +322,7 @@ export default function ChatPage() {
         e.preventDefault();
         setShowMsgSearch(true);
         setTimeout(() => {
-          const msgSearchInput = document.querySelector('input[placeholder="Search conversation..."]') as HTMLInputElement;
+          const msgSearchInput = document.getElementById('chat-conversation-search') as HTMLInputElement;
           msgSearchInput?.focus();
         }, 100);
       }
@@ -1117,9 +1123,9 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex bg-white dark:bg-slate-900 border rounded-2xl overflow-hidden shadow-sm">
+    <div className="h-[calc(100vh-8rem)] flex bg-card dark:bg-card border rounded-2xl overflow-hidden shadow-sm">
       {/* Sidebar Contacts List */}
-      <aside className={`w-full md:w-80 border-r flex flex-col shrink-0 bg-slate-50/50 dark:bg-slate-900/50 ${activeContact ? 'hidden md:flex' : 'flex'}`}>
+      <aside className={`w-full md:w-80 border-r flex flex-col shrink-0 bg-muted/50 dark:bg-card/50 ${activeContact ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-base">Direct Messages</h3>
@@ -1128,11 +1134,12 @@ export default function ChatPage() {
             </span>
           </div>
           <input
+            id="chat-colleague-search"
             type="text"
-            placeholder="Search colleagues..."
+            placeholder={t('chat.searchColleagues')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-800 text-[11px] focus:outline-none"
+            className="w-full px-3 py-2 rounded-xl border bg-card dark:bg-card text-[11px] focus:outline-none"
           />
         </div>
 
@@ -1140,20 +1147,20 @@ export default function ChatPage() {
           {/* Section: Recent Chats */}
           {loadingChats ? (
             <div className="space-y-3 px-3 py-2">
-              <h4 className="text-[9px] font-extrabold uppercase text-slate-450 tracking-wider">Recent Conversations</h4>
+              <h4 className="text-[9px] font-extrabold uppercase text-muted-foreground tracking-wider">{t('chat.recentConversations')}</h4>
               {[1, 2, 3].map((n) => (
                 <div key={n} className="flex items-center space-x-3 p-2 rounded-xl animate-pulse-slow">
-                  <div className="h-9 w-9 bg-slate-200 dark:bg-slate-800 rounded-full shrink-0" />
+                  <div className="h-9 w-9 bg-secondary dark:bg-card rounded-full shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded-md w-3/4" />
-                    <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-md w-1/2" />
+                    <div className="h-3.5 bg-secondary dark:bg-card rounded-md w-3/4" />
+                    <div className="h-2 bg-secondary dark:bg-card rounded-md w-1/2" />
                   </div>
                 </div>
               ))}
             </div>
           ) : filteredRecent.length > 0 ? (
             <div className="space-y-1">
-              <h4 className="px-3 text-[9px] font-extrabold uppercase text-slate-450 tracking-wider">Recent Conversations</h4>
+              <h4 className="px-3 text-[9px] font-extrabold uppercase text-muted-foreground tracking-wider">{t('chat.recentConversations')}</h4>
               {filteredRecent.map((chat: any) => {
                 const active = activeContact && activeContact.id === chat.id;
                 return (
@@ -1162,41 +1169,41 @@ export default function ChatPage() {
                     onClick={() => setActiveContact({ id: chat.id, name: chat.name, avatarUrl: chat.avatarUrl, status: chat.status })}
                     className={`flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-all ${
                       active
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'hover:bg-muted dark:hover:bg-card'
                     }`}
                   >
                     <div className="relative">
-                      <div className="h-9 w-9 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center font-bold text-xs uppercase text-slate-500 overflow-hidden shrink-0">
+                      <div className="h-9 w-9 bg-secondary dark:bg-card rounded-full flex items-center justify-center font-bold text-xs uppercase text-muted-foreground overflow-hidden shrink-0">
                         {chat.avatarUrl ? (
                           <img src={chat.avatarUrl} alt="" className="h-full w-full object-cover" />
                         ) : (
                           chat.name ? chat.name.substring(0, 2) : 'DM'
                         )}
                       </div>
-                      <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                      <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card dark:border-border ${
                         chat.status === 'ONLINE' ? 'bg-green-500' :
                         chat.status === 'AWAY' ? 'bg-amber-500' :
                         chat.status === 'BUSY' ? 'bg-red-500' :
                         chat.status === 'DND' ? 'bg-rose-600' :
-                        chat.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                        chat.status === 'IN_MEETING' ? 'bg-primary' :
                         chat.status === 'ON_LEAVE' ? 'bg-sky-500' :
-                        'bg-slate-400'
+                        'bg-secondary'
                       }`} />
                     </div>
                     <div className="flex-grow min-w-0">
                       <div className="flex justify-between items-baseline gap-1">
-                        <p className={`text-xs truncate ${active ? 'text-white font-bold' : chat.unreadCount > 0 ? 'text-slate-950 dark:text-white font-black' : 'text-foreground font-semibold'}`}>{chat.name}</p>
+                        <p className={`text-xs truncate ${active ? 'text-primary-foreground font-bold' : chat.unreadCount > 0 ? 'text-foreground font-black' : 'text-foreground font-semibold'}`}>{chat.name}</p>
                         {chat.lastMessageAt && (
-                          <span className={`text-[8px] font-medium shrink-0 ${active ? 'text-white/70' : chat.unreadCount > 0 ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                          <span className={`text-[8px] font-medium shrink-0 ${active ? 'text-primary-foreground/70' : chat.unreadCount > 0 ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                             {formatMessageTime(chat.lastMessageAt)}
                           </span>
                         )}
                       </div>
                       <div className="flex justify-between items-center gap-1.5 mt-0.5">
-                        <p className={`text-[9px] truncate ${active ? 'text-white/80' : chat.unreadCount > 0 ? 'text-slate-900 dark:text-slate-200 font-extrabold' : 'text-muted-foreground'}`}>{chat.lastMessage}</p>
+                        <p className={`text-[9px] truncate ${active ? 'text-primary-foreground/80' : chat.unreadCount > 0 ? 'text-foreground font-extrabold' : 'text-muted-foreground'}`}>{chat.lastMessage}</p>
                         {chat.unreadCount > 0 && !active && (
-                          <span className="h-4 min-w-[16px] px-1 rounded-full bg-green-500 text-white font-black text-[8px] flex items-center justify-center shrink-0 shadow-sm animate-pulse">
+                          <span className="h-4 min-w-[16px] px-1 rounded-full bg-green-500 text-foreground font-black text-[8px] flex items-center justify-center shrink-0 shadow-sm animate-pulse">
                             {chat.unreadCount}
                           </span>
                         )}
@@ -1207,17 +1214,17 @@ export default function ChatPage() {
               })}
             </div>
           ) : searchQuery.trim() === '' ? (
-            <div className="text-center py-8 px-4 text-slate-400 space-y-2 animate-fade-in">
-              <MessageSquare className="h-8 w-8 mx-auto text-slate-350 dark:text-slate-700 stroke-1" />
-              <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">No recent chats</p>
-              <p className="text-[9px] text-muted-foreground max-w-[160px] mx-auto leading-normal">Use the search box above to start a conversation with a colleague.</p>
+            <div className="text-center py-8 px-4 text-muted-foreground space-y-2 animate-fade-in">
+              <MessageSquare className="h-8 w-8 mx-auto text-foreground dark:text-foreground stroke-1" />
+              <p className="text-[10px] font-bold text-foreground dark:text-foreground">{t('chat.noRecentChats')}</p>
+              <p className="text-[9px] text-muted-foreground max-w-[160px] mx-auto leading-normal">{t('chat.noRecentChatsHint')}</p>
             </div>
           ) : null}
 
           {/* Section: Search Results */}
           {searchQuery.trim() !== '' && (
             <div className="space-y-1">
-              <h4 className="px-3 text-[9px] font-extrabold uppercase text-slate-405 tracking-wider">
+              <h4 className="px-3 text-[9px] font-extrabold uppercase text-muted-foreground tracking-wider">
                 Search Results
               </h4>
               {loadingDirectory ? (
@@ -1234,31 +1241,31 @@ export default function ChatPage() {
                       onClick={() => setActiveContact({ id: colleague.id, name: fullName, avatarUrl: colleague.avatarUrl, status: colleague.status })}
                       className={`flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-all ${
                         active
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'hover:bg-muted dark:hover:bg-card'
                       }`}
                     >
                       <div className="relative">
-                        <div className="h-9 w-9 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center font-bold text-xs uppercase text-slate-500 overflow-hidden shrink-0">
+                        <div className="h-9 w-9 bg-secondary dark:bg-card rounded-full flex items-center justify-center font-bold text-xs uppercase text-muted-foreground overflow-hidden shrink-0">
                           {colleague.avatarUrl ? (
                             <img src={colleague.avatarUrl} alt="" className="h-full w-full object-cover" />
                           ) : (
                             `${colleague.firstName[0]}${colleague.lastName[0]}`
                           )}
                         </div>
-                        <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                        <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card dark:border-border ${
                            colleague.status === 'ONLINE' ? 'bg-green-500' :
                            colleague.status === 'AWAY' ? 'bg-amber-500' :
                            colleague.status === 'BUSY' ? 'bg-red-500' :
                            colleague.status === 'DND' ? 'bg-rose-600' :
-                           colleague.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                           colleague.status === 'IN_MEETING' ? 'bg-primary' :
                            colleague.status === 'ON_LEAVE' ? 'bg-sky-500' :
-                           'bg-slate-400'
+                           'bg-secondary'
                          }`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-bold truncate ${active ? 'text-white' : 'text-foreground'}`}>{fullName}</p>
-                        <p className={`text-[9px] truncate ${active ? 'text-white/80' : 'text-muted-foreground'}`}>{colleague.designation || 'Teammate'}</p>
+                        <p className={`text-xs font-bold truncate ${active ? 'text-primary-foreground' : 'text-foreground'}`}>{fullName}</p>
+                        <p className={`text-[9px] truncate ${active ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>{colleague.designation || 'Teammate'}</p>
                       </div>
                     </div>
                   );
@@ -1270,7 +1277,7 @@ export default function ChatPage() {
       </aside>
 
       {/* Messaging Workspace */}
-      <section className={`flex-1 flex flex-col min-w-0 bg-white dark:bg-slate-950 ${activeContact ? 'flex' : 'hidden md:flex'}`}>
+      <section className={`flex-1 flex flex-col min-w-0 bg-card dark:bg-card ${activeContact ? 'flex' : 'hidden md:flex'}`}>
         {activeContact ? (
           <>
             {/* Header */}
@@ -1278,27 +1285,27 @@ export default function ChatPage() {
               <div className="flex items-center space-x-3">
                 <button
                   onClick={() => setActiveContact(null)}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 md:hidden"
+                  className="p-1 hover:bg-muted dark:hover:bg-card rounded-lg text-muted-foreground md:hidden"
                   aria-label="Back to conversations list"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
                 <div className="relative">
-                  <div className="h-9 w-9 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center font-bold text-xs uppercase text-slate-500 overflow-hidden shrink-0">
+                  <div className="h-9 w-9 bg-secondary dark:bg-card rounded-full flex items-center justify-center font-bold text-xs uppercase text-muted-foreground overflow-hidden shrink-0">
                     {activeContact.avatarUrl ? (
                       <img src={activeContact.avatarUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
                       activeContact.name ? activeContact.name.substring(0, 2) : 'DM'
                     )}
                   </div>
-                  <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                  <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card dark:border-border ${
                      activeContact.status === 'ONLINE' ? 'bg-green-500' :
                      activeContact.status === 'AWAY' ? 'bg-amber-500' :
                      activeContact.status === 'BUSY' ? 'bg-red-500' :
                      activeContact.status === 'DND' ? 'bg-rose-600' :
-                     activeContact.status === 'IN_MEETING' ? 'bg-indigo-500' :
+                     activeContact.status === 'IN_MEETING' ? 'bg-primary' :
                      activeContact.status === 'ON_LEAVE' ? 'bg-sky-500' :
-                     'bg-slate-400'
+                     'bg-secondary'
                    }`} />
                  </div>
                  <div>
@@ -1308,7 +1315,7 @@ export default function ChatPage() {
                        {activeContact.status === 'DND' ? 'Do Not Disturb' : activeContact.status.toLowerCase()}
                      </span>
                      {activeContact.status !== 'OFFLINE' && activeContact.devices && activeContact.devices.length > 0 && (
-                       <span className="text-[8px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded font-black tracking-wider uppercase leading-none">
+                       <span className="text-[8px] bg-muted dark:bg-card text-muted-foreground px-1.5 py-0.5 rounded font-black tracking-wider uppercase leading-none">
                          on {activeContact.devices.join(', ')}
                        </span>
                      )}
@@ -1325,7 +1332,7 @@ export default function ChatPage() {
                 <button
                   onClick={() => setShowMsgSearch(!showMsgSearch)}
                   className={`p-2 rounded-lg border transition-all ${
-                    showMsgSearch ? 'bg-primary/10 text-primary border-primary/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+                    showMsgSearch ? 'bg-primary/10 text-primary border-primary/20' : 'hover:bg-muted dark:hover:bg-card text-muted-foreground'
                   }`}
                   aria-label="Search conversation messages"
                 >
@@ -1333,7 +1340,7 @@ export default function ChatPage() {
                 </button>
                 <button
                   onClick={() => setPollModalOpen(true)}
-                  className="p-2 rounded-lg border text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="p-2 rounded-lg border text-muted-foreground hover:bg-muted dark:hover:bg-card transition-all"
                   title="Launch Poll"
                   aria-label="Create poll in conversation"
                 >
@@ -1342,7 +1349,7 @@ export default function ChatPage() {
                 <button
                   onClick={() => setShowInfoPanel(!showInfoPanel)}
                   className={`p-2 rounded-lg border transition-all ${
-                    showInfoPanel ? 'bg-primary/10 text-primary border-primary/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+                    showInfoPanel ? 'bg-primary/10 text-primary border-primary/20' : 'hover:bg-muted dark:hover:bg-card text-muted-foreground'
                   }`}
                   title="Conversation Info"
                   aria-label="Toggle teammate info panel"
@@ -1359,10 +1366,10 @@ export default function ChatPage() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                   {clearMenuOpen && (
-                    <div className="absolute right-0 mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-xl shadow-xl w-44 z-50 text-[10px] space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-150 text-left font-semibold">
+                    <div className="absolute right-0 mt-1.5 bg-card dark:bg-card border border-border dark:border-border p-1.5 rounded-xl shadow-xl w-44 z-50 text-[10px] space-y-0.5 animate-in fade-in slide-in-from-top-1 duration-150 text-left font-semibold">
                       <button
                         onClick={handleClearChatHistory}
-                        className="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-lg text-slate-700 dark:text-slate-350"
+                        className="w-full flex items-center space-x-2 px-2.5 py-1.5 hover:bg-muted dark:hover:bg-card/60 rounded-lg text-foreground dark:text-foreground"
                       >
                         Clear Chat History
                       </button>
@@ -1380,15 +1387,16 @@ export default function ChatPage() {
 
             {/* Inline message search bar */}
             {showMsgSearch && (
-              <div className="px-6 py-2 border-b bg-slate-50/50 dark:bg-slate-900/50 flex items-center space-x-2">
+              <div className="px-6 py-2 border-b bg-muted/50 dark:bg-card/50 flex items-center space-x-2">
                 <input
+                  id="chat-conversation-search"
                   type="text"
-                  placeholder="Search conversation..."
+                  placeholder={t('chat.searchConversation')}
                   value={msgSearchQuery}
                   onChange={(e) => setMsgSearchQuery(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-xl border bg-white dark:bg-slate-800 text-xs focus:outline-none"
+                  className="flex-1 px-3 py-1.5 rounded-xl border bg-card dark:bg-card text-xs focus:outline-none"
                 />
-                <button onClick={() => { setMsgSearchQuery(''); setShowMsgSearch(false); }} className="text-slate-400 hover:text-foreground">
+                <button onClick={() => { setMsgSearchQuery(''); setShowMsgSearch(false); }} className="text-muted-foreground hover:text-foreground">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -1400,38 +1408,38 @@ export default function ChatPage() {
                 <div className="space-y-4 py-4">
                   {/* Left Skeleton Bubble */}
                   <div className="flex items-start space-x-3 max-w-[60%] animate-pulse-slow">
-                    <div className="h-8 w-8 bg-slate-200 dark:bg-slate-800 rounded-full shrink-0" />
+                    <div className="h-8 w-8 bg-secondary dark:bg-card rounded-full shrink-0" />
                     <div className="space-y-1.5 flex-1">
-                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-md w-1/4" />
-                      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded-2xl rounded-tl-none w-full" />
+                      <div className="h-3 bg-secondary dark:bg-card rounded-md w-1/4" />
+                      <div className="h-10 bg-secondary dark:bg-card rounded-2xl rounded-tl-none w-full" />
                     </div>
                   </div>
                   {/* Right Skeleton Bubble */}
                   <div className="flex items-start justify-end space-x-3 max-w-[60%] ml-auto animate-pulse-slow">
                     <div className="space-y-1.5 flex-1 text-right">
-                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-md w-1/4 ml-auto" />
-                      <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded-2xl rounded-tr-none w-full" />
+                      <div className="h-3 bg-secondary dark:bg-card rounded-md w-1/4 ml-auto" />
+                      <div className="h-8 bg-secondary dark:bg-card rounded-2xl rounded-tr-none w-full" />
                     </div>
                   </div>
                   {/* Left Skeleton Bubble */}
                   <div className="flex items-start space-x-3 max-w-[45%] animate-pulse-slow">
-                    <div className="h-8 w-8 bg-slate-200 dark:bg-slate-800 rounded-full shrink-0" />
+                    <div className="h-8 w-8 bg-secondary dark:bg-card rounded-full shrink-0" />
                     <div className="space-y-1.5 flex-1">
-                      <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-md w-1/3" />
-                      <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-2xl rounded-tl-none w-full" />
+                      <div className="h-3 bg-secondary dark:bg-card rounded-md w-1/3" />
+                      <div className="h-12 bg-secondary dark:bg-card rounded-2xl rounded-tl-none w-full" />
                     </div>
                   </div>
                 </div>
               ) : displayedMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center space-y-2 animate-fade-in">
-                  <div className="h-12 w-12 bg-slate-50 dark:bg-slate-900 border rounded-full flex items-center justify-center text-slate-400">
+                  <div className="h-12 w-12 bg-muted dark:bg-card border rounded-full flex items-center justify-center text-muted-foreground">
                     <MessageSquare className="h-6 w-6" />
                   </div>
-                  <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    {msgSearchQuery ? 'No matching messages found.' : 'No messages here yet'}
+                  <p className="text-xs font-bold text-foreground dark:text-foreground">
+                    {msgSearchQuery ? t('chat.noMatchingMessages') : t('chat.noMessagesYet')}
                   </p>
                   <p className="text-[10px] text-muted-foreground max-w-[200px]">
-                    {msgSearchQuery ? 'Try searching for different terms or phrases.' : 'Send a message below to start your conversation!'}
+                    {msgSearchQuery ? t('chat.tryDifferentSearch') : t('chat.noMessagesHint')}
                   </p>
                 </div>
               ) : (
@@ -1452,7 +1460,7 @@ export default function ChatPage() {
 
                       {/* Forwarded Header */}
                       {msg.forwardedFromId && (
-                        <div className="flex items-center space-x-1.5 text-[9px] text-slate-400 font-extrabold uppercase tracking-wide mb-0.5">
+                        <div className="flex items-center space-x-1.5 text-[9px] text-muted-foreground font-extrabold uppercase tracking-wide mb-0.5">
                           <CornerUpRight className="h-3 w-3 shrink-0" />
                           <span>Forwarded</span>
                         </div>
@@ -1475,26 +1483,26 @@ export default function ChatPage() {
                         {/* Hover Quick Actions */}
                         {!msg.isDeleted && !msg.isDeletedForEveryone && msg.content !== 'This message was deleted.' && (
                           <div className={`opacity-0 group-hover:opacity-100 transition-all flex items-center space-x-1 shrink-0 self-center ${self ? 'order-first' : 'order-last'}`}>
-                            <button onClick={() => setReplyingMessage(msg)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400" title="Reply">
+                            <button onClick={() => setReplyingMessage(msg)} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground" title="Reply">
                               <CornerUpLeft className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => setForwardingMessage(msg)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400" title="Forward">
+                            <button onClick={() => setForwardingMessage(msg)} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground" title="Forward">
                               <CornerUpRight className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => handleTogglePin(msg.id)} className={`p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded ${msg.isPinned ? 'text-primary' : 'text-slate-400'}`} title="Pin message">
+                            <button onClick={() => handleTogglePin(msg.id)} className={`p-1 hover:bg-muted dark:hover:bg-card rounded ${msg.isPinned ? 'text-primary' : 'text-muted-foreground'}`} title="Pin message">
                               <Pin className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => handleToggleBookmark(msg.id)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400" title="Bookmark">
+                            <button onClick={() => handleToggleBookmark(msg.id)} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground" title="Bookmark">
                               <Bookmark className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => handleCopyText(msg.content)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400" title="Copy Text">
+                            <button onClick={() => handleCopyText(msg.content)} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground" title="Copy Text">
                               <Copy className="h-3.5 w-3.5" />
                             </button>
                             {self && (() => {
                               const canEdit = (Date.now() - new Date(msg.createdAt).getTime()) <= 15 * 60 * 1000;
                               if (!canEdit) return null;
                               return (
-                                <button onClick={() => { setEditingMessage(msg); setEditValue(msg.content); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400" title="Edit message">
+                                <button onClick={() => { setEditingMessage(msg); setEditValue(msg.content); }} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground" title="Edit message">
                                   <Edit3 className="h-3.5 w-3.5" />
                                 </button>
                               );
@@ -1503,10 +1511,10 @@ export default function ChatPage() {
                               <button className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 rounded text-red-500">
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
-                              <div className="absolute top-6 right-0 bg-white dark:bg-slate-800 border rounded-lg shadow-xl hidden group-hover/del:block py-1 text-[10px] w-28 z-30">
-                                <button onClick={() => handleDeleteMessage(msg.id, 'FOR_ME')} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700">Delete for me</button>
+                              <div className="absolute top-6 right-0 bg-card dark:bg-card border rounded-lg shadow-xl hidden group-hover/del:block py-1 text-[10px] w-28 z-30">
+                                <button onClick={() => handleDeleteMessage(msg.id, 'FOR_ME')} className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card">Delete for me</button>
                                 {self && (
-                                  <button onClick={() => handleDeleteMessage(msg.id, 'FOR_EVERYONE')} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-red-500 font-bold">Delete for all</button>
+                                  <button onClick={() => handleDeleteMessage(msg.id, 'FOR_EVERYONE')} className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card text-red-500 font-bold">Delete for all</button>
                                 )}
                               </div>
                             </div>
@@ -1515,8 +1523,8 @@ export default function ChatPage() {
 
                         <div className={`p-3.5 rounded-2xl text-xs leading-relaxed border ${
                           self
-                            ? 'bg-primary text-white border-primary shadow-sm rounded-tr-none'
-                            : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-tl-none'
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm rounded-tr-none'
+                            : 'bg-muted dark:bg-card border-border dark:border-border rounded-tl-none'
                         }`}>
                           {msg.isDeleted || msg.isDeletedForEveryone || msg.content === 'This message was deleted.' ? (
                             <p className="italic opacity-60 flex items-center space-x-1.5">
@@ -1525,7 +1533,7 @@ export default function ChatPage() {
                           ) : (
                             <>
                               {isGifUrl(msg.content) ? (
-                                <img src={msg.content} alt="GIF" className="rounded-xl max-w-[240px] max-h-[180px] object-cover shadow-sm border border-slate-200 dark:border-slate-700 mt-1" />
+                                <img src={msg.content} alt="GIF" className="rounded-xl max-w-[240px] max-h-[180px] object-cover shadow-sm border border-border dark:border-border mt-1" />
                               ) : (
                                 <div>{renderFormattedText(msg.content)}</div>
                               )}
@@ -1543,16 +1551,16 @@ export default function ChatPage() {
 
                                   {/* Mini Edit History Overlay Box */}
                                   {showEditHistoryMessageId === msg.id && (
-                                    <div className="absolute right-0 bottom-4 bg-white dark:bg-slate-900 border rounded-xl p-2.5 shadow-xl text-foreground text-[10px] w-48 z-40 space-y-1 text-left animate-fade-in">
-                                      <p className="font-bold border-b pb-1 text-[9px] text-slate-400 uppercase tracking-wider">Message Edit Log</p>
+                                    <div className="absolute right-0 bottom-4 bg-card dark:bg-card border rounded-xl p-2.5 shadow-xl text-foreground text-[10px] w-48 z-40 space-y-1 text-left animate-fade-in">
+                                      <p className="font-bold border-b pb-1 text-[9px] text-muted-foreground uppercase tracking-wider">Message Edit Log</p>
                                       <div className="space-y-1 py-1 max-h-24 overflow-y-auto">
-                                        <div className="border-l-2 border-indigo-500 pl-1.5">
-                                          <p className="text-slate-400 text-[8px] font-medium">Original Version</p>
-                                          <p className="italic text-slate-600 dark:text-slate-400 break-words">"{msg.content.slice(0, 40)}..."</p>
+                                        <div className="border-l-2 border-primary pl-1.5">
+                                          <p className="text-muted-foreground text-[8px] font-medium">Original Version</p>
+                                          <p className="italic text-muted-foreground dark:text-muted-foreground break-words">"{msg.content.slice(0, 40)}..."</p>
                                         </div>
                                         <div className="border-l-2 border-emerald-500 pl-1.5">
-                                          <p className="text-slate-400 text-[8px] font-medium">Dispatched At</p>
-                                          <p className="text-slate-600 dark:text-slate-400 font-bold">{new Date(msg.createdAt).toLocaleTimeString()}</p>
+                                          <p className="text-muted-foreground text-[8px] font-medium">Dispatched At</p>
+                                          <p className="text-muted-foreground dark:text-muted-foreground font-bold">{new Date(msg.createdAt).toLocaleTimeString()}</p>
                                         </div>
                                       </div>
                                     </div>
@@ -1564,7 +1572,7 @@ export default function ChatPage() {
 
                           {/* Render Poll interface */}
                           {!msg.isDeleted && !msg.isDeletedForEveryone && msg.content !== 'This message was deleted.' && msg.poll && (
-                            <div className="mt-3 p-3 bg-white dark:bg-slate-900 border rounded-xl space-y-2 text-foreground shadow-sm max-w-[280px]">
+                            <div className="mt-3 p-3 bg-card dark:bg-card border rounded-xl space-y-2 text-foreground shadow-sm max-w-[280px]">
                               <p className="font-bold text-xs border-b pb-1.5">{msg.poll.question}</p>
                               <div className="space-y-2 pt-1 text-[10px]">
                                 {msg.poll.options?.map((opt: any) => {
@@ -1585,7 +1593,7 @@ export default function ChatPage() {
                                       <div className="absolute inset-y-0 left-0 bg-primary/10 transition-all" style={{ width: `${percentage}%` }} />
                                       <div className="relative flex justify-between items-center">
                                         <span>{opt.text}</span>
-                                        <span className="text-slate-400 font-bold">{votesCount} ({percentage}%)</span>
+                                        <span className="text-muted-foreground font-bold">{votesCount} ({percentage}%)</span>
                                       </div>
                                     </div>
                                   );
@@ -1603,7 +1611,7 @@ export default function ChatPage() {
 
                           {/* Render Attachments */}
                           {!msg.isDeleted && !msg.isDeletedForEveryone && msg.content !== 'This message was deleted.' && msg.attachments?.length > 0 && (
-                            <div className="mt-2.5 pt-2 border-t border-white/20 space-y-2">
+                            <div className="mt-2.5 pt-2 border-t border-card/20 space-y-2">
                               {msg.attachments.map((att: any) => {
                                 const isImage = ['PNG', 'JPEG', 'JPG', 'GIF', 'WEBP'].includes(att.file?.fileType?.toUpperCase());
                                 const resolvedUrl = resolveFileUrl(att.file.url);
@@ -1611,7 +1619,7 @@ export default function ChatPage() {
                                 return (
                                   <div key={att.id} className="space-y-1.5 text-left">
                                     {isImage ? (
-                                      <div className="relative group max-w-[220px] rounded-xl overflow-hidden border border-white/20 shadow-md">
+                                      <div className="relative group max-w-[220px] rounded-xl overflow-hidden border border-card/20 shadow-md">
                                         <img 
                                           src={resolvedUrl} 
                                           alt={att.file?.name} 
@@ -1621,14 +1629,14 @@ export default function ChatPage() {
                                           <button
                                             type="button"
                                             onClick={() => setPreviewFile(fileObj)}
-                                            className="px-2.5 py-1 bg-white text-slate-800 rounded-lg shadow hover:bg-slate-100 transition-all font-bold text-[10px]"
+                                            className="px-2.5 py-1 bg-card text-foreground rounded-lg shadow hover:bg-muted transition-all font-bold text-[10px]"
                                           >
                                             Preview
                                           </button>
                                           <a 
                                             href={resolvedUrl} 
                                             download={att.file?.name}
-                                            className="px-2.5 py-1 bg-primary text-white rounded-lg shadow hover:bg-primary/95 transition-all font-bold text-[10px]"
+                                            className="px-2.5 py-1 bg-primary text-primary-foreground rounded-lg shadow hover:bg-primary/95 transition-all font-bold text-[10px]"
                                           >
                                             Download
                                           </a>
@@ -1636,18 +1644,18 @@ export default function ChatPage() {
                                       </div>
                                     ) : (
                                       <div className={`flex flex-col p-2.5 rounded-xl border text-[11px] space-y-2 ${
-                                        self ? 'bg-white/10' : 'bg-slate-100'
+                                        self ? 'bg-card/10' : 'bg-muted'
                                       }`}>
                                         <div className="flex items-center space-x-2">
                                           <FileText className="h-4 w-4 shrink-0" />
-                                          <span className="truncate max-w-[150px] font-bold text-slate-800 dark:text-slate-200">{att.file?.name}</span>
+                                          <span className="truncate max-w-[150px] font-bold text-foreground dark:text-foreground">{att.file?.name}</span>
                                         </div>
-                                        <div className="flex items-center space-x-2 pt-1.5 border-t border-dashed border-slate-300/40">
+                                        <div className="flex items-center space-x-2 pt-1.5 border-t border-dashed border-border/40">
                                           <button
                                             type="button"
                                             onClick={() => setPreviewFile(fileObj)}
                                             className={`px-2 py-1 rounded-lg font-bold text-[9px] ${
-                                              self ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                                              self ? 'bg-primary-foreground/10 hover:bg-primary-foreground/20 text-primary-foreground' : 'bg-secondary hover:bg-secondary/80 text-foreground'
                                             }`}
                                           >
                                             Preview
@@ -1655,7 +1663,7 @@ export default function ChatPage() {
                                           <a 
                                             href={resolvedUrl} 
                                             download={att.file?.name}
-                                            className="px-2 py-1 bg-primary text-white rounded-lg font-bold text-[9px] hover:bg-primary/95 transition-all"
+                                            className="px-2 py-1 bg-primary text-primary-foreground rounded-lg font-bold text-[9px] hover:bg-primary/95 transition-all"
                                           >
                                             Download
                                           </a>
@@ -1674,7 +1682,7 @@ export default function ChatPage() {
                       {!msg.isDeleted && !msg.isDeletedForEveryone && msg.content !== 'This message was deleted.' && msg.reactions?.length > 0 && (
                         <div className="flex items-center gap-1 mt-1">
                           {msg.reactions.map((react: any, idx: number) => (
-                            <span key={idx} className="px-2 py-0.5 bg-slate-50 dark:bg-slate-800 border rounded-full text-[10px] shadow-sm">
+                            <span key={idx} className="px-2 py-0.5 bg-muted dark:bg-card border rounded-full text-[10px] shadow-sm">
                               {react.emoji}
                             </span>
                           ))}
@@ -1682,16 +1690,16 @@ export default function ChatPage() {
                       )}
 
                       {/* Info bar */}
-                      <div className="flex items-center space-x-1.5 text-[9px] text-slate-400">
+                      <div className="flex items-center space-x-1.5 text-[9px] text-muted-foreground">
                         {msg.isPinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
                         <span>{formatMessageTime(msg.createdAt)}</span>
-                        {msg.isEdited && <span className="opacity-80 font-bold lowercase text-[8px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded leading-none">edited</span>}
+                        {msg.isEdited && <span className="opacity-80 font-bold lowercase text-[8px] bg-muted dark:bg-card px-1.5 py-0.5 rounded leading-none">edited</span>}
                         {self && (
                           <span>
                             {isRead ? (
                               <CheckCheck className="h-3.5 w-3.5 text-info" />
                             ) : (
-                              <Check className="h-3.5 w-3.5 text-slate-400" />
+                              <Check className="h-3.5 w-3.5 text-muted-foreground" />
                             )}
                           </span>
                         )}
@@ -1701,8 +1709,8 @@ export default function ChatPage() {
                 })
               )}
               {typingStatus && (
-                <div className="text-[10px] text-slate-400 italic font-semibold flex items-center space-x-1">
-                  <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" />
+                <div className="text-[10px] text-muted-foreground italic font-semibold flex items-center space-x-1">
+                  <span className="h-1.5 w-1.5 bg-secondary rounded-full animate-bounce" />
                   <span>{typingStatus}</span>
                 </div>
               )}
@@ -1712,7 +1720,7 @@ export default function ChatPage() {
             {/* Edit Message Modal */}
             {editingMessage && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4">
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border w-full max-w-md space-y-4">
+                <div className="bg-card dark:bg-card p-6 rounded-2xl border w-full max-w-md space-y-4">
                   <div className="flex items-center justify-between border-b pb-2">
                     <h4 className="font-bold text-sm">Edit Message</h4>
                     <button onClick={() => setEditingMessage(null)}>
@@ -1724,9 +1732,9 @@ export default function ChatPage() {
                       type="text"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                      className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                     />
-                    <button type="submit" className="w-full py-2 bg-primary text-white rounded-xl text-xs font-bold">
+                    <button type="submit" className="w-full py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold">
                       Save Changes
                     </button>
                   </form>
@@ -1737,22 +1745,22 @@ export default function ChatPage() {
             {/* Forward Message Modal */}
             {forwardingMessage && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs p-4">
-                <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
-                  <button onClick={() => setForwardingMessage(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+                <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
+                  <button onClick={() => setForwardingMessage(null)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
                     <X className="h-5 w-5" />
                   </button>
                   <div className="space-y-1">
                     <h3 className="font-bold text-sm">Forward Message</h3>
-                    <p className="text-xs text-slate-400">Select a colleague to forward this message content to.</p>
+                    <p className="text-xs text-muted-foreground">Select a colleague to forward this message content to.</p>
                   </div>
                   <form onSubmit={handleForwardSubmit} className="space-y-4 text-xs font-semibold">
                     <div className="space-y-2">
-                      <label className="text-slate-400 uppercase text-[10px]">Select Teammate</label>
+                      <label className="text-muted-foreground uppercase text-[10px]">Select Teammate</label>
                       <select
                         required
                         value={forwardingTargetUser}
                         onChange={(e) => setForwardingTargetUser(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                        className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                       >
                         <option value="">-- Choose recipient --</option>
                         {colleagues.map((u: any) => (
@@ -1761,7 +1769,7 @@ export default function ChatPage() {
                       </select>
                     </div>
 
-                    <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
+                    <button type="submit" className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md">
                       Forward Message
                     </button>
                   </form>
@@ -1772,29 +1780,29 @@ export default function ChatPage() {
             {/* Poll Creation Modal */}
             {pollModalOpen && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs p-4">
-                <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-                  <button onClick={() => setPollModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+                <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+                  <button onClick={() => setPollModalOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
                     <X className="h-5 w-5" />
                   </button>
                   <div className="space-y-1">
                     <h3 className="font-bold text-sm">Launch Option Poll</h3>
-                    <p className="text-xs text-slate-400">Allow colleagues to vote on options directly inside the chatroom.</p>
+                    <p className="text-xs text-muted-foreground">Allow colleagues to vote on options directly inside the chatroom.</p>
                   </div>
                   <form onSubmit={handlePollSubmit} className="space-y-4 text-xs font-semibold">
                     <div className="space-y-2">
-                      <label className="text-slate-400 uppercase text-[10px]">Question</label>
+                      <label className="text-muted-foreground uppercase text-[10px]">Question</label>
                       <input
                         type="text"
                         required
                         placeholder="e.g. What time is the sprint planning meeting?"
                         value={pollQuestion}
                         onChange={(e) => setPollQuestion(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                        className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-slate-400 uppercase text-[10px]">Options</label>
+                      <label className="text-muted-foreground uppercase text-[10px]">Options</label>
                       <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
                         {pollOptions.map((opt, idx) => (
                           <input
@@ -1804,7 +1812,7 @@ export default function ChatPage() {
                             placeholder={`Option ${idx + 1}`}
                             value={opt}
                             onChange={(e) => handlePollOptionChange(idx, e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                            className="w-full px-4 py-2 rounded-lg border bg-muted dark:bg-card focus:outline-none"
                           />
                         ))}
                       </div>
@@ -1818,7 +1826,7 @@ export default function ChatPage() {
                       </button>
                     </div>
 
-                    <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
+                    <button type="submit" className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md">
                       Launch Poll
                     </button>
                   </form>
@@ -1827,15 +1835,15 @@ export default function ChatPage() {
             )}
 
             {/* Input Footer */}
-            <div className="p-4 border-t shrink-0 bg-slate-50/50 dark:bg-slate-900/50 space-y-3 relative">
+            <div className="p-4 border-t shrink-0 bg-muted/50 dark:bg-card/50 space-y-3 relative">
               {mentionOpen && filteredMentionUsers.length > 0 && (
-                <div className="absolute bottom-full mb-2 left-4 right-4 bg-white dark:bg-slate-800 border dark:border-slate-750 rounded-2xl shadow-2xl z-50 max-h-48 overflow-y-auto p-1.5 space-y-0.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <p className="text-[9px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-wider px-2.5 py-1">Mention Colleague</p>
+                <div className="absolute bottom-full mb-2 left-4 right-4 bg-card dark:bg-card border dark:border-border rounded-2xl shadow-2xl z-50 max-h-48 overflow-y-auto p-1.5 space-y-0.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <p className="text-[9px] uppercase font-black text-muted-foreground dark:text-muted-foreground tracking-wider px-2.5 py-1">Mention Colleague</p>
                   {filteredMentionUsers.map((u: any) => (
                     <div
                       key={u.id}
                       onClick={() => handleSelectMention(u)}
-                      className="flex items-center space-x-2.5 p-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-xl cursor-pointer transition-all"
+                      className="flex items-center space-x-2.5 p-2 hover:bg-muted dark:hover:bg-card/50 rounded-xl cursor-pointer transition-all"
                     >
                       <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] uppercase overflow-hidden shrink-0">
                         {u.avatarUrl ? (
@@ -1845,8 +1853,8 @@ export default function ChatPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-none">{u.firstName} {u.lastName}</p>
-                        <p className="text-[9px] text-slate-400 truncate leading-none mt-1">{u.designation || u.email}</p>
+                        <p className="text-xs font-bold text-foreground dark:text-foreground leading-none">{u.firstName} {u.lastName}</p>
+                        <p className="text-[9px] text-muted-foreground truncate leading-none mt-1">{u.designation || u.email}</p>
                       </div>
                     </div>
                   ))}
@@ -1854,13 +1862,13 @@ export default function ChatPage() {
               )}
               {/* Reply Preview Bar */}
               {replyingMessage && (
-                <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl text-xs font-semibold">
+                <div className="flex items-center justify-between px-3 py-2 bg-muted dark:bg-card border rounded-xl text-xs font-semibold">
                   <div className="flex items-center space-x-1.5 min-w-0">
                     <CornerUpLeft className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="text-slate-400">Replying to {replyingMessage.sender?.firstName}:</span>
-                    <span className="truncate text-slate-600 dark:text-slate-350">"{replyingMessage.content}"</span>
+                    <span className="text-muted-foreground">Replying to {replyingMessage.sender?.firstName}:</span>
+                    <span className="truncate text-muted-foreground dark:text-foreground">"{replyingMessage.content}"</span>
                   </div>
-                  <button onClick={() => setReplyingMessage(null)} className="text-slate-400 hover:text-foreground">
+                  <button onClick={() => setReplyingMessage(null)} className="text-muted-foreground hover:text-foreground">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1881,12 +1889,12 @@ export default function ChatPage() {
 
               {/* Rich text formatting & Message scheduling toolbar */}
               {!isBlocked && (
-                <div className="flex items-center justify-between px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border-b border-t text-[10px] text-slate-400 select-none">
+                <div className="flex items-center justify-between px-2 py-1.5 bg-muted dark:bg-card border-b border-t text-[10px] text-muted-foreground select-none">
                   <div className="flex items-center space-x-2.5">
                     <button
                       type="button"
                       onClick={() => setInputValue(prev => prev + '**bold**')}
-                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all"
+                      className="p-1 hover:bg-secondary dark:hover:bg-card rounded font-bold text-muted-foreground hover:text-foreground dark:hover:text-foreground transition-all"
                       title="Bold Text (**text**)"
                     >
                       <Bold className="h-3.5 w-3.5" />
@@ -1894,7 +1902,7 @@ export default function ChatPage() {
                     <button
                       type="button"
                       onClick={() => setInputValue(prev => prev + '*italic*')}
-                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded italic text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all"
+                      className="p-1 hover:bg-secondary dark:hover:bg-card rounded italic text-muted-foreground hover:text-foreground dark:hover:text-foreground transition-all"
                       title="Italic Text (*text*)"
                     >
                       <Italic className="h-3.5 w-3.5" />
@@ -1902,7 +1910,7 @@ export default function ChatPage() {
                     <button
                       type="button"
                       onClick={() => setInputValue(prev => prev + '`code`')}
-                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded font-mono text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all"
+                      className="p-1 hover:bg-secondary dark:hover:bg-card rounded font-mono text-muted-foreground hover:text-foreground dark:hover:text-foreground transition-all"
                       title="Code Format (`code`)"
                     >
                       <Code className="h-3.5 w-3.5" />
@@ -1919,7 +1927,7 @@ export default function ChatPage() {
                     <button
                       type="button"
                       onClick={() => setShowScheduler(!showScheduler)}
-                      className={`p-1 rounded flex items-center space-x-0.5 transition-all ${showScheduler ? 'bg-primary/10 text-primary' : 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500'}`}
+                      className={`p-1 rounded flex items-center space-x-0.5 transition-all ${showScheduler ? 'bg-primary/10 text-primary' : 'hover:bg-secondary dark:hover:bg-card text-muted-foreground'}`}
                       title="Schedule message delivery"
                     >
                       <Clock className="h-3.5 w-3.5" />
@@ -1931,20 +1939,20 @@ export default function ChatPage() {
 
               {/* Scheduling datetime picker popover */}
               {!isBlocked && showScheduler && (
-                <div className="p-3 bg-white dark:bg-slate-900 border-b flex items-center justify-between animate-fade-in select-none">
+                <div className="p-3 bg-card dark:bg-card border-b flex items-center justify-between animate-fade-in select-none">
                   <div className="flex items-center space-x-2">
-                    <span className="text-[10px] font-black text-slate-450 uppercase tracking-wider shrink-0">Deliver At:</span>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider shrink-0">Deliver At:</span>
                     <input
                       type="datetime-local"
                       value={scheduledDate}
                       onChange={(e) => setScheduledDate(e.target.value)}
-                      className="px-2.5 py-1 text-xs border rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none"
+                      className="px-2.5 py-1 text-xs border rounded-lg bg-muted dark:bg-card text-foreground dark:text-foreground outline-none"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowScheduler(false)}
-                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[10px] font-bold rounded-lg transition-all"
+                    className="px-3 py-1 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card text-[10px] font-bold rounded-lg transition-all"
                   >
                     Done
                   </button>
@@ -1965,8 +1973,8 @@ export default function ChatPage() {
                     onClick={() => setAttachmentMenuOpen(!attachmentMenuOpen)}
                     className={`p-2.5 rounded-xl transition-all shrink-0 flex items-center justify-center disabled:opacity-30 ${
                       attachmentMenuOpen 
-                        ? 'bg-primary text-white scale-110 shadow-md rotate-45' 
-                        : 'hover:bg-slate-150 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700'
+                        ? 'bg-primary text-primary-foreground scale-110 shadow-md rotate-45' 
+                        : 'hover:bg-secondary dark:hover:bg-card text-muted-foreground hover:text-foreground'
                     }`}
                     title="Attach file"
                   >
@@ -1975,7 +1983,7 @@ export default function ChatPage() {
 
                   {/* Attachment Popover Menu */}
                   {attachmentMenuOpen && (
-                    <div className="absolute bottom-14 left-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 p-3 rounded-2xl shadow-2xl z-50 w-56 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
+                    <div className="absolute bottom-14 left-0 bg-card dark:bg-card border border-border dark:border-border p-3 rounded-2xl shadow-2xl z-50 w-56 grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-3 duration-200">
                       
                       {/* Document */}
                       <button
@@ -1984,12 +1992,12 @@ export default function ChatPage() {
                           setAttachmentMenuOpen(false);
                           fileInputRef.current?.click();
                         }}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-muted dark:hover:bg-card transition-all group"
                       >
                         <div className="p-2.5 bg-violet-500/10 text-violet-500 rounded-full group-hover:scale-110 transition-all shadow-sm">
                           <FileText className="h-4 w-4" />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 mt-1">Document</span>
+                        <span className="text-[9px] font-bold text-muted-foreground dark:text-foreground mt-1">Document</span>
                       </button>
 
                       {/* Photos & Videos */}
@@ -1999,12 +2007,12 @@ export default function ChatPage() {
                           setAttachmentMenuOpen(false);
                           fileInputRef.current?.click();
                         }}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-muted dark:hover:bg-card transition-all group"
                       >
                         <div className="p-2.5 bg-info/10 text-info rounded-full group-hover:scale-110 transition-all shadow-sm">
                           <FileImage className="h-4 w-4" />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-600 dark:text-slate-300 mt-1">Gallery</span>
+                        <span className="text-[9px] font-bold text-muted-foreground dark:text-foreground mt-1">Gallery</span>
                       </button>
 
                       {/* Camera */}
@@ -2014,12 +2022,12 @@ export default function ChatPage() {
                           setAttachmentMenuOpen(false);
                           startCamera();
                         }}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-muted dark:hover:bg-card transition-all group"
                       >
                         <div className="p-2.5 bg-rose-500/10 text-rose-500 rounded-full group-hover:scale-110 transition-all shadow-sm">
                           <Camera className="h-4 w-4" />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-650 dark:text-slate-300 mt-1">Camera</span>
+                        <span className="text-[9px] font-bold text-muted-foreground dark:text-foreground mt-1">Camera</span>
                       </button>
 
                       {/* Audio */}
@@ -2029,12 +2037,12 @@ export default function ChatPage() {
                           setAttachmentMenuOpen(false);
                           fileInputRef.current?.click();
                         }}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-muted dark:hover:bg-card transition-all group"
                       >
                         <div className="p-2.5 bg-orange-500/10 text-orange-500 rounded-full group-hover:scale-110 transition-all shadow-sm">
                           <Headphones className="h-4 w-4" />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-650 dark:text-slate-300 mt-1">Audio</span>
+                        <span className="text-[9px] font-bold text-muted-foreground dark:text-foreground mt-1">Audio</span>
                       </button>
 
                       {/* Contact */}
@@ -2044,12 +2052,12 @@ export default function ChatPage() {
                           setAttachmentMenuOpen(false);
                           setContactPickerOpen(true);
                         }}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-muted dark:hover:bg-card transition-all group"
                       >
                         <div className="p-2.5 bg-emerald-500/10 text-emerald-500 rounded-full group-hover:scale-110 transition-all shadow-sm">
                           <User className="h-4 w-4" />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-650 dark:text-slate-300 mt-1">Contact</span>
+                        <span className="text-[9px] font-bold text-muted-foreground dark:text-foreground mt-1">Contact</span>
                       </button>
 
                       {/* Poll */}
@@ -2059,12 +2067,12 @@ export default function ChatPage() {
                           setAttachmentMenuOpen(false);
                           setPollModalOpen(true);
                         }}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-muted dark:hover:bg-card transition-all group"
                       >
                         <div className="p-2.5 bg-amber-500/10 text-amber-500 rounded-full group-hover:scale-110 transition-all shadow-sm">
                           <BarChart3 className="h-4 w-4" />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-650 dark:text-slate-300 mt-1">Poll</span>
+                        <span className="text-[9px] font-bold text-muted-foreground dark:text-foreground mt-1">Poll</span>
                       </button>
 
                       {/* Event */}
@@ -2074,12 +2082,12 @@ export default function ChatPage() {
                           setAttachmentMenuOpen(false);
                           setEventModalOpen(true);
                         }}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-muted dark:hover:bg-card transition-all group"
                       >
-                        <div className="p-2.5 bg-indigo-500/10 text-indigo-500 rounded-full group-hover:scale-110 transition-all shadow-sm">
+                        <div className="p-2.5 bg-primary/10 text-primary rounded-full group-hover:scale-110 transition-all shadow-sm">
                           <Calendar className="h-4 w-4" />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-650 dark:text-slate-300 mt-1">Event</span>
+                        <span className="text-[9px] font-bold text-muted-foreground dark:text-foreground mt-1">Event</span>
                       </button>
 
                       {/* Stickers */}
@@ -2089,12 +2097,12 @@ export default function ChatPage() {
                           setAttachmentMenuOpen(false);
                           setStickerPanelOpen(true);
                         }}
-                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+                        className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-muted dark:hover:bg-card transition-all group"
                       >
                         <div className="p-2.5 bg-pink-500/10 text-pink-500 rounded-full group-hover:scale-110 transition-all shadow-sm">
                           <Smile className="h-4 w-4" />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-650 dark:text-slate-300 mt-1">Sticker</span>
+                        <span className="text-[9px] font-bold text-muted-foreground dark:text-foreground mt-1">Sticker</span>
                       </button>
                     </div>
                   )}
@@ -2106,7 +2114,7 @@ export default function ChatPage() {
                     type="button"
                     onClick={stopRecording}
                     disabled={isBlocked}
-                    className="p-2.5 bg-red-500 text-white rounded-xl transition-all shrink-0 flex items-center justify-center animate-pulse disabled:opacity-30"
+                    className="p-2.5 bg-red-500 text-foreground rounded-xl transition-all shrink-0 flex items-center justify-center animate-pulse disabled:opacity-30"
                     title="Stop and send recording"
                   >
                     <MicOff className="h-5 w-5" />
@@ -2116,7 +2124,7 @@ export default function ChatPage() {
                     type="button"
                     onClick={startRecording}
                     disabled={isBlocked}
-                    className="p-2.5 hover:bg-slate-150 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-all shrink-0 disabled:opacity-30"
+                    className="p-2.5 hover:bg-secondary dark:hover:bg-card rounded-xl text-muted-foreground transition-all shrink-0 disabled:opacity-30"
                     title="Record voice note"
                   >
                     <Mic className="h-5 w-5" />
@@ -2131,13 +2139,13 @@ export default function ChatPage() {
                       handleToggleBlock();
                     }
                   }}
-                  placeholder={isBlocked ? "You blocked this contact. Click to unblock." : "Type a message..."}
+                  placeholder={isBlocked ? t('chat.blockedPlaceholder') : t('chat.typeMessage')}
                   value={isBlocked ? "" : inputValue}
                   onChange={handleInputChange}
                   className={`flex-1 min-w-0 px-4 py-3 rounded-xl border transition-all text-xs ${
                     isBlocked 
                       ? 'bg-red-50 dark:bg-red-950/20 text-red-550 border-red-200 dark:border-red-900 cursor-pointer font-bold text-center' 
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary'
+                      : 'bg-card dark:bg-card border-border dark:border-border focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary'
                   }`}
                 />
 
@@ -2152,7 +2160,7 @@ export default function ChatPage() {
                           handleAddReaction(messages[messages.length - 1].id, emoji);
                         }
                       }}
-                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-sm shrink-0 disabled:opacity-30"
+                      className="p-1 hover:bg-muted dark:hover:bg-card rounded text-sm shrink-0 disabled:opacity-30"
                     >
                       {emoji}
                     </button>
@@ -2162,7 +2170,7 @@ export default function ChatPage() {
                 <button
                   type="submit"
                   disabled={isBlocked || (!inputValue.trim() && attachedFiles.length === 0)}
-                  className="p-3 bg-primary text-white rounded-xl hover:bg-primary/95 transition-all shadow-md shrink-0 disabled:opacity-50"
+                  className="p-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/95 transition-all shadow-md shrink-0 disabled:opacity-50"
                 >
                   <Send className="h-4 w-4" />
                 </button>
@@ -2170,7 +2178,7 @@ export default function ChatPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4 text-center text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4 text-center text-muted-foreground">
             <MessageSquare className="h-16 w-16 stroke-1" />
             <div>
               <h3 className="font-bold text-base text-foreground">No Chat Selected</h3>
@@ -2191,7 +2199,7 @@ export default function ChatPage() {
           .filter(Boolean);
 
         return (
-          <aside className="fixed md:relative inset-y-0 right-0 w-full md:w-80 border-l flex flex-col shrink-0 bg-white dark:bg-slate-900 p-4 space-y-5 overflow-y-auto z-50 md:z-20 shadow-2xl md:shadow-none animate-in slide-in-from-right-5 duration-250">
+          <aside className="fixed md:relative inset-y-0 right-0 w-full md:w-80 border-l flex flex-col shrink-0 bg-card dark:bg-card p-4 space-y-5 overflow-y-auto z-50 md:z-20 shadow-2xl md:shadow-none animate-in slide-in-from-right-5 duration-250">
             {/* Hidden avatar input */}
             <input
               type="file"
@@ -2204,10 +2212,10 @@ export default function ChatPage() {
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b pb-3 shrink-0">
               <div className="flex items-center space-x-3">
-                <button onClick={() => { setShowInfoPanel(false); setIsEditingContact(false); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500">
+                <button onClick={() => { setShowInfoPanel(false); setIsEditingContact(false); }} className="p-1 hover:bg-muted dark:hover:bg-card rounded-lg text-muted-foreground">
                   <X className="h-4 w-4" />
                 </button>
-                <span className="font-bold text-sm text-slate-850 dark:text-slate-200">Contact info</span>
+                <span className="font-bold text-sm text-foreground dark:text-foreground">Contact info</span>
               </div>
               
               {/* Edit Contact Button */}
@@ -2216,8 +2224,8 @@ export default function ChatPage() {
                   onClick={() => setIsEditingContact(!isEditingContact)}
                   className={`p-1.5 rounded-lg border transition-all ${
                     isEditingContact 
-                      ? 'bg-primary text-white border-primary' 
-                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-550 dark:text-slate-400 border-transparent'
+                      ? 'bg-primary text-primary-foreground border-primary' 
+                      : 'hover:bg-muted dark:hover:bg-card text-muted-foreground dark:text-muted-foreground border-transparent'
                   }`}
                   title="Edit Contact Info"
                 >
@@ -2229,7 +2237,7 @@ export default function ChatPage() {
             {/* Profile Avatar & Name Area */}
             <div className="text-center pb-4 border-b">
               <div className="relative group/avatar mx-auto h-28 w-28 rounded-full overflow-hidden shadow-md">
-                <div className="h-full w-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-3xl uppercase text-slate-500 overflow-hidden">
+                <div className="h-full w-full bg-secondary dark:bg-card flex items-center justify-center font-bold text-3xl uppercase text-muted-foreground overflow-hidden">
                   {activeContact.avatarUrl ? (
                     <img src={activeContact.avatarUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
@@ -2239,7 +2247,7 @@ export default function ChatPage() {
                 {/* Change photo hover overlay */}
                 <div 
                   onClick={() => contactAvatarRef.current?.click()}
-                  className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 flex flex-col items-center justify-center text-white cursor-pointer transition-all duration-200"
+                  className="absolute inset-0 bg-black/60 opacity-0 group-hover/avatar:opacity-100 flex flex-col items-center justify-center text-foreground cursor-pointer transition-all duration-200"
                 >
                   <Camera className="h-5 w-5 mb-1" />
                   <span className="text-[8px] font-bold uppercase tracking-wider">Change photo</span>
@@ -2250,55 +2258,55 @@ export default function ChatPage() {
               {isEditingContact ? (
                 <form onSubmit={handleSaveProfile} className="space-y-3 pt-3 text-left">
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase font-bold text-slate-400">First Name</label>
+                    <label className="text-[9px] uppercase font-bold text-muted-foreground">First Name</label>
                     <input
                       type="text"
                       required
                       value={editFirstName}
                       onChange={(e) => setEditFirstName(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border bg-white dark:bg-slate-850 focus:outline-none"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border bg-card dark:bg-card focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase font-bold text-slate-400">Last Name</label>
+                    <label className="text-[9px] uppercase font-bold text-muted-foreground">Last Name</label>
                     <input
                       type="text"
                       required
                       value={editLastName}
                       onChange={(e) => setEditLastName(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border bg-white dark:bg-slate-850 focus:outline-none"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border bg-card dark:bg-card focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase font-bold text-slate-400">Phone</label>
+                    <label className="text-[9px] uppercase font-bold text-muted-foreground">Phone</label>
                     <input
                       type="text"
                       value={editPhone}
                       placeholder="e.g. +91 81279 91402"
                       onChange={(e) => setEditPhone(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border bg-white dark:bg-slate-850 focus:outline-none"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border bg-card dark:bg-card focus:outline-none"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] uppercase font-bold text-slate-400">About / Biography</label>
+                    <label className="text-[9px] uppercase font-bold text-muted-foreground">About / Biography</label>
                     <textarea
                       value={editBio}
                       onChange={(e) => setEditBio(e.target.value)}
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border bg-white dark:bg-slate-850 focus:outline-none resize-none h-16"
+                      className="w-full px-3 py-1.5 text-xs rounded-lg border bg-card dark:bg-card focus:outline-none resize-none h-16"
                     />
                   </div>
                   <div className="flex space-x-2 pt-2 text-[10px] font-bold">
                     <button
                       type="submit"
                       disabled={updatingProfile}
-                      className="flex-1 py-2 bg-primary text-white rounded-lg hover:bg-primary/95 disabled:opacity-50"
+                      className="flex-1 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 disabled:opacity-50"
                     >
                       {updatingProfile ? 'Saving...' : 'Save Info'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setIsEditingContact(false)}
-                      className="flex-1 py-2 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500"
+                      className="flex-1 py-2 border rounded-lg hover:bg-muted dark:hover:bg-card text-muted-foreground"
                     >
                       Cancel
                     </button>
@@ -2308,7 +2316,7 @@ export default function ChatPage() {
                 <div className="text-center space-y-2 mt-4">
                   <h4 className="font-bold text-base leading-snug">{activeContact.name}</h4>
                   {activeContact.type !== 'GROUP' && (
-                    <p className="text-xs text-slate-550 dark:text-slate-400 font-semibold">{contactProfile?.phone || '+91 81279 91402'}</p>
+                    <p className="text-xs text-muted-foreground dark:text-muted-foreground font-semibold">{contactProfile?.phone || '+91 81279 91402'}</p>
                   )}
                   <div className="pt-1.5">
                     <span className={`text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wide border ${
@@ -2316,9 +2324,9 @@ export default function ChatPage() {
                       activeContact.status === 'AWAY' ? 'bg-amber-500/10 text-amber-500 border-amber-200/30' :
                       activeContact.status === 'BUSY' ? 'bg-red-500/10 text-red-500 border-red-200/30' :
                       activeContact.status === 'DND' ? 'bg-rose-500/10 text-rose-500 border-rose-200/30' :
-                      activeContact.status === 'IN_MEETING' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-200/30' :
+                      activeContact.status === 'IN_MEETING' ? 'bg-primary/10 text-primary border-primary/20' :
                       activeContact.status === 'ON_LEAVE' ? 'bg-sky-500/10 text-sky-500 border-sky-200/30' :
-                      'bg-slate-500/10 text-slate-500 border-slate-200/30'
+                      'bg-secondary/10 text-muted-foreground border-border/30'
                     }`}>
                       {activeContact.status === 'IN_MEETING' ? 'In Meeting' : activeContact.status === 'ON_LEAVE' ? 'On Leave' : activeContact.status.toLowerCase()}
                     </span>
@@ -2330,20 +2338,20 @@ export default function ChatPage() {
             {/* WhatsApp Quick Actions (Search & Call) */}
             {!isEditingContact && activeContact.type !== 'GROUP' && (
               <div className="grid grid-cols-2 gap-4 py-1 border-b pb-4">
-                <div className="flex flex-col items-center justify-center py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all" onClick={() => setShowMsgSearch(true)}>
-                  <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-350">
+                <div className="flex flex-col items-center justify-center py-2 cursor-pointer hover:bg-muted dark:hover:bg-card rounded-xl transition-all" onClick={() => setShowMsgSearch(true)}>
+                  <div className="p-2.5 bg-muted dark:bg-card rounded-full text-muted-foreground dark:text-foreground">
                     <Search className="h-4 w-4" />
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-500 mt-1">Search</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground mt-1">Search</span>
                 </div>
-                <div className="flex flex-col items-center justify-center py-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all" onClick={() => {
+                <div className="flex flex-col items-center justify-center py-2 cursor-pointer hover:bg-muted dark:hover:bg-card rounded-xl transition-all" onClick={() => {
                   const num = contactProfile?.phone || '+91 81279 91402';
                   toast.success(`Dialing ${num}...`);
                 }}>
-                  <div className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-350">
+                  <div className="p-2.5 bg-muted dark:bg-card rounded-full text-muted-foreground dark:text-foreground">
                     <Phone className="h-4 w-4" />
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-500 mt-1">Voice call</span>
+                  <span className="text-[10px] font-semibold text-muted-foreground mt-1">Voice call</span>
                 </div>
               </div>
             )}
@@ -2351,8 +2359,8 @@ export default function ChatPage() {
             {/* About Biography Section */}
             {!isEditingContact && activeContact.type !== 'GROUP' && (
               <div className="space-y-1.5 text-left pt-2 pb-2 border-b">
-                <h5 className="text-[9px] font-extrabold uppercase text-slate-400 dark:text-slate-500 tracking-wider">About</h5>
-                <p className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed bg-white dark:bg-slate-900/40 p-3 rounded-xl border border-dashed">
+                <h5 className="text-[9px] font-extrabold uppercase text-muted-foreground dark:text-muted-foreground tracking-wider">About</h5>
+                <p className="text-xs text-foreground dark:text-foreground font-medium leading-relaxed bg-card dark:bg-card/40 p-3 rounded-xl border border-dashed">
                   {contactProfile?.bio || 'Hey there! I am using ConnectHub.'}
                 </p>
               </div>
@@ -2361,19 +2369,19 @@ export default function ChatPage() {
             {/* Media Links & Docs Section */}
             {!isEditingContact && (
               <div className="space-y-3 pt-2 pb-2 border-b">
-                <div className="flex justify-between items-center text-[10px] font-extrabold uppercase text-slate-400 dark:text-slate-500 tracking-wider">
+                <div className="flex justify-between items-center text-[10px] font-extrabold uppercase text-muted-foreground dark:text-muted-foreground tracking-wider">
                   <span>Media, links and docs</span>
-                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-black">{sharedMedia.length}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-muted dark:bg-card text-[9px] font-black">{sharedMedia.length}</span>
                 </div>
                 {sharedMedia.length === 0 ? (
-                  <p className="text-[10px] text-slate-450 italic text-left">No media shared yet.</p>
+                  <p className="text-[10px] text-muted-foreground italic text-left">No media shared yet.</p>
                 ) : (
                   <div className="grid grid-cols-4 gap-2">
                     {sharedMedia.slice(0, 4).map((media: any, idx: number) => {
                       const isImg = ['PNG', 'JPEG', 'JPG', 'GIF', 'WEBP'].includes(media.fileType?.toUpperCase());
                       const resolvedUrl = resolveFileUrl(media.url);
                       return (
-                        <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-xs">
+                        <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border bg-muted dark:bg-card flex items-center justify-center shadow-xs">
                           {isImg ? (
                             <img
                               src={resolvedUrl}
@@ -2384,7 +2392,7 @@ export default function ChatPage() {
                           ) : (
                             <div
                               onClick={() => setPreviewFile(media)}
-                              className="w-full h-full flex items-center justify-center cursor-pointer text-slate-450 hover:bg-slate-200 dark:hover:bg-slate-700"
+                              className="w-full h-full flex items-center justify-center cursor-pointer text-muted-foreground hover:bg-secondary dark:hover:bg-card"
                               title={media.name}
                             >
                               <FileText className="h-5 w-5" />
@@ -2402,17 +2410,17 @@ export default function ChatPage() {
             {!isEditingContact && (
               <div className="space-y-3">
                 {/* Starred messages link */}
-                <div className="flex items-center space-x-3 p-3 bg-white dark:bg-slate-900 border rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+                <div className="flex items-center space-x-3 p-3 bg-card dark:bg-card border rounded-xl cursor-pointer hover:bg-muted dark:hover:bg-card transition-all">
                   <Bookmark className="h-4 w-4 text-amber-500" />
-                  <span className="text-xs font-bold text-slate-750 dark:text-slate-300 flex-1 text-left">Starred messages</span>
-                  <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-black">{bookmarkedList?.length || 0}</span>
+                  <span className="text-xs font-bold text-foreground dark:text-foreground flex-1 text-left">Starred messages</span>
+                  <span className="px-1.5 py-0.5 rounded bg-muted dark:bg-card text-[9px] font-black">{bookmarkedList?.length || 0}</span>
                 </div>
 
                 {/* Mute notifications */}
                 {activeContact.type !== 'GROUP' && (
-                  <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border rounded-xl">
-                    <div className="flex items-center space-x-3 text-xs font-bold text-slate-700 dark:text-slate-300">
-                      <VolumeX className={`h-4 w-4 ${isMuted ? 'text-red-500' : 'text-slate-400'}`} />
+                  <div className="flex items-center justify-between p-3 bg-card dark:bg-card border rounded-xl">
+                    <div className="flex items-center space-x-3 text-xs font-bold text-foreground dark:text-foreground">
+                      <VolumeX className={`h-4 w-4 ${isMuted ? 'text-red-500' : 'text-muted-foreground'}`} />
                       <span>Mute notifications</span>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -2425,7 +2433,7 @@ export default function ChatPage() {
                         }} 
                         className="sr-only peer" 
                       />
-                      <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                      <div className="w-9 h-5 bg-secondary dark:bg-card peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-card after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
                 )}
@@ -2433,25 +2441,25 @@ export default function ChatPage() {
                 {/* Disappearing messages */}
                 <div 
                   onClick={() => setShowDisappearingModal(true)}
-                  className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  className="flex items-center justify-between p-3 bg-card dark:bg-card border rounded-xl cursor-pointer hover:bg-muted dark:hover:bg-card transition-all"
                 >
-                  <div className="flex items-center space-x-3 text-xs font-bold text-slate-700 dark:text-slate-300 text-left">
-                    <Clock className="h-4 w-4 text-slate-400 shrink-0" />
+                  <div className="flex items-center space-x-3 text-xs font-bold text-foreground dark:text-foreground text-left">
+                    <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div>
                       <p>Disappearing messages</p>
-                      <p className="text-[9px] text-slate-400 font-medium">{disappearingDuration === 'off' ? 'off' : disappearingDuration}</p>
+                      <p className="text-[9px] text-muted-foreground font-medium">{disappearingDuration === 'off' ? 'off' : disappearingDuration}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Advanced chat privacy */}
                 {activeContact.type !== 'GROUP' && (
-                  <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border rounded-xl">
-                    <div className="flex items-center space-x-3 text-xs font-bold text-slate-700 dark:text-slate-300 text-left">
-                      <Shield className="h-4 w-4 text-slate-400 shrink-0" />
+                  <div className="flex items-center justify-between p-3 bg-card dark:bg-card border rounded-xl">
+                    <div className="flex items-center space-x-3 text-xs font-bold text-foreground dark:text-foreground text-left">
+                      <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
                       <div>
                         <p>Advanced chat privacy</p>
-                        <p className="text-[9px] text-slate-400 font-medium">off</p>
+                        <p className="text-[9px] text-muted-foreground font-medium">off</p>
                       </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -2464,7 +2472,7 @@ export default function ChatPage() {
                         }} 
                         className="sr-only peer" 
                       />
-                      <div className="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                      <div className="w-9 h-5 bg-secondary dark:bg-card peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-card after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
                 )}
@@ -2472,13 +2480,13 @@ export default function ChatPage() {
                 {/* Encryption row */}
                 <div 
                   onClick={() => setShowEncryptionModal(true)}
-                  className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  className="flex items-center justify-between p-3 bg-card dark:bg-card border rounded-xl cursor-pointer hover:bg-muted dark:hover:bg-card transition-all"
                 >
-                  <div className="flex items-center space-x-3 text-xs font-bold text-slate-700 dark:text-slate-300 text-left">
-                    <Shield className="h-4 w-4 text-slate-400 shrink-0" />
+                  <div className="flex items-center space-x-3 text-xs font-bold text-foreground dark:text-foreground text-left">
+                    <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="min-w-0">
                       <p>Encryption</p>
-                      <p className="text-[9px] text-slate-450 font-medium leading-tight truncate">Messages are end-to-end encrypted. Click to verify.</p>
+                      <p className="text-[9px] text-muted-foreground font-medium leading-tight truncate">Messages are end-to-end encrypted. Click to verify.</p>
                     </div>
                   </div>
                 </div>
@@ -2493,41 +2501,41 @@ export default function ChatPage() {
                     setIsFavourite(!isFavourite);
                     toast.success(!isFavourite ? 'Added to favourites!' : 'Removed from favourites.');
                   }}
-                  className="flex items-center space-x-3 p-3 bg-white dark:bg-slate-900 border rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  className="flex items-center space-x-3 p-3 bg-card dark:bg-card border rounded-xl cursor-pointer hover:bg-muted dark:hover:bg-card transition-all"
                 >
-                  <Heart className={`h-4 w-4 ${isFavourite ? 'text-pink-500 fill-pink-500' : 'text-slate-400'}`} />
-                  <span className="text-xs font-bold text-slate-750 dark:text-slate-300 flex-1 text-left">Add to favourites</span>
+                  <Heart className={`h-4 w-4 ${isFavourite ? 'text-pink-500 fill-pink-500' : 'text-muted-foreground'}`} />
+                  <span className="text-xs font-bold text-foreground dark:text-foreground flex-1 text-left">Add to favourites</span>
                 </div>
 
                 <div 
                   onClick={() => toast.success('Added to custom chat list.')}
-                  className="flex items-center space-x-3 p-3 bg-white dark:bg-slate-900 border rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                  className="flex items-center space-x-3 p-3 bg-card dark:bg-card border rounded-xl cursor-pointer hover:bg-muted dark:hover:bg-card transition-all"
                 >
-                  <Plus className="h-4 w-4 text-slate-400" />
-                  <span className="text-xs font-bold text-slate-750 dark:text-slate-300 flex-1 text-left">Add to list</span>
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-bold text-foreground dark:text-foreground flex-1 text-left">Add to list</span>
                 </div>
               </div>
             )}
 
             {/* Starred / Pinned lists */}
             <div className="space-y-2.5 pt-2">
-              <h4 className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center space-x-1">
+              <h4 className="text-[10px] font-extrabold uppercase text-muted-foreground tracking-wider flex items-center space-x-1">
                 <Pin className="h-3 w-3 text-primary" />
                 <span>Pinned Messages ({messages.filter((m) => m.isPinned).length})</span>
               </h4>
               <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
                 {messages.filter((m) => m.isPinned).length === 0 ? (
-                  <p className="text-[10px] text-slate-400 italic text-left">No pinned messages.</p>
+                  <p className="text-[10px] text-muted-foreground italic text-left">No pinned messages.</p>
                 ) : (
                   messages
                     .filter((m) => m.isPinned)
                     .map((m) => (
-                      <div key={m.id} className="p-2.5 border bg-white dark:bg-slate-900 rounded-xl space-y-1 relative text-[10px] text-left">
-                        <div className="flex justify-between text-[8px] text-slate-450 font-bold border-b pb-1">
+                      <div key={m.id} className="p-2.5 border bg-card dark:bg-card rounded-xl space-y-1 relative text-[10px] text-left">
+                        <div className="flex justify-between text-[8px] text-muted-foreground font-bold border-b pb-1">
                           <span>{m.senderId === user?.id ? 'You' : activeContact.name}</span>
                           <span>{formatMessageTime(m.createdAt)}</span>
                         </div>
-                        <p className="text-slate-655 dark:text-slate-355 pt-1 line-clamp-2">{m.content}</p>
+                        <p className="text-foreground dark:text-muted-foreground pt-1 line-clamp-2">{m.content}</p>
                       </div>
                     ))
                 )}
@@ -2535,21 +2543,21 @@ export default function ChatPage() {
             </div>
 
             <div className="space-y-2 border-t pt-4">
-              <h4 className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center space-x-1">
+              <h4 className="text-[10px] font-extrabold uppercase text-muted-foreground tracking-wider flex items-center space-x-1">
                 <Bookmark className="h-3 w-3 text-primary" />
                 <span>My Starred Messages ({bookmarkedList?.length || 0})</span>
               </h4>
               <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
                 {!bookmarkedList || bookmarkedList.length === 0 ? (
-                  <p className="text-[10px] text-slate-450 italic text-left">No bookmarked messages.</p>
+                  <p className="text-[10px] text-muted-foreground italic text-left">No bookmarked messages.</p>
                 ) : (
                   bookmarkedList.map((bm: any) => (
-                    <div key={bm.id} className="p-2.5 border bg-white dark:bg-slate-900 rounded-xl space-y-1 text-[10px] text-left">
-                      <div className="flex justify-between text-[8px] text-slate-450 font-bold border-b pb-1">
+                    <div key={bm.id} className="p-2.5 border bg-card dark:bg-card rounded-xl space-y-1 text-[10px] text-left">
+                      <div className="flex justify-between text-[8px] text-muted-foreground font-bold border-b pb-1">
                         <span>{bm.message?.senderId === user?.id ? 'You' : (bm.message?.sender?.firstName || 'Colleague')}</span>
                         <span>{formatMessageTime(bm.message?.createdAt)}</span>
                       </div>
-                      <p className="text-slate-655 dark:text-slate-355 pt-1 line-clamp-2">{bm.message?.content}</p>
+                      <p className="text-foreground dark:text-muted-foreground pt-1 line-clamp-2">{bm.message?.content}</p>
                     </div>
                   ))
                 )}
@@ -2597,39 +2605,39 @@ export default function ChatPage() {
       {contextMenu && (
         <div 
           style={{ top: contextMenu.y, left: contextMenu.x }}
-          className="fixed bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl shadow-2xl py-1 text-xs w-40 z-50 animate-slide-up"
+          className="fixed bg-card dark:bg-card border dark:border-border rounded-xl shadow-2xl py-1 text-xs w-40 z-50 animate-slide-up"
         >
           <button 
             onClick={() => setReplyingMessage(contextMenu.message)} 
-            className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200"
+            className="w-full text-left px-4 py-2 hover:bg-muted dark:hover:bg-card flex items-center space-x-2 text-foreground dark:text-foreground"
           >
             <CornerUpLeft className="h-3.5 w-3.5" />
             <span>Reply</span>
           </button>
           <button 
             onClick={() => setForwardingMessage(contextMenu.message)} 
-            className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200"
+            className="w-full text-left px-4 py-2 hover:bg-muted dark:hover:bg-card flex items-center space-x-2 text-foreground dark:text-foreground"
           >
             <CornerUpRight className="h-3.5 w-3.5" />
             <span>Forward</span>
           </button>
           <button 
             onClick={() => handleTogglePin(contextMenu.message.id)} 
-            className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200"
+            className="w-full text-left px-4 py-2 hover:bg-muted dark:hover:bg-card flex items-center space-x-2 text-foreground dark:text-foreground"
           >
             <Pin className="h-3.5 w-3.5" />
             <span>{contextMenu.message.isPinned ? 'Unpin' : 'Pin'}</span>
           </button>
           <button 
             onClick={() => handleToggleBookmark(contextMenu.message.id)} 
-            className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200"
+            className="w-full text-left px-4 py-2 hover:bg-muted dark:hover:bg-card flex items-center space-x-2 text-foreground dark:text-foreground"
           >
             <Bookmark className="h-3.5 w-3.5" />
             <span>Bookmark</span>
           </button>
           <button 
             onClick={() => handleCopyText(contextMenu.message.content)} 
-            className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200"
+            className="w-full text-left px-4 py-2 hover:bg-muted dark:hover:bg-card flex items-center space-x-2 text-foreground dark:text-foreground"
           >
             <Copy className="h-3.5 w-3.5" />
             <span>Copy Text</span>
@@ -2642,7 +2650,7 @@ export default function ChatPage() {
                 return (
                   <button 
                     onClick={() => { setEditingMessage(contextMenu.message); setEditValue(contextMenu.message.content); }} 
-                    className="w-full text-left px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center space-x-2 text-slate-700 dark:text-slate-200"
+                    className="w-full text-left px-4 py-2 hover:bg-muted dark:hover:bg-card flex items-center space-x-2 text-foreground dark:text-foreground"
                   >
                     <Edit3 className="h-3.5 w-3.5" />
                     <span>Edit</span>
@@ -2671,20 +2679,20 @@ export default function ChatPage() {
       {/* File Preview Modal Overlay */}
       {previewFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setPreviewFile(null)} 
-              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="border-b pb-2">
-              <h3 className="font-bold text-sm leading-none text-slate-800 dark:text-slate-200">{previewFile.name}</h3>
-              <p className="text-[10px] text-slate-400 mt-1">Format: {previewFile.fileType}</p>
+              <h3 className="font-bold text-sm leading-none text-foreground dark:text-foreground">{previewFile.name}</h3>
+              <p className="text-[10px] text-muted-foreground mt-1">Format: {previewFile.fileType}</p>
             </div>
 
             {/* Preview Area */}
-            <div className="bg-slate-50 dark:bg-slate-950/60 rounded-2xl border p-4 flex items-center justify-center min-h-[300px]">
+            <div className="bg-muted dark:bg-card/60 rounded-2xl border p-4 flex items-center justify-center min-h-[300px]">
               {previewFile.fileType === 'PNG' || previewFile.fileType === 'JPEG' || previewFile.fileType === 'JPG' || previewFile.fileType === 'WEBP' || previewFile.fileType === 'GIF' ? (
                 <img src={resolveFileUrl(previewFile.url)} alt={previewFile.name} className="max-h-[400px] object-contain rounded-lg shadow-sm" />
               ) : previewFile.fileType === 'MP4' ? (
@@ -2700,7 +2708,7 @@ export default function ChatPage() {
                     download={previewFile.name}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block px-4 py-2 bg-primary text-white text-xs font-bold rounded-xl shadow hover:bg-primary/95 transition-all"
+                    className="inline-block px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl shadow hover:bg-primary/95 transition-all"
                   >
                     Download Document
                   </a>
@@ -2714,11 +2722,11 @@ export default function ChatPage() {
       {/* Camera Capture Modal */}
       {cameraModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-lg space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200 text-center">
-            <button onClick={stopCamera} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-lg space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200 text-center">
+            <button onClick={stopCamera} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg">
               <X className="h-5 w-5" />
             </button>
-            <h3 className="font-bold text-base text-slate-800 dark:text-slate-200">Camera</h3>
+            <h3 className="font-bold text-base text-foreground dark:text-foreground">Camera</h3>
             <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border">
               <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
               <canvas ref={canvasRef} className="hidden" />
@@ -2726,14 +2734,14 @@ export default function ChatPage() {
             <div className="flex space-x-3 pt-2">
               <button
                 onClick={capturePhoto}
-                className="flex-1 py-2.5 bg-primary text-white font-bold rounded-xl shadow-md flex items-center justify-center space-x-2"
+                className="flex-1 py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md flex items-center justify-center space-x-2"
               >
                 <Camera className="h-4 w-4" />
                 <span>Capture and Send</span>
               </button>
               <button
                 onClick={stopCamera}
-                className="px-6 py-2.5 border rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-550 dark:text-slate-350 font-bold"
+                className="px-6 py-2.5 border rounded-xl hover:bg-muted dark:hover:bg-card text-muted-foreground dark:text-foreground font-bold"
               >
                 Cancel
               </button>
@@ -2745,25 +2753,25 @@ export default function ChatPage() {
       {/* Contact Picker Modal */}
       {contactPickerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md max-h-[80vh] overflow-y-auto space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button onClick={() => setContactPickerOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md max-h-[80vh] overflow-y-auto space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => setContactPickerOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
-              <h3 className="font-bold text-base text-slate-800 dark:text-slate-200 text-left">Share Contact</h3>
-              <p className="text-xs text-slate-400 text-left">Select a colleague to share their details in this chat room.</p>
+              <h3 className="font-bold text-base text-foreground dark:text-foreground text-left">Share Contact</h3>
+              <p className="text-xs text-muted-foreground text-left">Select a colleague to share their details in this chat room.</p>
             </div>
             <div className="space-y-2 pt-2">
               {colleagues.length === 0 ? (
-                <p className="text-xs text-slate-400 italic text-left">No contacts available.</p>
+                <p className="text-xs text-muted-foreground italic text-left">No contacts available.</p>
               ) : (
                 colleagues.map((col: any) => (
                   <div
                     key={col.id}
                     onClick={() => handleShareContact(col)}
-                    className="flex items-center space-x-3 p-3 border rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-all text-left"
+                    className="flex items-center space-x-3 p-3 border rounded-xl hover:bg-muted dark:hover:bg-card cursor-pointer transition-all text-left"
                   >
-                    <div className="h-9 w-9 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center font-bold text-xs uppercase text-slate-500 overflow-hidden shrink-0">
+                    <div className="h-9 w-9 bg-secondary dark:bg-card rounded-full flex items-center justify-center font-bold text-xs uppercase text-muted-foreground overflow-hidden shrink-0">
                       {col.avatarUrl ? (
                         <img src={col.avatarUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
@@ -2771,8 +2779,8 @@ export default function ChatPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{col.firstName} {col.lastName}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{col.designation || 'Teammate'} • {col.email}</p>
+                      <p className="text-xs font-bold text-foreground dark:text-foreground truncate">{col.firstName} {col.lastName}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{col.designation || 'Teammate'} • {col.email}</p>
                     </div>
                   </div>
                 ))
@@ -2785,58 +2793,58 @@ export default function ChatPage() {
       {/* Event Invitation Creator Modal */}
       {eventModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button onClick={() => setEventModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => setEventModalOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
-              <h3 className="font-bold text-base text-slate-800 dark:text-slate-200 text-left">Create Event Card</h3>
-              <p className="text-xs text-slate-400 text-left">Construct an event invitation card to share in the chat.</p>
+              <h3 className="font-bold text-base text-foreground dark:text-foreground text-left">Create Event Card</h3>
+              <p className="text-xs text-muted-foreground text-left">Construct an event invitation card to share in the chat.</p>
             </div>
             <form onSubmit={handleShareEvent} className="space-y-4 text-xs font-semibold text-left">
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-slate-400">Event Title</label>
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Event Title</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Project Sprint Planning"
                   value={eventName}
                   onChange={(e) => setEventName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-slate-400">Date</label>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground">Date</label>
                   <input
                     type="date"
                     required
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-slate-400">Time</label>
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground">Time</label>
                   <input
                     type="time"
                     required
                     value={eventTime}
                     onChange={(e) => setEventTime(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-slate-400">Description</label>
+                <label className="text-[10px] uppercase font-bold text-muted-foreground">Description</label>
                 <textarea
                   placeholder="Enter event details/link..."
                   value={eventDesc}
                   onChange={(e) => setEventDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-20 resize-none"
                 />
               </div>
-              <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
+              <button type="submit" className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md">
                 Send Event Card
               </button>
             </form>
@@ -2847,8 +2855,8 @@ export default function ChatPage() {
       {/* Sticker Selector Modal */}
       {stickerPanelOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <button onClick={() => { setStickerPanelOpen(false); setGifSearchQuery(''); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <button onClick={() => { setStickerPanelOpen(false); setGifSearchQuery(''); }} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             
@@ -2856,13 +2864,13 @@ export default function ChatPage() {
             <div className="flex items-center space-x-4 border-b pb-2 select-none">
               <button
                 onClick={() => setActiveStickerTab('stickers')}
-                className={`text-sm font-bold pb-1 transition-all ${activeStickerTab === 'stickers' ? 'text-primary border-b-2 border-primary' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`text-sm font-bold pb-1 transition-all ${activeStickerTab === 'stickers' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-muted-foreground'}`}
               >
                 Stickers
               </button>
               <button
                 onClick={() => setActiveStickerTab('gifs')}
-                className={`text-sm font-bold pb-1 transition-all ${activeStickerTab === 'gifs' ? 'text-primary border-b-2 border-primary' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`text-sm font-bold pb-1 transition-all ${activeStickerTab === 'gifs' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-muted-foreground'}`}
               >
                 GIFs
               </button>
@@ -2887,7 +2895,7 @@ export default function ChatPage() {
                   placeholder="Search preset GIFs..."
                   value={gifSearchQuery}
                   onChange={(e) => setGifSearchQuery(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-850 text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-slate-800 dark:text-slate-100"
+                  className="w-full px-3 py-1.5 rounded-xl border bg-muted dark:bg-card text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-foreground dark:text-foreground"
                 />
                 <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                   {PRESET_GIFS.filter(g => g.name.toLowerCase().includes(gifSearchQuery.toLowerCase())).map((gif, idx) => (
@@ -2897,16 +2905,16 @@ export default function ChatPage() {
                         handleShareSticker(gif.url);
                         setGifSearchQuery('');
                       }}
-                      className="border rounded-xl overflow-hidden cursor-pointer hover:border-primary transition-all relative group h-16 bg-slate-100 dark:bg-slate-800"
+                      className="border rounded-xl overflow-hidden cursor-pointer hover:border-primary transition-all relative group h-16 bg-muted dark:bg-card"
                     >
                       <img src={gif.url} alt={gif.name} className="h-full w-full object-cover" />
-                      <div className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[8px] p-0.5 text-center truncate font-medium">
+                      <div className="absolute inset-x-0 bottom-0 bg-black/60 text-foreground text-[8px] p-0.5 text-center truncate font-medium">
                         {gif.name}
                       </div>
                     </div>
                   ))}
                   {PRESET_GIFS.filter(g => g.name.toLowerCase().includes(gifSearchQuery.toLowerCase())).length === 0 && (
-                    <p className="text-[10px] text-slate-400 col-span-2 text-center py-4">No matching GIFs found.</p>
+                    <p className="text-[10px] text-muted-foreground col-span-2 text-center py-4">No matching GIFs found.</p>
                   )}
                 </div>
               </div>
@@ -2918,26 +2926,26 @@ export default function ChatPage() {
       {/* Encryption Fingerprint Verification Code Modal */}
       {showEncryptionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200 text-center">
-            <button onClick={() => setShowEncryptionModal(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200 text-center">
+            <button onClick={() => setShowEncryptionModal(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             <div className="mx-auto bg-primary/10 text-primary p-3 rounded-full inline-block">
               <Shield className="h-8 w-8 animate-pulse" />
             </div>
-            <h3 className="font-bold text-base text-slate-850 dark:text-slate-200">Verify security code</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+            <h3 className="font-bold text-base text-foreground dark:text-foreground">Verify security code</h3>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
               To verify that messages with {activeContact.name} are end-to-end encrypted, compare these numbers with their device.
             </p>
             {/* WhatsApp security digits grid */}
-            <div className="grid grid-cols-4 gap-3 py-4 font-mono text-[11px] font-black text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border">
+            <div className="grid grid-cols-4 gap-3 py-4 font-mono text-[11px] font-black text-foreground dark:text-foreground bg-muted dark:bg-card/40 p-4 rounded-2xl border">
               {['23491', '08945', '71295', '03429', '89104', '51295', '03429', '71829', '09184', '51295', '03429', '71295'].map((num, idx) => (
                 <span key={idx} className="tracking-widest">{num}</span>
               ))}
             </div>
             <button
               onClick={() => setShowEncryptionModal(false)}
-              className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md"
+              className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md"
             >
               Close Verification
             </button>
@@ -2948,22 +2956,22 @@ export default function ChatPage() {
       {/* Disappearing Messages Modal */}
       {showDisappearingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200 text-left">
-            <button onClick={() => setShowDisappearingModal(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200 text-left">
+            <button onClick={() => setShowDisappearingModal(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg">
               <X className="h-5 w-5" />
             </button>
-            <h3 className="font-bold text-base text-slate-850 dark:text-slate-200">Disappearing messages</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
+            <h3 className="font-bold text-base text-foreground dark:text-foreground">Disappearing messages</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
               For more privacy and storage, all new messages will disappear from this chat for everyone after the selected duration.
             </p>
-            <div className="space-y-2 pt-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+            <div className="space-y-2 pt-2 text-xs font-bold text-foreground dark:text-foreground">
               {[
                 { label: '24 Hours', value: '24h' },
                 { label: '7 Days', value: '7d' },
                 { label: '90 Days', value: '90d' },
                 { label: 'Off', value: 'off' }
               ].map((opt) => (
-                <label key={opt.value} className="flex items-center space-x-3 p-3 border rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-all">
+                <label key={opt.value} className="flex items-center space-x-3 p-3 border rounded-xl hover:bg-muted dark:hover:bg-card cursor-pointer transition-all">
                   <input
                     type="radio"
                     name="disappearing"

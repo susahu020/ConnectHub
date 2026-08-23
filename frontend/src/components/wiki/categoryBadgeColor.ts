@@ -9,6 +9,6 @@ export function getCategoryBadgeColor(category?: string) {
     case 'ENGINEERING':
       return 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-900/50';
     default:
-      return 'bg-slate-50 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-350 dark:border-slate-700/50';
+      return 'bg-muted text-muted-foreground border border-border dark:bg-card dark:text-foreground dark:border-border/50';
   }
 }

@@ -3,6 +3,29 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { User } from '@prisma/client';
 import { getCachedSession, cacheSession } from '../services/session.service';
+import { getOrganizationSettings } from '../services/organization.service';
+
+// Endpoints that must stay reachable for a user who hasn't set up 2FA yet
+// even when the organization requires it — otherwise a user with MFA_SETUP_
+// REQUIRED could never load the very screen that lets them satisfy it, or
+// sign out and try a different account. Paths are router-relative (this
+// router is mounted at /api/v1 in index.ts, so req.path here excludes that
+// prefix).
+const MFA_SETUP_ALLOWLIST = new Set([
+  '/auth/2fa/setup',
+  '/auth/2fa/activate',
+  '/auth/logout',
+  '/users/profile',
+  // A user with MFA_SETUP_REQUIRED can already view/edit their profile text
+  // fields (see '/users/profile' above) while completing mandatory 2FA
+  // setup — but avatar/cover uploads were missing here, so the same user
+  // hit a hard "Your organization requires two-factor authentication"
+  // error the moment they tried to change their photo instead. Photos are
+  // no more sensitive than the rest of the profile this allowlist already
+  // permits, so they're allowed through too.
+  '/users/avatar',
+  '/users/cover',
+]);
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
@@ -98,6 +121,50 @@ export const authenticate = async (
     if (!user.isVerified) {
       res.status(403).json({ message: 'Email address not verified.', code: 'USER_NOT_VERIFIED' });
       return;
+    }
+
+    // Time-bound role elevation: a custom role assignment can carry an
+    // expiresAt (set via rbac.controller.ts's assignRole). Checked lazily
+    // here — the single choke point every authenticated request already
+    // passes through — rather than a background job: the first request
+    // after expiry clears it, logs it, and the user falls back to their
+    // base permissions immediately, no cron/worker needed.
+    if (user.customRoleId && user.customRoleExpiresAt && user.customRoleExpiresAt < new Date()) {
+      const expiredRoleId = user.customRoleId;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { customRoleId: null, customRoleExpiresAt: null },
+      });
+      await prisma.auditLog.create({
+        data: {
+          action: 'ROLE_EXPIRED',
+          details: `Temporary role assignment (role ${expiredRoleId}) for ${user.email} expired and was automatically revoked.`,
+        },
+      });
+      user.customRoleId = null;
+      user.customRoleExpiresAt = null;
+      // Let this user's own other open tabs/sessions know immediately,
+      // same event assignRole itself pushes on a manual change.
+      req.app.get('io')?.to(`user:${user.id}`).emit('role_assignment_updated', {
+        customRoleId: null,
+        roleName: '',
+        permissions: {},
+      });
+    }
+
+    // Org-wide MFA enforcement (Organization Settings > Security). Blocks
+    // everything except the handful of endpoints needed to view your own
+    // name/email, set up 2FA, or log out — not a full lockout, just no
+    // access to the rest of the app until 2FA is on.
+    if (!user.twoFactorEnabled && !MFA_SETUP_ALLOWLIST.has(req.path)) {
+      const orgSettings = await getOrganizationSettings();
+      if (orgSettings.mfaRequired) {
+        res.status(403).json({
+          message: 'Your organization requires two-factor authentication. Please set it up to continue.',
+          code: 'MFA_SETUP_REQUIRED',
+        });
+        return;
+      }
     }
 
     // Bind session context to request object

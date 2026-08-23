@@ -42,7 +42,7 @@ function SsoCallbackInner() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 space-y-4 px-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background space-y-4 px-6 text-center">
         <p className="text-sm font-bold text-red-500">{error}</p>
         <button
           onClick={() => router.replace('/login')}
@@ -55,9 +55,9 @@ function SsoCallbackInner() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 space-y-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background space-y-4">
       <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      <p className="text-sm font-bold text-slate-500 animate-pulse">Finishing sign-in...</p>
+      <p className="text-sm font-bold text-muted-foreground animate-pulse">Finishing sign-in...</p>
     </div>
   );
 }
@@ -65,7 +65,7 @@ function SsoCallbackInner() {
 export default function SsoCallbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     }>

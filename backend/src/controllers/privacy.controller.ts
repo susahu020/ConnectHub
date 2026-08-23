@@ -4,6 +4,7 @@ import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { exportUserData } from '../services/dataExport.service';
 import { deleteUserAccount } from '../services/accountDeletion.service';
+import { emitDataUpdate } from '../utils/realtime';
 
 /**
  * GET /users/me/export — self-service "right to access" data export.
@@ -60,6 +61,8 @@ export const deleteMyAccount = async (req: AuthenticatedRequest, res: Response, 
       return;
     }
 
+    emitDataUpdate(req, 'users');
+    emitDataUpdate(req, 'org');
     res.status(200).json({ message: 'Your account has been permanently deleted.' });
   } catch (error) {
     next(error);

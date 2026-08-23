@@ -7,7 +7,7 @@ export function getPriorityColor(priority: string) {
     case 'NORMAL':
       return 'text-primary bg-primary/5 border-primary/20';
     default:
-      return 'text-slate-600 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700';
+      return 'text-muted-foreground bg-muted border-border';
   }
 }
 
@@ -20,6 +20,6 @@ export function getStatusColor(status: string) {
     case 'IN_PROGRESS':
       return 'bg-primary text-white';
     default:
-      return 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300';
+      return 'bg-secondary text-muted-foreground';
   }
 }

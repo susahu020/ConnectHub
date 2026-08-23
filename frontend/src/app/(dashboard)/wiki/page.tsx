@@ -274,7 +274,7 @@ function WikiContent() {
   });
 
   return (
-    <div className="flex h-[calc(100vh-100px)] border rounded-3xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm text-left relative">
+    <div className="flex h-[calc(100vh-100px)] border rounded-3xl overflow-hidden bg-card dark:bg-card shadow-sm text-left relative">
       <WikiSidebar
         createMenuOpen={createMenuOpen}
         onToggleCreateMenu={() => setCreateMenuOpen(!createMenuOpen)}
@@ -293,7 +293,7 @@ function WikiContent() {
       />
 
       {/* MAIN VIEWPORT WORKSPACE */}
-      <div className="flex-grow flex flex-col min-w-0 bg-slate-50/20 dark:bg-slate-900/5">
+      <div className="flex-grow flex flex-col min-w-0 bg-muted/20 dark:bg-card/5">
         {!selectedPageId ? (
           <WikiEmptyState orgName={orgSettings.orgName} onCreateDocument={handleCreateDocument} />
         ) : (
@@ -317,7 +317,7 @@ function WikiContent() {
 
             {/* Main Area: Editor or Viewer */}
             <div className="flex-1 flex overflow-hidden min-h-0">
-              <div className="flex-grow overflow-y-auto p-6 md:p-8 bg-white dark:bg-slate-900">
+              <div className="flex-grow overflow-y-auto p-6 md:p-8 bg-card dark:bg-card">
                 {isEditing ? (
                   <WikiEditor
                     categories={categories}
@@ -384,10 +384,10 @@ export default function WikiPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-[calc(100vh-100px)] items-center justify-center bg-white dark:bg-slate-900 border rounded-3xl shadow-sm">
+        <div className="flex h-[calc(100vh-100px)] items-center justify-center bg-card dark:bg-card border rounded-3xl shadow-sm">
           <div className="text-center space-y-2">
             <Loader2 className="h-7 w-7 animate-spin text-primary mx-auto" />
-            <p className="text-xs text-slate-400 font-bold">Loading Knowledge Base...</p>
+            <p className="text-xs text-muted-foreground font-bold">Loading Knowledge Base...</p>
           </div>
         </div>
       }

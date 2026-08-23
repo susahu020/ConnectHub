@@ -84,3 +84,24 @@ export const authRateLimiter = makeRateLimiter({
   windowSeconds: 15 * 60,
   message: 'Too many attempts from this network. Please try again in 15 minutes.',
 });
+
+// File/media upload limiter — covers file uploads, new-version uploads, and
+// avatar/cover/org-logo uploads. The global 100/min limiter allows enough
+// volume for scripted repeated large uploads to exhaust storage/bandwidth,
+// so this caps it separately per IP.
+export const fileUploadRateLimiter = makeRateLimiter({
+  keyPrefix: 'file_upload_rate_limit',
+  limit: 30,
+  windowSeconds: 10 * 60,
+  message: 'Too many uploads from this network. Please try again in a few minutes.',
+});
+
+// File-processing limiter — covers OCR and watermark generation, which are
+// per-request CPU/third-party-cost operations rather than simple storage
+// writes, so they get a lower budget than plain uploads.
+export const fileProcessingRateLimiter = makeRateLimiter({
+  keyPrefix: 'file_processing_rate_limit',
+  limit: 15,
+  windowSeconds: 10 * 60,
+  message: 'Too many file-processing requests from this network. Please try again in a few minutes.',
+});

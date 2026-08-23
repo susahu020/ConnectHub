@@ -52,9 +52,9 @@ function VerifyEmailForm() {
   };
 
   return (
-    <div className="w-full max-w-md space-y-8 bg-white dark:bg-slate-900 p-8 rounded-3xl border shadow-xl relative overflow-hidden">
+    <div className="w-full max-w-md space-y-8 bg-card p-8 rounded-3xl border shadow-xl relative overflow-hidden">
       <div className="absolute -top-24 -right-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl" />
-      <div className="absolute -bottom-24 -left-24 h-48 w-48 bg-indigo-500/10 rounded-full blur-3xl" />
+      <div className="absolute -bottom-24 -left-24 h-48 w-48 bg-warm/10 rounded-full blur-3xl" />
 
       <div className="flex flex-col items-center space-y-2 text-center">
         <Link href="/" className="flex items-center space-x-2 text-2xl font-bold tracking-tight mb-2">
@@ -83,14 +83,14 @@ function VerifyEmailForm() {
             placeholder="123456"
             value={otp}
             onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-            className="w-full px-4 py-3 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-center text-2xl font-bold tracking-widest"
+            className="w-full px-4 py-3 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-center text-2xl font-bold tracking-widest"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading || otp.length !== 6}
-          className="w-full py-3 px-4 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
+          className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
         >
           {loading ? (
             <>
@@ -115,7 +115,7 @@ function VerifyEmailForm() {
 
 export default function VerifyEmailPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-6 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-background px-6 py-12">
       <Suspense fallback={<Loader2 className="h-8 w-8 animate-spin text-primary" />}>
         <VerifyEmailForm />
       </Suspense>

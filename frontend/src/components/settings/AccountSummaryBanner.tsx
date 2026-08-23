@@ -5,9 +5,9 @@ export function AccountSummaryBanner({ user }: { user: any }) {
   if (!user) return null;
 
   return (
-    <div className="bg-white dark:bg-slate-900 border p-5 rounded-3xl shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
+    <div className="bg-card dark:bg-card border p-5 rounded-3xl shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
       <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-        <div className="h-16 w-16 bg-slate-100 dark:bg-slate-800 border rounded-full flex items-center justify-center text-xl font-extrabold uppercase text-slate-500 overflow-hidden shrink-0 shadow-2xs">
+        <div className="h-16 w-16 bg-muted dark:bg-card border rounded-full flex items-center justify-center text-xl font-extrabold uppercase text-muted-foreground overflow-hidden shrink-0 shadow-2xs">
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -16,10 +16,10 @@ export function AccountSummaryBanner({ user }: { user: any }) {
           )}
         </div>
         <div className="space-y-1">
-          <h3 className="font-extrabold text-base leading-none text-slate-850 dark:text-slate-200">
+          <h3 className="font-extrabold text-base leading-none text-foreground dark:text-foreground">
             {user.firstName} {user.lastName}
           </h3>
-          <p className="text-xs text-slate-400 font-semibold leading-none">
+          <p className="text-xs text-muted-foreground font-semibold leading-none">
             {user.designation || 'Company Teammate'} • {user.email}
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-1">

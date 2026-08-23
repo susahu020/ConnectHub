@@ -19,7 +19,7 @@ export function WidgetVisibilityBar({
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-colors shadow-sm ${
               w.visible
                 ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-white dark:bg-slate-900 text-muted-foreground border-border hover:bg-muted'
+                : 'bg-card text-muted-foreground border-border hover:bg-muted'
             }`}
           >
             {w.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}

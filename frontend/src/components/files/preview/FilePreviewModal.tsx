@@ -65,14 +65,14 @@ export function FilePreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
-        <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg transition-all">
+      <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+        <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg transition-all">
           <X className="h-5 w-5" />
         </button>
 
         <div className="border-b pb-3 space-y-1">
-          <h3 className="font-extrabold text-base leading-none text-slate-850 dark:text-slate-100">{file.name}</h3>
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+          <h3 className="font-extrabold text-base leading-none text-foreground dark:text-foreground">{file.name}</h3>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
             Format: {file.fileType} • Active Version: v{file.version}
           </p>
         </div>
@@ -82,14 +82,14 @@ export function FilePreviewModal({
             <button
               key={tab.key}
               onClick={tab.onClick}
-              className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all ${tab.active ? 'bg-primary/5 text-primary' : 'text-slate-400'}`}
+              className={`px-3 py-1.5 text-xs font-black rounded-lg transition-all ${tab.active ? 'bg-primary/5 text-primary' : 'text-muted-foreground'}`}
             >
               {tab.label}
             </button>
           ))}
         </div>
 
-        <div className="bg-slate-50 dark:bg-slate-955/60 rounded-3xl border p-5 flex flex-col justify-center min-h-[350px] relative overflow-hidden">
+        <div className="bg-muted dark:bg-card/60 rounded-3xl border p-5 flex flex-col justify-center min-h-[350px] relative overflow-hidden">
           {isDefaultTab && <DocumentPreviewTab file={file} />}
           {compareMode && (
             <VersionCompareTab

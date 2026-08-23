@@ -62,21 +62,21 @@ export function FileExplorerGrid({
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 animate-pulse-slow">
           {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="border rounded-2xl p-4 bg-white dark:bg-slate-900 space-y-4">
+            <div key={n} className="border rounded-2xl p-4 bg-card dark:bg-card space-y-4">
               <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 bg-slate-200 dark:bg-slate-800 rounded-lg shrink-0" />
+                <div className="h-10 w-10 bg-secondary dark:bg-card rounded-lg shrink-0" />
                 <div className="space-y-1.5 flex-1">
-                  <div className="h-3.5 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
-                  <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
+                  <div className="h-3.5 bg-secondary dark:bg-card rounded w-2/3" />
+                  <div className="h-2 bg-secondary dark:bg-card rounded w-1/3" />
                 </div>
               </div>
             </div>
           ))}
         </div>
       ) : isEmpty ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center space-y-2 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm animate-fade-in">
-          <FolderOpen className="h-12 w-12 text-slate-350 dark:text-slate-700 stroke-1" />
-          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">This folder is empty</p>
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-2 border rounded-2xl bg-card dark:bg-card shadow-sm animate-fade-in">
+          <FolderOpen className="h-12 w-12 text-foreground dark:text-foreground stroke-1" />
+          <p className="text-xs font-bold text-foreground dark:text-foreground">This folder is empty</p>
           <p className="text-[10px] text-muted-foreground max-w-xs mx-auto leading-normal">
             Drag-and-drop your files directly here or click the &quot;Upload File&quot; button at the top to populate this folder.
           </p>
@@ -86,21 +86,21 @@ export function FileExplorerGrid({
           {folders?.map((fold: any) => (
             <div
               key={fold.id}
-              className="bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 group relative"
+              className="bg-card dark:bg-card border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 group relative"
             >
               <div className="flex items-center justify-between">
                 <div onClick={() => onOpenFolder(fold.id)} className="flex items-center space-x-3 min-w-0 cursor-pointer flex-1">
                   <Folder className="h-10 w-10 text-primary shrink-0 fill-primary/10" />
                   <div className="min-w-0">
                     <h4 className="font-bold text-xs truncate text-foreground leading-snug">{fold.name}</h4>
-                    <p className="text-[10px] text-slate-400">Folder</p>
+                    <p className="text-[10px] text-muted-foreground">Folder</p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
                   <button
                     onClick={() => onMoveItem({ id: fold.id, name: fold.name, type: 'FOLDER' })}
-                    className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                    className="p-1 text-muted-foreground hover:bg-muted dark:hover:bg-card rounded"
                     title="Move Folder"
                   >
                     <Move className="h-3.5 w-3.5" />
@@ -122,7 +122,7 @@ export function FileExplorerGrid({
           {files.map((file: any) => (
             <div
               key={file.id}
-              className="bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 group relative"
+              className="bg-card dark:bg-card border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 group relative"
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -131,23 +131,23 @@ export function FileExplorerGrid({
                       type="checkbox"
                       checked={selectedFileIds.includes(file.id)}
                       onChange={(e) => onToggleFileSelected(file.id, e.target.checked)}
-                      className="rounded border-slate-350 text-primary h-4 w-4 shrink-0"
+                      className="rounded border-border text-primary h-4 w-4 shrink-0"
                     />
-                    <div className="h-9 w-9 bg-slate-100 dark:bg-slate-800 border rounded-lg flex items-center justify-center text-[10px] font-extrabold text-indigo-500 uppercase shrink-0">
+                    <div className="h-9 w-9 bg-muted dark:bg-card border rounded-lg flex items-center justify-center text-[10px] font-extrabold text-primary uppercase shrink-0">
                       {file.fileType.substring(0, 4)}
                     </div>
                   </div>
                   <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
                     <button
                       onClick={() => onMoveItem({ id: file.id, name: file.name, type: 'FILE' })}
-                      className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                      className="p-1 text-muted-foreground hover:bg-muted dark:hover:bg-card rounded"
                       title="Move File"
                     >
                       <Move className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => onShareFile(file)}
-                      className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                      className="p-1 text-muted-foreground hover:bg-muted dark:hover:bg-card rounded"
                       title="Share Expiring Link"
                     >
                       <Share2 className="h-3.5 w-3.5" />
@@ -162,7 +162,7 @@ export function FileExplorerGrid({
 
                 <div className="min-w-0">
                   <h4 className="font-bold text-xs truncate leading-snug">{file.name}</h4>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] text-muted-foreground">
                     Uploader: {file.uploader?.firstName || 'System'} • {(file.size / 1024 / 1024).toFixed(2)} MB
                   </p>
                 </div>
@@ -171,7 +171,7 @@ export function FileExplorerGrid({
               <div className="grid grid-cols-2 gap-2 pt-2 border-t text-[10px] font-bold">
                 <button
                   onClick={() => onPreviewFile(file)}
-                  className="flex items-center justify-center space-x-1 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-slate-500 hover:text-foreground"
+                  className="flex items-center justify-center space-x-1 py-1.5 border rounded-lg hover:bg-muted dark:hover:bg-card transition-all text-muted-foreground hover:text-foreground"
                 >
                   <Eye className="h-3.5 w-3.5" />
                   <span>Preview</span>

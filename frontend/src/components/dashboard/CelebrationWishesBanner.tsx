@@ -20,7 +20,7 @@ export function CelebrationWishesBanner({ wishes }: { wishes: any[] }) {
           {wishes.map((wish: any) => (
             <div
               key={wish.id}
-              className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs border border-border/60 rounded-2xl p-4 shadow-sm flex flex-col justify-between gap-3"
+              className="bg-card/80 backdrop-blur-xs border border-border/60 rounded-2xl p-4 shadow-sm flex flex-col justify-between gap-3"
             >
               <div className="flex items-center gap-2.5">
                 <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center text-[10px] font-bold uppercase shrink-0 ring-1 ring-border">

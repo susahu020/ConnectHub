@@ -19,22 +19,22 @@ export function CalendarView({
   onOpenTaskDetail: (id: string) => void;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border rounded-2xl shadow-sm p-4 space-y-4">
+    <div className="bg-card dark:bg-card border rounded-2xl shadow-sm p-4 space-y-4">
       <div className="flex items-center justify-between border-b pb-4">
         <h3 className="font-black text-sm uppercase tracking-wide">
           {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
         </h3>
         <div className="flex items-center space-x-1">
-          <button onClick={onPrevMonth} aria-label="Previous month" className="p-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500">
+          <button onClick={onPrevMonth} aria-label="Previous month" className="p-1.5 border rounded-lg hover:bg-muted dark:hover:bg-card text-muted-foreground">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button onClick={onNextMonth} aria-label="Next month" className="p-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500">
+          <button onClick={onNextMonth} aria-label="Next month" className="p-1.5 border rounded-lg hover:bg-muted dark:hover:bg-card text-muted-foreground">
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold uppercase text-slate-400 pb-2">
+      <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-extrabold uppercase text-muted-foreground pb-2">
         {WEEKDAY_LABELS.map((d) => (
           <span key={d}>{d}</span>
         ))}
@@ -42,7 +42,7 @@ export function CalendarView({
 
       <div className="grid grid-cols-7 gap-2 auto-rows-[minmax(90px,auto)]">
         {calendarDays.map((day, idx) => {
-          if (!day) return <div key={idx} className="bg-slate-50/20 dark:bg-slate-950/20 rounded-xl" />;
+          if (!day) return <div key={idx} className="bg-muted/20 dark:bg-card/20 rounded-xl" />;
 
           const dayStr = day.toDateString();
           const dayTasks = filteredTasks.filter((t: any) => t.dueDate && new Date(t.dueDate).toDateString() === dayStr);
@@ -51,11 +51,11 @@ export function CalendarView({
           return (
             <div
               key={idx}
-              className={`border p-2 rounded-xl bg-slate-50/30 dark:bg-slate-800/10 flex flex-col space-y-1.5 ${
+              className={`border p-2 rounded-xl bg-muted/30 dark:bg-card/10 flex flex-col space-y-1.5 ${
                 isToday ? 'ring-1 ring-primary/40 border-primary/30' : ''
               }`}
             >
-              <span className={`font-bold text-[10px] ${isToday ? 'text-primary' : 'text-slate-400'}`}>{day.getDate()}</span>
+              <span className={`font-bold text-[10px] ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>{day.getDate()}</span>
               <div className="flex-1 space-y-1 overflow-y-auto max-h-[70px]">
                 {dayTasks.map((t: any) => (
                   <div

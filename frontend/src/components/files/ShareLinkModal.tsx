@@ -28,13 +28,13 @@ export function ShareLinkModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-      <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative animate-in fade-in duration-200">
-        <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+      <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative animate-in fade-in duration-200">
+        <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
           <X className="h-5 w-5" />
         </button>
         <div className="space-y-1">
           <h3 className="font-bold text-base">Share expiring link</h3>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-muted-foreground">
             Generate a secure link to allow external or internal stakeholders to download &quot;{fileName}&quot;.
           </p>
         </div>
@@ -46,9 +46,9 @@ export function ShareLinkModal({
                 type="text"
                 readOnly
                 value={generatedLink}
-                className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs select-all focus:outline-none font-mono"
+                className="flex-1 px-3 py-2 bg-muted dark:bg-card border rounded-xl text-xs select-all focus:outline-none font-mono"
               />
-              <button onClick={onCopyLink} className="p-2 bg-primary text-white rounded-xl shadow hover:bg-primary/95" title="Copy to clipboard">
+              <button onClick={onCopyLink} className="p-2 bg-primary text-primary-foreground rounded-xl shadow hover:bg-primary/95" title="Copy to clipboard">
                 <Copy className="h-4 w-4" />
               </button>
             </div>
@@ -57,11 +57,11 @@ export function ShareLinkModal({
         ) : (
           <form onSubmit={onSubmit} className="space-y-4 text-xs font-semibold">
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Select Expiration Duration</label>
+              <label className="text-muted-foreground uppercase text-[10px]">Select Expiration Duration</label>
               <select
                 value={expireHours}
                 onChange={(e) => onExpireHoursChange(parseInt(e.target.value))}
-                className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
               >
                 <option value={1}>1 Hour</option>
                 <option value={8}>8 Hours</option>
@@ -71,15 +71,15 @@ export function ShareLinkModal({
             </div>
 
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Notify Team Members Directly (Optional)</label>
-              <div className="max-h-28 overflow-y-auto border rounded-xl p-2 bg-slate-50 dark:bg-slate-800 space-y-1.5 scrollbar-thin">
+              <label className="text-muted-foreground uppercase text-[10px]">Notify Team Members Directly (Optional)</label>
+              <div className="max-h-28 overflow-y-auto border rounded-xl p-2 bg-muted dark:bg-card space-y-1.5 scrollbar-thin">
                 {directoryUsers.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 italic p-1">No other team members found.</p>
+                  <p className="text-[10px] text-muted-foreground italic p-1">No other team members found.</p>
                 ) : (
                   directoryUsers
                     .filter((u) => u.id !== currentUserId)
                     .map((u) => (
-                      <label key={u.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-750 p-1 rounded transition-all">
+                      <label key={u.id} className="flex items-center space-x-2 cursor-pointer hover:bg-muted dark:hover:bg-card p-1 rounded transition-all">
                         <input
                           type="checkbox"
                           checked={selectedUserIds.includes(u.id)}
@@ -90,9 +90,9 @@ export function ShareLinkModal({
                               onSelectedUserIdsChange(selectedUserIds.filter((id) => id !== u.id));
                             }
                           }}
-                          className="rounded border-slate-350 dark:border-slate-700 text-primary focus:ring-primary h-3.5 w-3.5"
+                          className="rounded border-border dark:border-border text-primary focus:ring-primary h-3.5 w-3.5"
                         />
-                        <span className="text-[10px] font-semibold text-slate-705 dark:text-slate-200">
+                        <span className="text-[10px] font-semibold text-foreground dark:text-foreground">
                           {u.firstName} {u.lastName} ({u.email})
                         </span>
                       </label>
@@ -101,7 +101,7 @@ export function ShareLinkModal({
               </div>
             </div>
 
-            <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
+            <button type="submit" className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md">
               Generate Share Link
             </button>
           </form>

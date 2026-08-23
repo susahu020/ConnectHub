@@ -7,7 +7,7 @@ export function FilesWidget({ files }: { files: any[] | undefined }) {
     <div className="flex-1 flex flex-col">
       <WidgetHeader
         icon={<FileText />}
-        iconClassName="text-indigo-500"
+        iconClassName="text-primary"
         title="Recent Uploads"
         action={{ label: 'Storage', href: '/files' }}
       />
@@ -18,10 +18,10 @@ export function FilesWidget({ files }: { files: any[] | undefined }) {
           files.map((file: any) => (
             <div
               key={file.id}
-              className="p-2.5 border border-border/60 rounded-xl hover:bg-muted/40 hover:border-indigo-500/20 transition-colors flex items-center justify-between gap-3"
+              className="p-2.5 border border-border/60 rounded-xl hover:bg-muted/40 hover:border-primary/20 transition-colors flex items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="h-8 w-8 bg-indigo-500/10 text-indigo-500 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black uppercase">
+                <div className="h-8 w-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center shrink-0 text-[9px] font-black uppercase">
                   {file.fileType.substring(0, 3)}
                 </div>
                 <div className="min-w-0">

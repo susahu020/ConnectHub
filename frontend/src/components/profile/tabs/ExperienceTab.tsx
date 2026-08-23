@@ -13,14 +13,14 @@ export function ExperienceTab({
   onDeleteExperience: (id: string) => void;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
+    <div className="bg-card dark:bg-card border dark:border-border rounded-3xl p-6 shadow-sm space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-extrabold uppercase text-slate-450 tracking-wider">Professional Work History</h3>
+          <h3 className="text-sm font-extrabold uppercase text-muted-foreground tracking-wider">Professional Work History</h3>
           <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">Timeline track of companies, designations, and achievements.</p>
         </div>
         {isOwnProfile && (
-          <button onClick={onAddExperience} className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-bold flex items-center space-x-1 shadow-sm">
+          <button onClick={onAddExperience} className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-primary-foreground rounded-xl text-xs font-bold flex items-center space-x-1 shadow-sm">
             <Plus className="h-3.5 w-3.5" />
             <span>Add Experience</span>
           </button>
@@ -28,17 +28,17 @@ export function ExperienceTab({
       </div>
 
       {profile?.experiences && profile.experiences.length > 0 ? (
-        <div className="relative pl-6 border-l border-slate-200 dark:border-slate-800 space-y-8">
+        <div className="relative pl-6 border-l border-border dark:border-border space-y-8">
           {profile.experiences.map((exp: any) => (
             <div key={exp.id} className="relative group">
-              <span className="absolute -left-[30px] top-1 h-4 w-4 rounded-full bg-white dark:bg-slate-900 border-2 border-primary flex items-center justify-center">
+              <span className="absolute -left-[30px] top-1 h-4 w-4 rounded-full bg-card dark:bg-card border-2 border-primary flex items-center justify-center">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" />
               </span>
 
               <div className="space-y-2">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 text-xs">
                   <div>
-                    <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">{exp.designation}</h4>
+                    <h4 className="font-extrabold text-foreground text-sm">{exp.designation}</h4>
                     <p className="text-primary font-bold text-xs mt-0.5">
                       {exp.company} {exp.department ? `· ${exp.department}` : ''}
                     </p>
@@ -56,11 +56,11 @@ export function ExperienceTab({
                   </div>
                 </div>
 
-                {exp.description && <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed">{exp.description}</p>}
+                {exp.description && <p className="text-xs text-muted-foreground dark:text-muted-foreground font-medium leading-relaxed">{exp.description}</p>}
 
                 {exp.achievements && (
-                  <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    <span className="font-bold text-[10px] uppercase text-slate-400 tracking-wider block mb-0.5">Key Achievements</span>
+                  <div className="text-xs font-semibold text-foreground dark:text-foreground">
+                    <span className="font-bold text-[10px] uppercase text-muted-foreground tracking-wider block mb-0.5">Key Achievements</span>
                     <p className="italic">{exp.achievements}</p>
                   </div>
                 )}
@@ -68,7 +68,7 @@ export function ExperienceTab({
                 {exp.technologies && exp.technologies.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {exp.technologies.map((tech: string, idx: number) => (
-                      <span key={idx} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-bold">
+                      <span key={idx} className="px-2 py-0.5 bg-muted dark:bg-card text-muted-foreground dark:text-muted-foreground rounded text-[10px] font-bold">
                         {tech}
                       </span>
                     ))}

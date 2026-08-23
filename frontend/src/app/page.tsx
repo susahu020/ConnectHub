@@ -21,6 +21,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  Globe,
   Award,
   Activity,
   TrendingUp,
@@ -612,29 +613,45 @@ export default function LandingPage() {
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[10px] font-bold text-slate-450 dark:text-slate-500 uppercase tracking-wider block">Email Us</span>
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">support@connecthub.com</p>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{orgSettings.supportEmail || 'support@connecthub.com'}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3.5">
-                  <div className="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-500 shrink-0">
-                    <Phone className="h-5 w-5" />
+                {orgSettings.supportPhone && (
+                  <div className="flex items-center space-x-3.5">
+                    <div className="p-2.5 bg-emerald-500/10 rounded-2xl text-emerald-500 shrink-0">
+                      <Phone className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider block">Call Us</span>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{orgSettings.supportPhone}</p>
+                    </div>
                   </div>
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider block">Call Us</span>
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">+1 (800) 555-CHAT</p>
-                  </div>
-                </div>
+                )}
 
-                <div className="flex items-center space-x-3.5">
-                  <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-500 shrink-0">
-                    <MapPin className="h-5 w-5" />
+                {orgSettings.address && (
+                  <div className="flex items-center space-x-3.5">
+                    <div className="p-2.5 bg-indigo-500/10 rounded-2xl text-indigo-500 shrink-0">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider block">Visit Us</span>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{orgSettings.address}</p>
+                    </div>
                   </div>
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider block">Visit Us</span>
-                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">San Francisco, CA, USA</p>
+                )}
+
+                {orgSettings.website && (
+                  <div className="flex items-center space-x-3.5">
+                    <div className="p-2.5 bg-amber-500/10 rounded-2xl text-amber-500 shrink-0">
+                      <Globe className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider block">Visit Online</span>
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{orgSettings.website.replace(/^https?:\/\//, '')}</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="text-[10px] font-bold text-slate-455 dark:text-slate-500 uppercase tracking-wider text-left">
@@ -754,38 +771,53 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white dark:bg-slate-950 border-t py-8">
-        <div className="max-w-7xl mx-auto px-6 space-y-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-muted-foreground">
-            <div className="flex items-center space-x-2 text-foreground font-bold">
-              {orgSettings.logoUrl ? (
-                <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-5 w-5 rounded object-contain" />
-              ) : (
-                <Layers className="h-5 w-5 text-primary" />
-              )}
-              <span>{orgSettings.orgName}</span>
+      <footer className="bg-white dark:bg-slate-950 border-t">
+        <div className="max-w-7xl mx-auto px-6 py-16">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
+            <div className="col-span-2 md:col-span-1 space-y-4">
+              <div className="flex items-center space-x-2 text-foreground font-bold text-lg">
+                {orgSettings.logoUrl ? (
+                  <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-6 w-6 rounded object-contain" />
+                ) : (
+                  <Layers className="h-6 w-6 text-primary" />
+                )}
+                <span>{orgSettings.orgName}</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+                {orgSettings.tagline}
+              </p>
             </div>
-            <div>
-              &copy; {new Date().getFullYear()} {orgSettings.orgName}. Licensed under MIT.
+
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product</h4>
+              <div className="flex flex-col space-y-2.5 text-sm text-muted-foreground">
+                <a href="#features" className="hover:text-foreground transition-all w-fit">Features</a>
+                <a href="#pricing" className="hover:text-foreground transition-all w-fit">Pricing</a>
+                <a href="#faq" className="hover:text-foreground transition-all w-fit">FAQs</a>
+              </div>
             </div>
-            <div className="flex space-x-6">
-              <a href="#" className="hover:underline">Privacy Policy</a>
-              <a href="#" className="hover:underline">Terms of Service</a>
+
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Company</h4>
+              <div className="flex flex-col space-y-2.5 text-sm text-muted-foreground">
+                <a href="#about" className="hover:text-foreground transition-all w-fit">About</a>
+                <a href="#contact" className="hover:text-foreground transition-all w-fit">Contact</a>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Legal</h4>
+              <div className="flex flex-col space-y-2.5 text-sm text-muted-foreground">
+                <a href="#" className="hover:text-foreground transition-all w-fit">Privacy Policy</a>
+                <a href="#" className="hover:text-foreground transition-all w-fit">Terms of Service</a>
+              </div>
             </div>
           </div>
-          {(orgSettings.website || orgSettings.address || orgSettings.supportEmail) && (
-            <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6 text-xs text-muted-foreground/80 border-t pt-4">
-              {orgSettings.website && (
-                <a href={orgSettings.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                  {orgSettings.website.replace(/^https?:\/\//, '')}
-                </a>
-              )}
-              {orgSettings.supportEmail && (
-                <a href={`mailto:${orgSettings.supportEmail}`} className="hover:underline">{orgSettings.supportEmail}</a>
-              )}
-              {orgSettings.address && <span>{orgSettings.address}</span>}
-            </div>
-          )}
+
+          <div className="mt-12 pt-6 border-t flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span>&copy; {new Date().getFullYear()} {orgSettings.orgName}. Licensed under MIT.</span>
+            <span>Built for modern, fast-moving teams.</span>
+          </div>
         </div>
       </footer>
     </div>

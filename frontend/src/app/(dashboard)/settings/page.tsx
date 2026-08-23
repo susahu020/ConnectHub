@@ -10,6 +10,8 @@ import { useRouter } from 'next/navigation';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { AccountSummaryBanner } from '../../../components/settings/AccountSummaryBanner';
 import { PreferencesCard } from '../../../components/settings/PreferencesCard';
+import { NotificationPreferencesCard, NotificationPreferences } from '../../../components/settings/NotificationPreferencesCard';
+import { useTranslation } from 'react-i18next';
 import { PasswordCard } from '../../../components/settings/PasswordCard';
 import { TwoFactorCard } from '../../../components/settings/TwoFactorCard';
 import { PrivacyDataCard } from '../../../components/settings/PrivacyDataCard';
@@ -19,6 +21,7 @@ import { DeleteAccountModal } from '../../../components/settings/DeleteAccountMo
 import { PromoteAdminModal } from '../../../components/settings/PromoteAdminModal';
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const { user, updateUser, logout } = useAuthStore();
   const confirm = useConfirm();
   const { setTheme: setActiveTheme } = useTheme();
@@ -52,6 +55,9 @@ export default function SettingsPage() {
   const [pushEnabled, setPushEnabled] = useState(user?.settings?.pushEnabled ?? true);
   const [emailEnabled, setEmailEnabled] = useState(user?.settings?.emailEnabled ?? true);
   const [desktopEnabled, setDesktopEnabled] = useState(user?.settings?.desktopEnabled ?? true);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(
+    user?.settings?.notificationPreferences || {}
+  );
 
   // 2FA management state
   const [twoFactorOpen, setTwoFactorOpen] = useState(false);
@@ -76,6 +82,7 @@ export default function SettingsPage() {
         pushEnabled,
         emailEnabled,
         desktopEnabled,
+        notificationPreferences,
       });
       // Sync client side Zustand store
       updateUser({ settings: response.settings });
@@ -93,7 +100,7 @@ export default function SettingsPage() {
         setActiveTheme(theme);
       }
     }
-  }, [theme, language, pushEnabled, emailEnabled, desktopEnabled]);
+  }, [theme, language, pushEnabled, emailEnabled, desktopEnabled, notificationPreferences]);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,14 +305,14 @@ export default function SettingsPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">System Preferences</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Customize UI appearances, notification triggers, active sessions, and passwords.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">{t('settings.title')}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t('settings.subtitle')}</p>
       </div>
 
       <AccountSummaryBanner user={user} />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-        <div className="md:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        <div className="space-y-6">
           <PreferencesCard
             theme={theme}
             onThemeChange={setTheme}
@@ -319,6 +326,19 @@ export default function SettingsPage() {
             onDesktopEnabledChange={setDesktopEnabled}
           />
 
+          <NotificationPreferencesCard
+            preferences={notificationPreferences}
+            onChange={setNotificationPreferences}
+          />
+
+          <PrivacyDataCard
+            exportingData={exportingData}
+            onExportData={handleExportData}
+            onOpenDeleteAccount={() => setDeleteAccountOpen(true)}
+          />
+        </div>
+
+        <div className="space-y-6">
           <PasswordCard
             currentPassword={currentPassword}
             onCurrentPasswordChange={setCurrentPassword}
@@ -339,19 +359,13 @@ export default function SettingsPage() {
             onInitSetup={handleInit2FA}
           />
 
-          <PrivacyDataCard
-            exportingData={exportingData}
-            onExportData={handleExportData}
-            onOpenDeleteAccount={() => setDeleteAccountOpen(true)}
+          <ActiveSessionsPanel
+            sessions={sessions}
+            onRevokeSession={handleRevokeSession}
+            onLogoutOtherDevices={handleLogoutOtherDevices}
+            onLogoutAllDevices={handleLogoutAllDevices}
           />
         </div>
-
-        <ActiveSessionsPanel
-          sessions={sessions}
-          onRevokeSession={handleRevokeSession}
-          onLogoutOtherDevices={handleLogoutOtherDevices}
-          onLogoutAllDevices={handleLogoutAllDevices}
-        />
       </div>
 
       {twoFactorOpen && twoFactorSetupData && (

@@ -44,17 +44,17 @@ export function WikiEditor({
   editContent: string;
   onEditContentChange: (v: string) => void;
   onApplyFormat: (formatType: string) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Category Tag</label>
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Category Tag</label>
           <select
             value={editCategory}
             onChange={(e) => onEditCategoryChange(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs font-bold"
+            className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs font-bold"
           >
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -70,26 +70,26 @@ export function WikiEditor({
               type="checkbox"
               checked={editIsPublished}
               onChange={(e) => onEditIsPublishedChange(e.target.checked)}
-              className="rounded border-slate-350 text-primary h-4 w-4 focus:ring-primary"
+              className="rounded border-border text-primary h-4 w-4 focus:ring-primary"
             />
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-350">Publish Document</span>
+            <span className="text-xs font-bold text-muted-foreground dark:text-foreground">Publish Document</span>
           </label>
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Document Title</label>
+        <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Document Title</label>
         <input
           type="text"
           value={editTitle}
           onChange={(e) => onEditTitleChange(e.target.value)}
-          className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-sm font-black"
+          className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none text-sm font-black"
           placeholder="e.g. Employee Travel Allowance Policy"
         />
       </div>
 
-      <div className="border rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 flex flex-col">
-        <div className="flex flex-wrap items-center justify-between border-b dark:border-slate-800 px-3 py-1.5 bg-slate-50 dark:bg-slate-850 gap-2 shrink-0">
+      <div className="border rounded-2xl overflow-hidden bg-muted/50 dark:bg-card/50 border-border dark:border-border flex flex-col">
+        <div className="flex flex-wrap items-center justify-between border-b dark:border-border px-3 py-1.5 bg-muted dark:bg-card gap-2 shrink-0">
           <div className="flex border-b pb-0 gap-1">
             {(['write', 'preview', 'split'] as const).map((tab) => (
               <button
@@ -98,8 +98,8 @@ export function WikiEditor({
                 onClick={() => onPreviewTabChange(tab)}
                 className={`px-3 py-1 text-xs font-bold rounded-lg transition-all capitalize ${
                   previewTab === tab
-                    ? 'bg-white dark:bg-slate-800 text-primary shadow-sm border dark:border-slate-700'
-                    : 'text-slate-450 hover:bg-slate-100 dark:hover:bg-slate-800/40'
+                    ? 'bg-card dark:bg-card text-primary shadow-sm border dark:border-border'
+                    : 'text-muted-foreground hover:bg-muted dark:hover:bg-card/40'
                 }`}
               >
                 {tab === 'split' ? 'Split View' : tab}
@@ -108,13 +108,13 @@ export function WikiEditor({
           </div>
 
           {previewTab !== 'preview' && (
-            <div className="flex items-center space-x-0.5 bg-white dark:bg-slate-900 p-0.5 rounded-lg border dark:border-slate-800 overflow-x-auto max-w-full">
+            <div className="flex items-center space-x-0.5 bg-card dark:bg-card p-0.5 rounded-lg border dark:border-border overflow-x-auto max-w-full">
               {TOOLBAR_BUTTONS.map((btn) => (
                 <button
                   key={btn.id}
                   type="button"
                   onClick={() => onApplyFormat(btn.id)}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-505 hover:text-slate-850 dark:hover:text-slate-100 text-[10px] font-black w-6 h-6 flex items-center justify-center"
+                  className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground hover:text-foreground dark:hover:text-foreground text-[10px] font-black w-6 h-6 flex items-center justify-center"
                   title={btn.title}
                 >
                   {btn.icon || btn.label}
@@ -130,7 +130,7 @@ export function WikiEditor({
               ref={textareaRef}
               value={editContent}
               onChange={(e) => onEditContentChange(e.target.value)}
-              className="w-full flex-grow px-4 py-3 bg-transparent text-slate-800 dark:text-slate-200 focus:outline-none text-xs font-mono h-[420px] resize-none leading-relaxed"
+              className="w-full flex-grow px-4 py-3 bg-transparent text-foreground dark:text-foreground focus:outline-none text-xs font-mono h-[420px] resize-none leading-relaxed"
               placeholder="# Write markdown document details..."
             />
           )}
@@ -138,24 +138,24 @@ export function WikiEditor({
           {previewTab === 'preview' && (
             <div className="flex-grow p-6 bg-transparent overflow-y-auto text-left leading-relaxed text-xs max-h-[420px]">
               <div
-                className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                className="prose dark:prose-invert max-w-none text-foreground dark:text-foreground"
                 dangerouslySetInnerHTML={{ __html: parseMarkdown(editContent) }}
               />
             </div>
           )}
 
           {previewTab === 'split' && (
-            <div className="grid grid-cols-2 divide-x dark:divide-slate-800 h-[420px]">
+            <div className="grid grid-cols-2 divide-x dark:divide-border h-[420px]">
               <textarea
                 ref={textareaRef}
                 value={editContent}
                 onChange={(e) => onEditContentChange(e.target.value)}
-                className="w-full h-full px-4 py-3 bg-transparent text-slate-800 dark:text-slate-200 focus:outline-none text-xs font-mono resize-none leading-relaxed"
+                className="w-full h-full px-4 py-3 bg-transparent text-foreground dark:text-foreground focus:outline-none text-xs font-mono resize-none leading-relaxed"
                 placeholder="# Write markdown document details..."
               />
-              <div className="h-full p-6 overflow-y-auto text-left leading-relaxed text-xs bg-slate-50/30 dark:bg-slate-900/30">
+              <div className="h-full p-6 overflow-y-auto text-left leading-relaxed text-xs bg-muted/30 dark:bg-card/30">
                 <div
-                  className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                  className="prose dark:prose-invert max-w-none text-foreground dark:text-foreground"
                   dangerouslySetInnerHTML={{ __html: parseMarkdown(editContent) }}
                 />
               </div>
@@ -164,7 +164,7 @@ export function WikiEditor({
         </div>
       </div>
 
-      <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 bg-slate-50 dark:bg-slate-850 p-3 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+      <div className="flex items-center space-x-1.5 text-[10px] text-muted-foreground bg-muted dark:bg-card p-3 rounded-2xl border border-dashed border-border dark:border-border">
         <Info className="h-4 w-4 text-primary shrink-0" />
         <span>
           Use standard markdown style rules. Switch to <strong>Split View</strong> or <strong>Preview</strong> tabs to review tables,

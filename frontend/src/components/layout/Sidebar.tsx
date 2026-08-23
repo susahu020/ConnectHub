@@ -3,16 +3,23 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Check, LogOut, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { OrganizationSettings } from '../../hooks/useOrganizationSettings';
 
 export interface NavItem {
   name: string;
+  // Translated display text (see dashboard layout.tsx's navGroups). Falls
+  // back to `name` when absent, so anything still passing plain NavItems
+  // without a label keeps working exactly as before.
+  label?: string;
   href: string;
   icon: React.ReactNode;
 }
 
 export interface NavGroup {
   label: string;
+  // Translated section heading — same fallback behavior as NavItem.label.
+  translatedLabel?: string;
   items: NavItem[];
 }
 
@@ -30,7 +37,7 @@ const STATUS_OPTIONS = [
   { key: 'AWAY', label: 'Away', color: 'bg-amber-500' },
   { key: 'BUSY', label: 'Busy', color: 'bg-red-500' },
   { key: 'DND', label: 'Do Not Disturb', color: 'bg-rose-600' },
-  { key: 'IN_MEETING', label: 'In Meeting', color: 'bg-indigo-500' },
+  { key: 'IN_MEETING', label: 'In Meeting', color: 'bg-primary' },
   { key: 'ON_LEAVE', label: 'On Leave', color: 'bg-sky-500' },
   { key: 'INVISIBLE', label: 'Invisible', color: 'bg-slate-400' },
 ] as const;
@@ -40,7 +47,7 @@ const STATUS_DOT_CLASS: Record<string, string> = {
   AWAY: 'bg-amber-500',
   BUSY: 'bg-red-500',
   DND: 'bg-rose-600',
-  IN_MEETING: 'bg-indigo-500',
+  IN_MEETING: 'bg-primary',
   ON_LEAVE: 'bg-sky-500',
   INVISIBLE: 'bg-slate-400',
 };
@@ -70,10 +77,11 @@ export function Sidebar({
   onToggleCollapsed: () => void;
   statusMenuOpen: boolean;
   onToggleStatusMenu: () => void;
-  statusRef: React.RefObject<HTMLDivElement>;
+  statusRef: React.RefObject<HTMLDivElement | null>;
   onSetStatus: (status: string) => void;
   onLogout: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       {mobileOpen && (
@@ -86,7 +94,7 @@ export function Sidebar({
 
       <aside
         aria-label="Primary navigation"
-        className={`fixed inset-y-0 left-0 z-50 h-full flex flex-col shrink-0 bg-white dark:bg-slate-900 border-r border-border transition-[width,transform] duration-200 ease-out md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 h-full flex flex-col shrink-0 bg-card border-r border-border transition-[width,transform] duration-200 ease-out md:relative md:translate-x-0 ${
           collapsed ? 'w-[72px]' : 'w-64'
         } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
@@ -123,12 +131,12 @@ export function Sidebar({
         </div>
 
         {/* Nav groups */}
-        <nav className={`flex-1 py-4 overflow-y-auto ${collapsed ? 'px-2.5' : 'px-3'}`}>
+        <nav className={`flex-1 py-4 overflow-y-auto ${collapsed ? 'px-2.5' : 'pl-3 pr-0'}`}>
           {navGroups.map((group) => (
             <div key={group.label} className="mb-4 last:mb-0">
               {!collapsed && (
-                <p className="px-2.5 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
-                  {group.label}
+                <p className="pl-2.5 pr-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                  {group.translatedLabel || group.label}
                 </p>
               )}
               <div className="space-y-0.5">
@@ -140,23 +148,44 @@ export function Sidebar({
                       key={link.name}
                       href={link.href}
                       onClick={onCloseMobile}
-                      title={collapsed ? link.name : undefined}
+                      title={collapsed ? (link.label || link.name) : undefined}
                       aria-current={active ? 'page' : undefined}
-                      className={`group relative flex items-center rounded-lg text-[13px] font-medium transition-colors duration-150 ${
-                        collapsed ? 'justify-center p-2.5' : 'gap-2.5 px-2.5 py-2'
+                      className={`group relative flex items-center text-[13px] font-medium transition-colors duration-150 ${
+                        collapsed
+                          ? 'justify-center p-2.5 rounded-lg'
+                          : 'gap-2.5 pl-2.5 pr-3 py-2 rounded-l-lg rounded-r-none'
                       } ${
                         active
                           ? 'bg-primary/10 text-primary font-semibold'
                           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                       }`}
                     >
+                      {/* Curved connector: the active pill sits flush against
+                          the sidebar's right edge, and these two corner
+                          "notches" fillet its sharp top-right/bottom-right
+                          corners into the surrounding row gap — the same
+                          concave-into-convex curve used for the active tab
+                          in the reference design, rotated for a vertical
+                          nav. Matches the pill's own bg-primary/10 tint via
+                          the CSS var so it tracks dark mode automatically. */}
                       {active && !collapsed && (
-                        <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-primary" />
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className="absolute right-0 -top-1.5 h-1.5 w-1.5 pointer-events-none"
+                            style={{ background: 'radial-gradient(circle at bottom right, hsl(var(--primary) / 0.1) 6px, transparent 6px)' }}
+                          />
+                          <span
+                            aria-hidden="true"
+                            className="absolute right-0 -bottom-1.5 h-1.5 w-1.5 pointer-events-none"
+                            style={{ background: 'radial-gradient(circle at top right, hsl(var(--primary) / 0.1) 6px, transparent 6px)' }}
+                          />
+                        </>
                       )}
                       <span className="shrink-0 [&>svg]:h-[18px] [&>svg]:w-[18px]">
                         {link.icon}
                       </span>
-                      {!collapsed && <span className="truncate">{link.name}</span>}
+                      {!collapsed && <span className="truncate">{link.label || link.name}</span>}
                     </Link>
                   );
                 })}
@@ -203,7 +232,7 @@ export function Sidebar({
                 )}
               </div>
               <span
-                className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card ${
                   STATUS_DOT_CLASS[user.status] ?? 'bg-slate-400'
                 }`}
               />
@@ -230,7 +259,7 @@ export function Sidebar({
             {statusMenuOpen && (
               <div
                 role="menu"
-                className={`absolute bottom-12 bg-white dark:bg-slate-900 border border-border p-1.5 rounded-xl shadow-xl w-48 z-50 space-y-0.5 animate-slide-up ${
+                className={`absolute bottom-12 bg-popover border border-border p-1.5 rounded-xl shadow-xl w-48 z-50 space-y-0.5 animate-slide-up ${
                   collapsed ? 'left-14' : 'left-1'
                 }`}
               >
@@ -257,13 +286,14 @@ export function Sidebar({
 
           <button
             onClick={onLogout}
-            title={collapsed ? 'Sign out' : undefined}
+            title={collapsed ? t('nav.signOut') : undefined}
+            aria-label={t('nav.signOut')}
             className={`flex items-center justify-center border border-red-200 dark:border-red-950/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-[13px] font-semibold transition-colors ${
               collapsed ? 'p-2.5 w-full' : 'gap-2 py-2 px-3 w-full'
             }`}
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Sign out</span>}
+            {!collapsed && <span>{t('nav.signOut')}</span>}
           </button>
         </div>
       </aside>

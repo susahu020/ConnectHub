@@ -104,9 +104,9 @@ function RegisterForm() {
 
   if (verifyingToken) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 space-y-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background space-y-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm font-bold text-slate-500 animate-pulse">Verifying teammate invitation link...</p>
+        <p className="text-sm font-bold text-muted-foreground animate-pulse">Verifying teammate invitation link...</p>
       </div>
     );
   }
@@ -117,8 +117,8 @@ function RegisterForm() {
   const registrationBlocked = !token && !orgSettings.needsInitialSetup && orgSettings.registrationMode === 'INVITE_ONLY';
   if (registrationBlocked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-6 py-12">
-        <div className="w-full max-w-md space-y-5 bg-white dark:bg-slate-900 p-8 rounded-3xl border shadow-xl text-center">
+      <div className="min-h-screen flex items-center justify-center bg-background px-6 py-12">
+        <div className="w-full max-w-md space-y-5 bg-card p-8 rounded-3xl border shadow-xl text-center">
           <div className="flex flex-col items-center space-y-2">
             {orgSettings.logoUrl ? (
               <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-10 w-10 rounded object-contain" />
@@ -142,10 +142,10 @@ function RegisterForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-6 py-12">
-      <div className="w-full max-w-lg space-y-6 bg-white dark:bg-slate-900 p-8 rounded-3xl border shadow-xl relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-background px-6 py-12">
+      <div className="w-full max-w-lg space-y-6 bg-card p-8 rounded-3xl border shadow-xl relative overflow-hidden">
         <div className="absolute -top-24 -right-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 h-48 w-48 bg-indigo-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 h-48 w-48 bg-warm/10 rounded-full blur-3xl" />
 
         <div className="flex flex-col items-center space-y-2 text-center">
           <Link href="/" className="flex items-center space-x-2 text-2xl font-bold tracking-tight mb-2">
@@ -183,7 +183,7 @@ function RegisterForm() {
                 type="text"
                 placeholder="John"
                 {...register('firstName')}
-                className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
+                className={`w-full px-4 py-2.5 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
                   errors.firstName ? 'border-red-500' : ''
                 }`}
               />
@@ -199,7 +199,7 @@ function RegisterForm() {
                 type="text"
                 placeholder="Doe"
                 {...register('lastName')}
-                className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
+                className={`w-full px-4 py-2.5 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
                   errors.lastName ? 'border-red-500' : ''
                 }`}
               />
@@ -218,9 +218,9 @@ function RegisterForm() {
               readOnly={tokenVerified}
               tabIndex={tokenVerified ? -1 : 0}
               {...register('email')}
-              className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
+              className={`w-full px-4 py-2.5 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
                 errors.email ? 'border-red-500' : ''
-              } ${tokenVerified ? 'opacity-70 bg-slate-100 dark:bg-slate-900/60 cursor-not-allowed pointer-events-none select-none' : ''}`}
+              } ${tokenVerified ? 'opacity-70 bg-muted cursor-not-allowed pointer-events-none select-none' : ''}`}
             />
             {errors.email && <p className="text-xs font-medium text-red-500">{errors.email.message}</p>}
             {!tokenVerified && !orgSettings.needsInitialSetup && orgSettings.registrationMode === 'DOMAIN_RESTRICTED' && orgSettings.allowedDomains.length > 0 && (
@@ -240,7 +240,7 @@ function RegisterForm() {
                 type="text"
                 placeholder="e.g. Lead Engineer"
                 {...register('designation')}
-                className={`w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
+                className={`w-full px-4 py-2.5 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
                   errors.designation ? 'border-red-500' : ''
                 }`}
               />
@@ -255,7 +255,7 @@ function RegisterForm() {
                   register() / invitation.controller.ts completeOnboarding) — an
                   editable dropdown here would be misleading since nothing the
                   visitor picks is actually honored. Show what will really happen. */}
-              <div className="w-full px-4 py-2.5 rounded-xl border bg-slate-100 dark:bg-slate-900/60 text-sm font-semibold text-slate-500">
+              <div className="w-full px-4 py-2.5 rounded-xl border bg-muted text-sm font-semibold text-muted-foreground">
                 {tokenVerified
                   ? invitedRole === 'ADMIN' ? 'Administrator' : invitedRole === 'MANAGER' ? 'Manager' : 'Employee'
                   : orgSettings.needsInitialSetup
@@ -276,7 +276,7 @@ function RegisterForm() {
                 type="text"
                 placeholder="+15550000"
                 {...register('phone')}
-                className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
               />
             </div>
 
@@ -290,7 +290,7 @@ function RegisterForm() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   {...register('password')}
-                  className={`w-full pl-4 pr-10 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
+                  className={`w-full pl-4 pr-10 py-2.5 rounded-xl border bg-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm ${
                     errors.password ? 'border-red-500' : ''
                   }`}
                 />
@@ -313,7 +313,7 @@ function RegisterForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50 mt-4"
+            className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50 mt-4"
           >
             {loading ? (
               <>
@@ -340,9 +340,9 @@ function RegisterForm() {
 export default function RegisterPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 space-y-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background space-y-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm font-bold text-slate-500 animate-pulse">Loading workspace registration portal...</p>
+        <p className="text-sm font-bold text-muted-foreground animate-pulse">Loading workspace registration portal...</p>
       </div>
     }>
       <RegisterForm />

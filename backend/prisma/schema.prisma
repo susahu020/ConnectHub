@@ -48,6 +48,7 @@ enum MeetingStatus {
   SCHEDULED
   LIVE
   ENDED
+  CANCELLED
 }
 
 enum GroupType {
@@ -145,6 +146,13 @@ model User {
   settings         UserSettings?
   customRoleId     String?
   customRole       CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+  // Optional expiry for the current customRoleId assignment — lets an admin
+  // grant a role temporarily (e.g. elevated access for a migration/incident)
+  // instead of only ever permanently. Checked lazily in
+  // middleware/auth.middleware.ts on the next authenticated request after
+  // expiry, which clears both fields and reverts the user to their base
+  // permissions. Meaningless (and ignored) when customRoleId is null.
+  customRoleExpiresAt DateTime?
   dashboardLayouts DashboardWidgetLayout[]
   messageBookmarks MessageBookmark[]
   messagePollVotes MessagePollVote[]
@@ -153,8 +161,23 @@ model User {
   twoFactorSecret  String?
   twoFactorEnabled Boolean @default(false)
   twoFactorBackupCodes String?
-  loginAttempts    Int @default(0)
-  lockoutUntil     DateTime?
+  // Brute-force lockout state for password and 2FA-code login attempts.
+  // Redis (see session.service.ts) is the primary store for these counters
+  // because it gives per-attempt TTL expiry for free; these columns are a
+  // fallback so lockout protection doesn't silently disable itself if Redis
+  // is unreachable. Kept in sync with, not instead of, the Redis counters.
+  failedLoginAttempts      Int       @default(0)
+  lockoutUntil             DateTime?
+  failedTwoFactorAttempts  Int       @default(0)
+  twoFactorLockoutUntil    DateTime?
+  // Long random token embedded in a personal .ics subscription URL (see
+  // getCalendarFeed in meeting.controller.ts). Calendar apps (Google
+  // Calendar, Outlook, Apple Calendar) poll a subscription URL periodically
+  // via a plain unauthenticated GET — they can't send a JWT — so the token
+  // itself has to be the credential. Null until the user first generates
+  // it from Settings; regenerable if it ever leaks, which immediately
+  // invalidates the old URL.
+  calendarFeedToken     String?  @unique
   deletedConversations DeletedConversation[]
   hostedMeetings   Meeting[]
   meetingInvites   MeetingInvite[]
@@ -332,6 +355,11 @@ model File {
   folder       Folder?       @relation(fields: [folderId], references: [id], onDelete: SetNull)
   version      Int           @default(1)
   isDeleted    Boolean       @default(false)
+  // When the file was soft-deleted (moved to the Recycle Bin). Null while
+  // not deleted. Powers "deleted N days ago" / retention auto-purge — see
+  // OrganizationSettings.recycleBinRetentionDays and getRecycleBin's lazy
+  // purge in file.controller.ts.
+  deletedAt    DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   versions     FileVersion[]
@@ -359,6 +387,7 @@ model Folder {
   createdById String
   files       File[]
   isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -531,7 +560,37 @@ model Meeting {
   endedAt      DateTime?
   scheduledFor DateTime?
   durationMins Int?
+  // Recurrence: when set, this meeting is one occurrence of a repeating
+  // series. recurrenceGroupId links every occurrence of the same series
+  // together (shared by all of them, including the first) so the whole
+  // series — or just this one occurrence — can be found/cancelled as a
+  // unit. recurrenceRule/recurrenceEndDate are duplicated onto every
+  // occurrence rather than only the first, so any single occurrence is
+  // self-descriptive ("repeats weekly until Dec 1") without needing to
+  // look up a different row.
+  recurrenceRule     String?   // 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'
+  recurrenceGroupId  String?
+  recurrenceEndDate  DateTime?
   invites      MeetingInvite[]
+
+  // Co-organizers (Meet "co-host" / Teams "co-organizer"): everything the
+  // host can do in-call (admit guests, mute/remove participants, lock the
+  // meeting, manage breakout rooms, run polls, end the meeting for
+  // everyone) EXCEPT changing who the co-hosts are — only the primary host
+  // can promote/demote. Stored as user ids so the role survives a server
+  // restart / socket reconnect, unlike the in-memory-only room state.
+  coHostIds     String[] @default([])
+  // Participants the host removed-and-banned (as opposed to a plain
+  // removal, which only ends their current session but doesn't stop them
+  // requesting to rejoin). A banned user's join request is rejected before
+  // it ever reaches the host. Persisted so a ban survives a server restart.
+  bannedUserIds String[] @default([])
+  // Host setting, applied the moment a participant's media connects: mirrors
+  // Meet/Teams "mute participants on entry" so a large call doesn't open
+  // with everyone's live mic.
+  muteOnEntry   Boolean  @default(false)
+
+  @@index([recurrenceGroupId])
 }
 
 enum MeetingInviteStatus {
@@ -633,6 +692,13 @@ model UserSettings {
   pushEnabled    Boolean @default(true)
   emailEnabled   Boolean @default(true)
   desktopEnabled Boolean @default(true)
+  // Per-category overrides on top of the three channel-level switches above,
+  // keyed by NotificationType (e.g. "MESSAGE", "TASK_ASSIGNED") ->
+  // { inApp?: boolean, email?: boolean }. A category missing from the map,
+  // or the whole field being null, means "no override" — every category
+  // defaults to on so existing users see no behavior change. See
+  // services/notification.service.ts's resolveNotificationPreference().
+  notificationPreferences Json?
 }
 
 // Singleton table (a single row) holding admin-controlled, per-feature
@@ -669,6 +735,7 @@ model OrganizationSettings {
   faviconUrl           String?
   primaryColor         String   @default("#4f46e5")
   supportEmail         String?
+  supportPhone         String?
   website              String?
   address              String?
   defaultWatermarkText String   @default("ConnectHub CONFIDENTIAL")
@@ -690,6 +757,28 @@ model OrganizationSettings {
   // services/sso.service.ts isGoogleSsoAvailable). Lets an admin turn SSO
   // off for the workspace without needing infra access to unset env vars.
   ssoGoogleEnabled     Boolean  @default(true)
+  // Concurrent-session policy — controls whether the same credentials can be
+  // used to be logged in from more than one browser/device at a time. See
+  // services/session.service.ts enforceDuplicateLoginPolicy() for the
+  // enforcement logic. SINGLE_SESSION (industry-standard default for an
+  // internal collaboration tool): a new login immediately revokes every
+  // other active session for that user, so only one browser/device stays
+  // signed in at once. LIMIT_3: up to 3 concurrent sessions, oldest evicted
+  // beyond that. UNLIMITED: no restriction (not recommended — allows the
+  // same credentials to stay logged in on unlimited browsers/devices at
+  // once).
+  duplicateLoginPolicy String   @default("SINGLE_SESSION")
+  // When true, every user must have 2FA enabled to use the app beyond
+  // setting it up — enforced in middleware/auth.middleware.ts. Off by
+  // default so flipping it on doesn't instantly lock out an org that
+  // hasn't rolled 2FA out to everyone yet.
+  mfaRequired          Boolean  @default(false)
+  // Days a soft-deleted file/folder sits in someone's Recycle Bin before
+  // being auto-purged permanently. Null = keep forever (default — no
+  // existing org's storage behavior changes until an admin opts in).
+  // Enforced lazily in getRecycleBin (file.controller.ts), same pattern as
+  // the time-bound role expiry check in auth.middleware.ts.
+  recycleBinRetentionDays Int?
   updatedAt            DateTime @updatedAt
   updatedById          String?
 }
@@ -914,16 +1003,57 @@ model WikiVersion {
   changedById String
   changedBy   User     @relation("WikiChangeAuthor", fields: [changedById], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
+
+  // The wiki is intentionally collaborative — any employee can edit a
+  // published page (see updateWikiPage's doc comment) — so two people
+  // saving the same page within milliseconds of each other is a real,
+  // expected scenario, not a rare edge case. Without this constraint,
+  // both requests can independently compute the same "next version
+  // number" and both succeed, leaving two version rows silently
+  // mislabeled with the same number. This turns that into a loud,
+  // retryable error instead (see createNextWikiVersion in wiki.controller.ts).
+  @@unique([pageId, version])
 }
 
 model Workflow {
-  id          String   @id @default(uuid())
+  id          String        @id @default(uuid())
   name        String
-  trigger     String   // e.g. "TASK_COMPLETED", "EMPLOYEE_JOINED", "DOCUMENT_UPLOADED"
-  action      String   // e.g. "NOTIFY_MANAGER", "ASSIGN_ONBOARDING_TASKS", "NOTIFY_TEAM"
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  trigger     String   // e.g. "TASK_COMPLETED", "EMPLOYEE_JOINED", "DOCUMENT_UPLOADED", "LEAVE_REQUESTED"
+  action      String   // e.g. "NOTIFY_MANAGER", "ASSIGN_ONBOARDING_TASKS", "NOTIFY_TEAM", "SEND_EMAIL_ONLY"
+  // Optional scoping filter, e.g. { "departmentId": "..." }. When present,
+  // a key only matches if the trigger's payload has the same value for
+  // that key — lets a rule apply to one department instead of firing
+  // org-wide for every matching event. Null/empty = applies to everyone.
+  conditions  Json?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  runs        WorkflowRun[]
+
+  // An active rule is uniquely identified by what it does (trigger+action).
+  // Two active rows with the same pair would both fire on every event,
+  // double-executing the action (e.g. sending two notifications for one
+  // task completion) with no way to tell them apart in the UI.
+  @@unique([trigger, action, isActive])
+}
+
+enum WorkflowRunStatus {
+  SUCCESS
+  FAILED
+}
+
+model WorkflowRun {
+  id         String            @id @default(uuid())
+  workflowId String
+  workflow   Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  trigger    String
+  action     String
+  status     WorkflowRunStatus
+  error      String?
+  payload    Json?
+  ranAt      DateTime          @default(now())
+
+  @@index([workflowId, ranAt])
 }
 
 enum LeaveStatus {

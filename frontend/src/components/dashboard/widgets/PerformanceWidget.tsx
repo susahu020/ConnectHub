@@ -13,7 +13,7 @@ export function PerformanceWidget({
 }) {
   return (
     <div className="flex-1 flex flex-col">
-      <WidgetHeader icon={<TrendingUp />} iconClassName="text-indigo-500" title="Workspace Productivity" />
+      <WidgetHeader icon={<TrendingUp />} iconClassName="text-primary" title="Workspace Productivity" />
 
       <div className="flex items-center justify-around gap-6 pt-2">
         <div className="relative h-24 w-24 flex items-center justify-center shrink-0">
@@ -25,7 +25,7 @@ export function PerformanceWidget({
               </linearGradient>
             </defs>
             <path
-              className="text-slate-100 dark:text-slate-800"
+              className="text-muted"
               strokeWidth="3.5"
               stroke="currentColor"
               fill="none"
@@ -72,7 +72,7 @@ export function PerformanceWidget({
             </div>
             <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
               <div
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full"
+                className="bg-gradient-to-r from-primary to-warm h-full rounded-full"
                 style={{ width: '42%' }}
               />
             </div>

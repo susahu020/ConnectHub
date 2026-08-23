@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const GANTT_GROUPS = [
-  { title: 'To Do', status: 'TODO', color: 'border-l-slate-400 bg-slate-100/20 text-slate-550' },
+  { title: 'To Do', status: 'TODO', color: 'border-l-border bg-muted/20 text-muted-foreground' },
   { title: 'In Progress', status: 'IN_PROGRESS', color: 'border-l-primary bg-primary/5 text-primary' },
   { title: 'In Review', status: 'REVIEW', color: 'border-l-orange-400 bg-orange-50/5 text-orange-500' },
   { title: 'Completed', status: 'COMPLETED', color: 'border-l-green-400 bg-green-50/5 text-green-500' },
@@ -11,7 +11,7 @@ const GANTT_GROUPS = [
 function getGanttBarColors(priority: string) {
   switch (priority) {
     case 'LOW':
-      return 'bg-slate-500/15 border-slate-500/30 text-slate-600 dark:text-slate-400';
+      return 'bg-secondary/15 border-border/30 text-muted-foreground dark:text-muted-foreground';
     case 'HIGH':
       return 'bg-orange-500/15 border-orange-500/30 text-orange-650 dark:text-orange-400';
     case 'URGENT':
@@ -45,21 +45,21 @@ export function GanttView({
   onOpenTaskDetail: (id: string) => void;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border rounded-2xl shadow-sm overflow-x-auto p-4 space-y-4 animate-fade-in">
+    <div className="bg-card dark:bg-card border rounded-2xl shadow-sm overflow-x-auto p-4 space-y-4 animate-fade-in">
       <div className="flex items-center justify-between border-b pb-4 shrink-0 min-w-[900px]">
         <div className="space-y-1 text-left">
-          <h3 className="font-black text-sm uppercase tracking-wide text-slate-850 dark:text-slate-200">
+          <h3 className="font-black text-sm uppercase tracking-wide text-foreground dark:text-foreground">
             Gantt Project Timeline Schedule
           </h3>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
             Active Month: {currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center space-x-1 shrink-0">
-          <button onClick={onPrevMonth} aria-label="Previous month" className="p-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500">
+          <button onClick={onPrevMonth} aria-label="Previous month" className="p-1.5 border rounded-lg hover:bg-muted dark:hover:bg-card text-muted-foreground">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button onClick={onNextMonth} aria-label="Next month" className="p-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500">
+          <button onClick={onNextMonth} aria-label="Next month" className="p-1.5 border rounded-lg hover:bg-muted dark:hover:bg-card text-muted-foreground">
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
@@ -67,10 +67,10 @@ export function GanttView({
 
       <div className="min-w-[950px] space-y-4">
         <div className="flex items-center border-b pb-2 shrink-0">
-          <div className="w-60 text-[10px] font-extrabold uppercase text-slate-400 shrink-0">Task Name & Assignee</div>
+          <div className="w-60 text-[10px] font-extrabold uppercase text-muted-foreground shrink-0">Task Name & Assignee</div>
           <div className="flex-1 grid relative" style={{ gridTemplateColumns: `repeat(${ganttDaysCount}, minmax(40px, 1fr))` }}>
             {ganttDaysArray.map((dayNum) => (
-              <span key={dayNum} className="text-[10px] text-center text-slate-400 font-black">
+              <span key={dayNum} className="text-[10px] text-center text-muted-foreground font-black">
                 {dayNum}
               </span>
             ))}
@@ -81,8 +81,8 @@ export function GanttView({
           <div className="space-y-3 p-4">
             {[1, 2, 3].map((n) => (
               <div key={n} className="flex items-center space-x-4 animate-pulse-slow">
-                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/4 shrink-0" />
-                <div className="flex-grow h-8 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+                <div className="h-4 bg-secondary dark:bg-card rounded w-1/4 shrink-0" />
+                <div className="flex-grow h-8 bg-secondary dark:bg-card rounded-lg" />
               </div>
             ))}
           </div>
@@ -95,19 +95,19 @@ export function GanttView({
               <div key={grp.status} className="space-y-1.5 border rounded-xl overflow-hidden shadow-xs">
                 <div
                   onClick={() => onToggleSection(grp.status)}
-                  className={`flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-800/10 border-b select-none transition-all ${grp.color}`}
+                  className={`flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-muted/50 dark:hover:bg-card/10 border-b select-none transition-all ${grp.color}`}
                 >
                   <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider">
                     <ChevronRight className={`h-4 w-4 transform transition-transform duration-200 ${isCollapsed ? '' : 'rotate-90'}`} />
                     <span>{grp.title}</span>
-                    <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border text-[10px] font-extrabold">{groupTasks.length}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-card dark:bg-card border text-[10px] font-extrabold">{groupTasks.length}</span>
                   </div>
                 </div>
 
                 {!isCollapsed && (
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                  <div className="divide-y divide-border dark:divide-border/50">
                     {groupTasks.length === 0 ? (
-                      <div className="p-4 text-center text-[10px] text-slate-400 italic">No tasks in this stage</div>
+                      <div className="p-4 text-center text-[10px] text-muted-foreground italic">No tasks in this stage</div>
                     ) : (
                       groupTasks.map((t: any) => {
                         const created = new Date(t.createdAt);
@@ -128,21 +128,21 @@ export function GanttView({
                         const span = Math.max(1, endDay - startDay + 1);
 
                         return (
-                          <div key={t.id} className="flex items-center hover:bg-slate-50/30 dark:hover:bg-slate-800/5 shrink-0 transition-colors">
-                            <div className="w-60 px-4 py-3 flex items-center space-x-3 shrink-0 text-left border-r dark:border-slate-800/50 h-full min-h-[50px]">
-                              <div className="h-6 w-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-[10px] uppercase text-slate-500 border overflow-hidden shrink-0">
+                          <div key={t.id} className="flex items-center hover:bg-muted/30 dark:hover:bg-card/5 shrink-0 transition-colors">
+                            <div className="w-60 px-4 py-3 flex items-center space-x-3 shrink-0 text-left border-r dark:border-border/50 h-full min-h-[50px]">
+                              <div className="h-6 w-6 rounded-full bg-secondary dark:bg-card flex items-center justify-center font-bold text-[10px] uppercase text-muted-foreground border overflow-hidden shrink-0">
                                 {t.assignee?.firstName[0]}
                                 {t.assignee?.lastName[0]}
                               </div>
                               <div className="min-w-0">
                                 <p
                                   onClick={() => onOpenTaskDetail(t.id)}
-                                  className="text-xs font-bold truncate text-slate-700 dark:text-slate-350 cursor-pointer hover:text-primary hover:underline leading-tight"
+                                  className="text-xs font-bold truncate text-foreground dark:text-foreground cursor-pointer hover:text-primary hover:underline leading-tight"
                                   title={t.title}
                                 >
                                   {t.title}
                                 </p>
-                                <p className="text-[10px] text-slate-400 leading-none mt-1">
+                                <p className="text-[10px] text-muted-foreground leading-none mt-1">
                                   Assignee: {t.assignee?.firstName} {t.assignee?.lastName}
                                 </p>
                               </div>
@@ -155,7 +155,7 @@ export function GanttView({
                                 return (
                                   <div
                                     key={dayNum}
-                                    className={`border-r border-slate-100 dark:border-slate-800/40 h-full min-h-[50px] ${isWeekend ? 'bg-slate-50/40 dark:bg-slate-950/20' : ''}`}
+                                    className={`border-r border-border dark:border-border/40 h-full min-h-[50px] ${isWeekend ? 'bg-muted/40 dark:bg-card/20' : ''}`}
                                   />
                                 );
                               })}

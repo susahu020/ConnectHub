@@ -11,6 +11,6 @@ export function statusBadgeClass(status: string) {
     case 'LATE':
       return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
     default:
-      return 'bg-slate-100 text-slate-500 border-slate-200';
+      return 'bg-muted text-muted-foreground border-border';
   }
 }

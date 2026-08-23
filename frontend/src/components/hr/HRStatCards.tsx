@@ -52,15 +52,15 @@ export function HRStatCards({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {cards.map((card) => (
-        <div key={card.label} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
+        <div key={card.label} className="bg-card dark:bg-card border border-border dark:border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{card.label}</span>
+            <span className="text-xs font-bold text-muted-foreground dark:text-muted-foreground uppercase tracking-wider">{card.label}</span>
             <div className={`p-2 rounded-xl ${card.color}`}>
               <card.icon className="h-5 w-5" />
             </div>
           </div>
-          <p className="text-2xl font-black text-slate-800 dark:text-white">{card.value}</p>
-          <span className="text-xs text-slate-400 mt-1 block">{card.sub}</span>
+          <p className="text-2xl font-black text-foreground">{card.value}</p>
+          <span className="text-xs text-muted-foreground mt-1 block">{card.sub}</span>
         </div>
       ))}
     </div>

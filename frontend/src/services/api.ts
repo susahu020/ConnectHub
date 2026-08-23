@@ -8,9 +8,21 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost
 // router.push('/login') so the SPA doesn't hard-reload on session expiry.
 export const AUTH_SESSION_EXPIRED_EVENT = 'auth:session-expired';
 
-function redirectToLogin() {
+// Dispatched when the backend blocks a request with MFA_SETUP_REQUIRED (see
+// middleware/auth.middleware.ts) — the org requires 2FA and this user
+// hasn't set it up yet. Same cross-module-to-router pattern as the
+// session-expired event above.
+export const AUTH_MFA_REQUIRED_EVENT = 'auth:mfa-required';
+
+function redirectToLogin(reason?: string) {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event(AUTH_SESSION_EXPIRED_EVENT));
+    window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT, { detail: { reason } }));
+  }
+}
+
+function redirectToMfaSetup() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_MFA_REQUIRED_EVENT));
   }
 }
 
@@ -26,7 +38,7 @@ const onRefreshed = (token: string) => {
   refreshSubscribers = [];
 };
 
-async function handleTokenRefresh(): Promise<string | null> {
+async function handleTokenRefresh(): Promise<{ accessToken: string | null; code?: string }> {
   try {
     const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
@@ -36,12 +48,13 @@ async function handleTokenRefresh(): Promise<string | null> {
       credentials: 'include', // Pass HttpOnly refresh cookie cross-origin
     });
     if (!res.ok) {
-      return null;
+      const errData = await res.json().catch(() => ({}));
+      return { accessToken: null, code: errData.code };
     }
     const data = await res.json();
-    return data.accessToken || null;
+    return { accessToken: data.accessToken || null };
   } catch (err) {
-    return null;
+    return { accessToken: null };
   }
 }
 
@@ -80,7 +93,7 @@ async function request<T = any>(
   if (response.status === 401 && endpoint !== '/auth/login' && endpoint !== '/auth/refresh') {
     if (!isRefreshing) {
       isRefreshing = true;
-      const newAccessToken = await handleTokenRefresh();
+      const { accessToken: newAccessToken, code: refreshFailureCode } = await handleTokenRefresh();
       isRefreshing = false;
 
       if (newAccessToken) {
@@ -91,7 +104,7 @@ async function request<T = any>(
       } else {
         // Refresh token expired too -> Logout
         store.logout();
-        redirectToLogin();
+        redirectToLogin(refreshFailureCode);
         throw new Error('Session expired. Please log in again.');
       }
     } else {
@@ -132,6 +145,9 @@ async function request<T = any>(
   const data = await response.json();
 
   if (!response.ok) {
+    if (data.code === 'MFA_SETUP_REQUIRED') {
+      redirectToMfaSetup();
+    }
     throw Object.assign(new Error(data.message || 'Something went wrong'), { code: data.code });
   }
 
@@ -184,6 +200,7 @@ export const api = {
   
   // Users & Profile
   getProfile: () => request('/users/profile'),
+  getMyPermissions: () => request('/users/permissions'),
   getProfileById: (userId: string) => request(`/users/profile/${userId}`),
   updateProfile: (body: any) => request('/users/profile', 'PUT', body),
   updateProfileById: (userId: string, body: any) => request(`/users/profile/${userId}`, 'PUT', body),
@@ -227,18 +244,51 @@ export const api = {
   duplicateRole: (id: string, body: { newName: string; description?: string }) => 
     request(`/rbac/roles/${id}/duplicate`, 'POST', body),
   deleteRole: (id: string) => request(`/rbac/roles/${id}`, 'DELETE'),
-  assignUserRole: (userId: string, roleId: string) => request(`/rbac/users/${userId}/role`, 'POST', { roleId }),
+  assignUserRole: (userId: string, roleId: string | null, expiresAt?: string | null) =>
+    request(`/rbac/users/${userId}/role`, 'POST', { roleId, expiresAt }),
 
   // Meetings (REST source of truth backing the live socket signaling)
-  createMeeting: (body?: { title?: string }) => request('/meetings', 'POST', body || {}),
-  scheduleMeeting: (body: { title?: string; scheduledFor: string; durationMins?: number; inviteeIds: string[] }) =>
+  createMeeting: (body?: { title?: string; muteOnEntry?: boolean }) => request('/meetings', 'POST', body || {}),
+  scheduleMeeting: (body: { title?: string; scheduledFor: string; durationMins?: number; inviteeIds: string[]; recurrenceRule?: string; recurrenceEndDate?: string; coHostIds?: string[]; muteOnEntry?: boolean }) =>
     request('/meetings/schedule', 'POST', body),
+  cancelMeeting: (id: string, scope: 'occurrence' | 'series' = 'occurrence') =>
+    request(`/meetings/${id}?scope=${scope}`, 'DELETE'),
   respondToMeetingInvite: (id: string, status: 'ACCEPTED' | 'DECLINED') =>
     request(`/meetings/${id}/invite`, 'PATCH', { status }),
   getMeetings: () => request('/meetings'),
   getMeetingByCode: (code: string) => request(`/meetings/${encodeURIComponent(code)}`),
   startMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/start`, 'POST'),
   endMeeting: (code: string) => request(`/meetings/${encodeURIComponent(code)}/end`, 'POST'),
+  updateMeetingCoHosts: (code: string, coHostIds: string[]) =>
+    request(`/meetings/${encodeURIComponent(code)}/co-hosts`, 'PATCH', { coHostIds }),
+  downloadMeetingIcs: async (meetingId: string, filenameHint?: string) => {
+    const token = useAuthStore.getState().token;
+    const response = await fetch(`${API_BASE_URL}/meetings/${meetingId}/ics`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      let message = 'Failed to export this meeting.';
+      try {
+        const data = await response.json();
+        message = data.message || message;
+      } catch {
+        // response wasn't JSON — keep the generic message
+      }
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filenameHint || 'meeting'}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+  regenerateCalendarFeedToken: (): Promise<{ feedUrl: string; webcalUrl: string }> =>
+    request('/meetings/calendar-feed/token', 'POST'),
 
   // Chats
   getRecentChats: () => request('/chats/recent'),
@@ -309,6 +359,7 @@ export const api = {
   deleteFile: (id: string) => request(`/files/${id}`, 'DELETE'),
   deleteFolder: (id: string) => request(`/files/folders/${id}`, 'DELETE'),
   getRecycleBin: () => request('/files/recycle-bin'),
+  emptyRecycleBin: () => request('/files/recycle-bin', 'DELETE'),
   restoreItem: (id: string, type: 'FILE' | 'FOLDER') => request(`/files/${id}/restore`, 'POST', { type }),
   deletePermanently: (id: string, type: 'FILE' | 'FOLDER') => request(`/files/${id}/permanent`, 'DELETE', { type }),
   moveItem: (id: string, targetFolderId: string | null, type: 'FILE' | 'FOLDER') => 
@@ -346,6 +397,7 @@ export const api = {
   updateWorkflow: (id: string, body: { name?: string; trigger?: string; action?: string; isActive?: boolean }) => 
     request(`/workflows/${id}`, 'PUT', body),
   deleteWorkflow: (id: string) => request(`/workflows/${id}`, 'DELETE'),
+  getWorkflowRuns: (id: string) => request(`/workflows/${id}/runs`),
 
   // Admin Panel
   getAuditLogs: (params?: { page?: number; limit?: number; startDate?: string; endDate?: string; action?: string; search?: string }) => {
@@ -422,7 +474,7 @@ export const api = {
   getSystemHealth: () => request('/admin/system-health'),
   sendTestHealthAlert: (webhookUrl?: string) => request('/admin/system-health/test-alert', 'POST', webhookUrl ? { webhookUrl } : {}),
   getOrganizationSettings: () => request('/organization/settings'),
-  updateOrganizationSettings: (body: Record<string, string | null | string[] | boolean>) => request('/admin/organization-settings', 'PUT', body),
+  updateOrganizationSettings: (body: Record<string, string | number | null | string[] | boolean>) => request('/admin/organization-settings', 'PUT', body),
   uploadOrganizationLogo: (formData: FormData) => request('/admin/organization-settings/logo', 'POST', formData, true),
   uploadOrganizationFavicon: (formData: FormData) => request('/admin/organization-settings/favicon', 'POST', formData, true),
   getTeams: (departmentId?: string) => request(`/teams${departmentId ? `?departmentId=${departmentId}` : ''}`),

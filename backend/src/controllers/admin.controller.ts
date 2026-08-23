@@ -7,7 +7,7 @@ import { buildBirthdayEmailHtml } from '../services/birthday.service';
 import { getSystemHealth as getSystemHealthData } from '../services/health.service';
 import { sendWebhookAlert } from '../services/alerting.service';
 import { deleteUserAccount } from '../services/accountDeletion.service';
-import { revokeSession } from '../services/session.service';
+import { revokeSessions } from '../services/session.service';
 import { checkPasswordStrength, checkPasswordAgainstIdentity } from '../utils/passwordPolicy';
 import { sendEmail } from '../config/mailer';
 import { getOrganizationSettings } from '../services/organization.service';
@@ -174,7 +174,12 @@ export const getSystemUsers = async (req: AuthenticatedRequest, res: Response, n
         include: { department: { select: { id: true, name: true } } },
         orderBy: { firstName: 'asc' },
       });
-      const safeUsers = users.map(({ passwordHash, ...user }) => user);
+      // Same class of bug as getProfileById in user.controller.ts: stripping
+      // only passwordHash still sent every user's raw twoFactorSecret and
+      // twoFactorBackupCodes to the browser — nothing in the frontend reads
+      // them off a user list, so there's no reason to send them at all,
+      // Admin-only endpoint or not.
+      const safeUsers = users.map(({ passwordHash, twoFactorSecret, twoFactorBackupCodes, ...user }) => user);
       res.status(200).json(safeUsers);
       return;
     }
@@ -195,7 +200,7 @@ export const getSystemUsers = async (req: AuthenticatedRequest, res: Response, n
       prisma.user.count({ where }),
     ]);
 
-    const safeUsers = users.map(({ passwordHash, ...user }) => user);
+    const safeUsers = users.map(({ passwordHash, twoFactorSecret, twoFactorBackupCodes, ...user }) => user);
     res.status(200).json({ users: safeUsers, total, page, limit, totalPages: Math.max(Math.ceil(total / limit), 1) });
   } catch (error) {
     next(error);
@@ -328,18 +333,14 @@ export const toggleUserSuspension = async (req: AuthenticatedRequest, res: Respo
 
     // Revoke sessions and drop the user's live presence when suspending, so
     // the block takes effect immediately instead of waiting for their
-    // access token to expire. Sessions are revoked one-by-one via
+    // access token to expire. revokeSessions revokes each one via
     // revokeSession (not a raw deleteMany) so the Redis-cached copy that
     // `authenticate` checks first is invalidated too — otherwise a cached
     // session could remain valid until its TTL expires even though the
-    // Postgres row is gone.
+    // Postgres row is gone — but does so in parallel rather than
+    // sequentially (see revokeSessions' doc comment in session.service.ts).
     if (isSuspended) {
-      const activeSessions = await prisma.session.findMany({
-        where: { userId, isRevoked: false },
-      });
-      for (const session of activeSessions) {
-        await revokeSession(session.sessionId, 'ADMIN_SUSPEND', 'Account suspended by administrator');
-      }
+      await revokeSessions({ userId, isRevoked: false }, 'ADMIN_SUSPEND', 'Account suspended by administrator');
 
       await prisma.$transaction([
         prisma.refreshToken.deleteMany({ where: { userId } }),
@@ -395,17 +396,14 @@ export const toggleUserActive = async (req: AuthenticatedRequest, res: Response,
       data: { isActive },
     });
 
-    // Same immediate-effect handling as suspension: revoke sessions one by
-    // one (invalidating the Redis-cached copy too) and drop refresh tokens
-    // when deactivating, so the block takes effect right away rather than
-    // waiting for their access token to expire naturally.
+    // Same immediate-effect handling as suspension: revoke sessions in
+    // parallel via revokeSessions (which still invalidates the Redis-cached
+    // copy per session — see its doc comment in session.service.ts) and
+    // drop refresh tokens when deactivating, so the block takes effect
+    // right away rather than waiting for their access token to expire
+    // naturally.
     if (!isActive) {
-      const activeSessions = await prisma.session.findMany({
-        where: { userId, isRevoked: false },
-      });
-      for (const session of activeSessions) {
-        await revokeSession(session.sessionId, 'ADMIN_DEACTIVATE', 'Account deactivated by administrator');
-      }
+      await revokeSessions({ userId, isRevoked: false }, 'ADMIN_DEACTIVATE', 'Account deactivated by administrator');
 
       await prisma.$transaction([
         prisma.refreshToken.deleteMany({ where: { userId } }),
@@ -659,7 +657,13 @@ export const adminUpdateUser = async (req: AuthenticatedRequest, res: Response, 
       }
     }
 
-    res.status(200).json({ message: 'User updated successfully.', user: updated });
+    // Same class of leak fixed earlier in getProfileById/getSystemUsers:
+    // `updated` comes straight from prisma.user.update with no select, so
+    // it carries the target user's raw passwordHash and 2FA secret material
+    // — nothing in the frontend reads these off an admin-edit response, so
+    // there's no reason to send them back at all.
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUpdatedUser } = updated;
+    res.status(200).json({ message: 'User updated successfully.', user: safeUpdatedUser });
   } catch (error) {
     next(error);
   }
@@ -724,6 +728,18 @@ export const adminChangeUserPassword = async (req: AuthenticatedRequest, res: Re
       data: { passwordHash }
     });
 
+    // Consistent with the self-service resetPassword/changePassword flows,
+    // which both already revoke existing sessions on a password change —
+    // this admin-initiated path previously didn't, which mattered most in
+    // exactly the scenario this action is usually taken for: resetting a
+    // compromised account's password while leaving an attacker's existing
+    // session valid until it happened to expire on its own.
+    await revokeSessions(
+      { userId: id, isRevoked: false },
+      'PASSWORD_CHANGE',
+      'Forced session termination due to admin-initiated password reset'
+    );
+
     await prisma.auditLog.create({
       data: {
         userId: req.user!.id,
@@ -787,6 +803,7 @@ export const updateEmailFeatureSettings = async (req: AuthenticatedRequest, res:
     // Make sure the notification service picks up the change immediately
     // instead of serving a stale cached copy for up to CACHE_TTL_MS.
     invalidateEmailFeatureSettingsCache();
+    emitDataUpdate(req, 'email-settings');
 
     await prisma.auditLog.create({
       data: {

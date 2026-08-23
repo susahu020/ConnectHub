@@ -14,19 +14,19 @@ export function TimelineView({
   });
 
   return (
-    <div className="bg-white dark:bg-slate-900 border rounded-2xl shadow-sm p-6 space-y-6 max-h-[70vh] overflow-y-auto pr-1 animate-fade-in text-left">
+    <div className="bg-card dark:bg-card border rounded-2xl shadow-sm p-6 space-y-6 max-h-[70vh] overflow-y-auto pr-1 animate-fade-in text-left">
       <div className="border-b pb-4 flex items-center justify-between">
         <div className="space-y-1">
-          <h3 className="font-black text-sm uppercase tracking-wide text-slate-850 dark:text-slate-200">
+          <h3 className="font-black text-sm uppercase tracking-wide text-foreground dark:text-foreground">
             Project Schedule Timeline
           </h3>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
             Chronological list of pipeline milestones and task deadlines
           </p>
         </div>
       </div>
 
-      <div className="relative pl-6 border-l-2 border-slate-100 dark:border-slate-800 space-y-6">
+      <div className="relative pl-6 border-l-2 border-border dark:border-border space-y-6">
         {sorted.length === 0 ? (
           <p className="text-xs text-muted-foreground italic pl-2">No tasks available in this project timeline.</p>
         ) : (
@@ -35,18 +35,18 @@ export function TimelineView({
             return (
               <div key={task.id} className="relative group">
                 <span
-                  className={`absolute -left-[31px] top-1 h-4 w-4 rounded-full border-2 bg-white dark:bg-slate-900 transition-all ${
+                  className={`absolute -left-[31px] top-1 h-4 w-4 rounded-full border-2 bg-card dark:bg-card transition-all ${
                     task.status === 'COMPLETED' ? 'border-green-500 bg-green-500' : isOverdue ? 'border-red-500 bg-red-500' : 'border-primary'
                   }`}
                 />
 
                 <div
                   onClick={() => onOpenTaskDetail(task)}
-                  className="p-4 border rounded-2xl bg-slate-50/40 dark:bg-slate-800/10 hover:bg-slate-50 dark:hover:bg-slate-850 hover:shadow-xs transition-all cursor-pointer flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0"
+                  className="p-4 border rounded-2xl bg-muted/40 dark:bg-card/10 hover:bg-muted dark:hover:bg-card hover:shadow-xs transition-all cursor-pointer flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0"
                 >
                   <div className="space-y-1.5 max-w-lg">
                     <div className="flex items-center space-x-2">
-                      <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 leading-tight">{task.title}</h4>
+                      <h4 className="font-extrabold text-sm text-foreground dark:text-foreground leading-tight">{task.title}</h4>
                       {task.sprintName && (
                         <span className="px-1.5 py-0.5 bg-info/10 dark:bg-info/15 text-info-dark dark:text-info border border-info/20 rounded text-[9px] font-extrabold uppercase">
                           {task.sprintName}
@@ -62,7 +62,7 @@ export function TimelineView({
                     {task.labels && task.labels.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 pt-0.5">
                         {task.labels.map((l: string, idx: number) => (
-                          <span key={idx} className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-[9px] font-bold">
+                          <span key={idx} className="px-2 py-0.5 bg-muted dark:bg-card text-muted-foreground dark:text-foreground rounded-full text-[9px] font-bold">
                             {l}
                           </span>
                         ))}
@@ -70,17 +70,17 @@ export function TimelineView({
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-6 text-[10px] text-slate-500 font-semibold shrink-0">
+                  <div className="flex items-center space-x-6 text-[10px] text-muted-foreground font-semibold shrink-0">
                     <div className="text-right">
-                      <span className="block text-[9px] text-slate-400 font-bold uppercase">Deadline</span>
+                      <span className="block text-[9px] text-muted-foreground font-bold uppercase">Deadline</span>
                       <span className={isOverdue ? 'text-red-500 font-bold' : ''}>
                         {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
                       </span>
                     </div>
 
                     <div className="text-right">
-                      <span className="block text-[9px] text-slate-400 font-bold uppercase">Progress</span>
-                      <span className="font-extrabold text-slate-700 dark:text-slate-200">{task.progress}%</span>
+                      <span className="block text-[9px] text-muted-foreground font-bold uppercase">Progress</span>
+                      <span className="font-extrabold text-foreground dark:text-foreground">{task.progress}%</span>
                     </div>
 
                     <span
@@ -91,7 +91,7 @@ export function TimelineView({
                           ? 'text-primary bg-primary/5 border-primary/20'
                           : task.status === 'REVIEW'
                           ? 'text-orange-500 bg-orange-50 border-orange-200'
-                          : 'text-slate-400 bg-slate-50 border-slate-200'
+                          : 'text-muted-foreground bg-muted border-border'
                       }`}
                     >
                       {task.status}

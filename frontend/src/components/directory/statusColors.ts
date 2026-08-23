@@ -9,11 +9,11 @@ export function statusDotColor(status: string) {
     case 'DND':
       return 'bg-rose-600';
     case 'IN_MEETING':
-      return 'bg-indigo-500';
+      return 'bg-primary';
     case 'ON_LEAVE':
       return 'bg-sky-500';
     default:
-      return 'bg-slate-400';
+      return 'bg-muted-foreground';
   }
 }
 
@@ -27,11 +27,11 @@ export function statusBadgeClass(status: string) {
     case 'DND':
       return 'bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-950/20';
     case 'IN_MEETING':
-      return 'bg-indigo-50 border-indigo-200 text-indigo-650';
+      return 'bg-primary/10 border-primary/20 text-primary-dark';
     case 'ON_LEAVE':
       return 'bg-sky-50 border-sky-200 text-sky-650';
     default:
-      return 'bg-slate-50 border-slate-200 text-slate-500';
+      return 'bg-muted border-border text-muted-foreground';
   }
 }
 

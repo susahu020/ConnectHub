@@ -4,42 +4,44 @@
 
 @layer base {
   :root {
-    /* ConnectHub — "Slate & Signal" design system */
-    --background: 225 28.6% 97.3%;
-    --foreground: 228 21.7% 9%;
+    /* ConnectHub — "Paper" design system: warm cream surfaces, serif
+       headings, a rust accent. Replaces the earlier "Slate & Signal"
+       indigo/slate system — see design review, Aug 2026. */
+    --background: 42 33.3% 94.7%;
+    --foreground: 33 24.4% 12.2%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 228 21.7% 9%;
+    --card: 40 60% 99%;
+    --card-foreground: 33 24.4% 12.2%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 228 21.7% 9%;
+    --popover: 40 60% 99%;
+    --popover-foreground: 33 24.4% 12.2%;
 
-    --primary: 242.8 76.8% 61.2%;
-    --primary-foreground: 0 0% 100%;
-    --primary-dark: 242.7 67.8% 54.9%;
-    --primary-light: 243.3 82.9% 70.2%;
+    --primary: 20.8 51.1% 41.4%;
+    --primary-foreground: 40 60% 99%;
+    --primary-dark: 20.6 62.7% 32.7%;
+    --primary-light: 21 47% 54%;
 
-    --secondary: 228 21.7% 95.5%;
-    --secondary-foreground: 228 21.7% 9%;
+    --secondary: 40 30% 91.2%;
+    --secondary-foreground: 33 24.4% 12.2%;
 
-    --muted: 228 21.7% 95.5%;
-    --muted-foreground: 220 8.9% 46.1%;
+    --muted: 40 30% 91.2%;
+    --muted-foreground: 35 12.8% 45.9%;
 
-    --accent: 243.8 72.7% 95.7%;
-    --accent-foreground: 242.7 67.8% 54.9%;
+    --accent: 28 47.8% 91%;
+    --accent-foreground: 20.6 62.7% 32.7%;
 
-    --destructive: 7.2 67.1% 51.2%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 5.3 55.6% 46.9%;
+    --destructive-foreground: 40 60% 99%;
 
-    --success: 162.9 78.3% 32.5%;
-    --success-foreground: 0 0% 100%;
+    --success: 118.6 22.6% 39%;
+    --success-foreground: 40 60% 99%;
 
-    --warning: 36.9 85.6% 38%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 47.6 55.6% 34.5%;
+    --warning-foreground: 40 60% 99%;
 
-    --border: 220 19.1% 90.8%;
-    --input: 220 19.1% 88%;
-    --ring: 242.8 76.8% 61.2%;
+    --border: 38 26.1% 86%;
+    --input: 38 22% 82%;
+    --ring: 20.8 51.1% 41.4%;
 
     /* Reserved for celebration moments (birthdays, anniversaries, kudos) — a
        deliberate warm exception, not used for ordinary UI chrome or actions. */
@@ -49,59 +51,59 @@
 
     /* Distinct from --primary on purpose — for informational badges/labels
        (meeting types, notices) that shouldn't visually read as a brand action. */
-    --info: 214.4 84.1% 55.7%;
-    --info-dark: 214.5 74.2% 44.1%;
-    --info-light: 213.6 88.2% 66.7%;
+    --info: 209.4 33.9% 42.9%;
+    --info-dark: 209.6 39.4% 32.9%;
+    --info-light: 209.4 33% 55%;
     --info-foreground: 0 0% 100%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
   }
 
   .dark {
-    --background: 222.9 21.2% 6.5%;
-    --foreground: 222.9 22.6% 93.9%;
+    --background: 33 22.2% 8.8%;
+    --foreground: 42 33.3% 92.9%;
 
-    --card: 225 21.4% 11%;
-    --card-foreground: 222.9 22.6% 93.9%;
+    --card: 32 18.6% 12.9%;
+    --card-foreground: 42 33.3% 92.9%;
 
-    --popover: 225 21.4% 11%;
-    --popover-foreground: 222.9 22.6% 93.9%;
+    --popover: 32 18.6% 12.9%;
+    --popover-foreground: 42 33.3% 92.9%;
 
-    --primary: 243.3 82.9% 70.2%;
-    --primary-foreground: 225 21.4% 11%;
-    --primary-dark: 242.8 76.8% 61.2%;
-    --primary-light: 243.6 90% 78%;
+    --primary: 21.9 60.9% 59.8%;
+    --primary-foreground: 32 22% 11%;
+    --primary-dark: 20.8 51.1% 41.4%;
+    --primary-light: 22.5 68.5% 68.6%;
 
-    --secondary: 222.9 19.4% 14.1%;
-    --secondary-foreground: 222.9 22.6% 93.9%;
+    --secondary: 30 15.9% 17.5%;
+    --secondary-foreground: 42 33.3% 92.9%;
 
-    --muted: 222.9 19.4% 14.1%;
-    --muted-foreground: 222.5 11.5% 59.2%;
+    --muted: 30 15.9% 17.5%;
+    --muted-foreground: 34 15% 61.6%;
 
-    --accent: 229.7 29.3% 19.4%;
-    --accent-foreground: 243.3 82.9% 70.2%;
+    --accent: 27 24.4% 20.8%;
+    --accent-foreground: 22.5 68.5% 68.6%;
 
-    --destructive: 6.3 59.7% 31.2%;
-    --destructive-foreground: 222.9 22.6% 93.9%;
+    --destructive: 4.7 53.1% 55.7%;
+    --destructive-foreground: 32 22% 11%;
 
-    --success: 162.9 60% 42%;
-    --success-foreground: 222.9 21.2% 6.5%;
+    --success: 118.9 20% 51.6%;
+    --success-foreground: 32 22% 11%;
 
-    --warning: 36.9 70% 52%;
-    --warning-foreground: 222.9 21.2% 6.5%;
+    --warning: 48 43.1% 50%;
+    --warning-foreground: 32 22% 11%;
 
-    --border: 221.2 17.4% 18%;
-    --input: 221.2 17.4% 18%;
-    --ring: 243.3 82.9% 70.2%;
+    --border: 29 21.6% 20%;
+    --input: 29 21.6% 20%;
+    --ring: 21.9 60.9% 59.8%;
 
     --warm: 30.4 70% 62%;
     --warm-dark: 30.4 63.4% 54.3%;
-    --warm-foreground: 222.9 21.2% 6.5%;
+    --warm-foreground: 32 22% 11%;
 
-    --info: 214 87.2% 69.4%;
-    --info-dark: 214.4 84.1% 55.7%;
-    --info-light: 213.6 90% 78%;
-    --info-foreground: 222.9 21.2% 6.5%;
+    --info: 209.6 62.4% 63.9%;
+    --info-dark: 209.4 33.9% 42.9%;
+    --info-light: 209.6 68% 74%;
+    --info-foreground: 32 22% 11%;
   }
 }
 
@@ -116,7 +118,8 @@
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
   }
   h1, h2, h3, h4 {
-    font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    font-weight: 600;
     letter-spacing: -0.01em;
   }
 }
@@ -144,7 +147,7 @@
 }
 
 .dark .glass {
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(27, 22, 15, 0.5);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -178,8 +181,18 @@
   animation: pulseSlow 2s ease-in-out infinite;
 }
 
-/* Accessibility Focus States */
-a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
-  outline: 2px solid hsl(var(--primary));
-  outline-offset: 2px;
+/* Accessibility Focus States
+   !important is deliberate here: 61 components use Tailwind's
+   `focus:outline-none` utility (usually to swap in a custom focus ring),
+   which compiles to a two-class-selector rule that beats this element+
+   pseudo-class rule on specificity alone — so without !important, this
+   global safety net silently loses to any component that used
+   focus:outline-none without pairing it with its own visible replacement,
+   leaving keyboard users with no focus indicator at all (a WCAG 2.4.7
+   failure). This guarantees a visible ring survives regardless, without
+   requiring an audit of every one of those 61 files. */
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible,
+select:focus-visible, [role="button"]:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid hsl(var(--primary)) !important;
+  outline-offset: 2px !important;
 }

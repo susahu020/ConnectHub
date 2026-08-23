@@ -1,5 +1,6 @@
 import React from 'react';
 import { Award, Trash2, Heart, MessageSquare } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import CelebrationsWidget from '../../CelebrationsWidget';
 import { getBadgeIcon, getBadgeColors } from '../recognitionBadges';
 
@@ -18,16 +19,17 @@ export function RecognitionTab({
   onOpenRecognitionModal: () => void;
   onDeleteRecognition: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Peer Recognition Board</h3>
+        <h3 className="text-lg font-bold text-foreground">{t('hr.recognition.heading')}</h3>
         <button
           onClick={onOpenRecognitionModal}
-          className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-white bg-primary rounded-xl shadow-md hover:bg-primary-dark transition-all"
+          className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-primary-foreground bg-primary rounded-xl shadow-md hover:bg-primary-dark transition-all"
         >
           <Award className="h-4 w-4" />
-          Recognize Teammate
+          {t('hr.recognition.recognizeTeammate')}
         </button>
       </div>
 
@@ -35,8 +37,8 @@ export function RecognitionTab({
         <div className="lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {recognitions.length === 0 ? (
-              <div className="col-span-full text-center py-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400">
-                Be the first to recognize a colleague for their outstanding work!
+              <div className="col-span-full text-center py-12 bg-card dark:bg-card border border-border dark:border-border rounded-2xl text-muted-foreground">
+                {t('hr.recognition.emptyBoard')}
               </div>
             ) : (
               recognitions.map((rec: any) => {
@@ -45,17 +47,17 @@ export function RecognitionTab({
                 return (
                   <div
                     key={rec.id}
-                    className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                    className="relative bg-card dark:bg-card border border-border dark:border-border rounded-3xl p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
                   >
                     {isAdmin && (
                       <button
                         onClick={() => {
-                          if (confirm('Are you sure you want to delete this recognition post?')) {
+                          if (confirm(t('hr.recognition.deleteConfirm'))) {
                             onDeleteRecognition(rec.id);
                           }
                         }}
                         className="absolute top-5 right-5 p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 transition-colors"
-                        title="Delete recognition"
+                        title={t('hr.recognition.deleteRecognition')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -63,7 +65,7 @@ export function RecognitionTab({
 
                     <div className="space-y-4 text-left">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-slate-105 dark:bg-slate-800 overflow-hidden flex items-center justify-center font-bold uppercase text-slate-500 shrink-0 border border-slate-200 dark:border-slate-800">
+                        <div className="h-10 w-10 rounded-full bg-secondary dark:bg-card overflow-hidden flex items-center justify-center font-bold uppercase text-muted-foreground shrink-0 border border-border dark:border-border">
                           {rec.sender?.avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={rec.sender.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -72,10 +74,10 @@ export function RecognitionTab({
                           )}
                         </div>
                         <div>
-                          <h4 className="text-xs font-black text-slate-800 dark:text-white leading-tight">
+                          <h4 className="text-xs font-black text-foreground leading-tight">
                             {rec.sender?.firstName} {rec.sender?.lastName}
                           </h4>
-                          <p className="text-[10px] text-slate-450 leading-none mt-0.5">{rec.sender?.designation || 'Staff member'}</p>
+                          <p className="text-[10px] text-muted-foreground leading-none mt-0.5">{rec.sender?.designation || t('hr.recognition.staffMember')}</p>
                         </div>
                       </div>
 
@@ -85,13 +87,13 @@ export function RecognitionTab({
                       </span>
 
                       <div className="relative pl-4 border-l-2 border-primary/20">
-                        <p className="text-xs text-slate-650 dark:text-slate-300 italic leading-relaxed">&quot;{rec.message}&quot;</p>
+                        <p className="text-xs text-muted-foreground dark:text-foreground italic leading-relaxed">&quot;{rec.message}&quot;</p>
                       </div>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-100 dark:border-slate-850 flex flex-col space-y-3">
+                    <div className="pt-4 border-t border-border dark:border-border flex flex-col space-y-3">
                       <div className="flex items-center gap-2.5 text-left">
-                        <div className="h-8 w-8 rounded-full bg-slate-105 dark:bg-slate-800 overflow-hidden flex items-center justify-center text-[10px] font-bold uppercase text-slate-500 shrink-0 border border-slate-200 dark:border-slate-800">
+                        <div className="h-8 w-8 rounded-full bg-secondary dark:bg-card overflow-hidden flex items-center justify-center text-[10px] font-bold uppercase text-muted-foreground shrink-0 border border-border dark:border-border">
                           {rec.receiver?.avatarUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={rec.receiver.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -100,24 +102,24 @@ export function RecognitionTab({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-800 dark:text-white leading-tight truncate">
+                          <p className="text-xs font-bold text-foreground leading-tight truncate">
                             {rec.receiver?.firstName} {rec.receiver?.lastName}
                           </p>
-                          <p className="text-[10px] text-slate-450 truncate">{rec.receiver?.designation || 'Teammate'}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{rec.receiver?.designation || 'Teammate'}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 text-slate-450 text-[10px] pt-1">
+                      <div className="flex items-center gap-4 text-muted-foreground text-[10px] pt-1">
                         <button
                           onClick={() => onToggleLike(rec.id)}
                           className={`flex items-center gap-1.5 font-bold hover:text-rose-500 transition-colors ${recLikes.liked ? 'text-rose-500' : ''}`}
                         >
                           <Heart className={`h-4 w-4 ${recLikes.liked ? 'fill-current' : ''}`} />
-                          <span>{recLikes.count} Likes</span>
+                          <span>{recLikes.count} {t('hr.recognition.likes')}</span>
                         </button>
                         <div className="flex items-center gap-1.5 font-bold">
                           <MessageSquare className="h-4 w-4" />
-                          <span>Public Recognition</span>
+                          <span>{t('hr.recognition.publicRecognition')}</span>
                         </div>
                       </div>
                     </div>

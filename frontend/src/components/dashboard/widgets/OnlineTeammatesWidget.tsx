@@ -17,7 +17,7 @@ export function OnlineTeammatesWidget({ onlineUsers }: { onlineUsers: any[] | un
                   {olUser.firstName[0]}
                   {olUser.lastName[0]}
                 </div>
-                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 flex items-center justify-center">
+                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500 flex items-center justify-center">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 </span>
               </div>

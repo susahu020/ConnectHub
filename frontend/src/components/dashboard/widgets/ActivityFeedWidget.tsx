@@ -5,7 +5,7 @@ import { WidgetHeader, WidgetEmptyState } from '../WidgetHeader';
 export function ActivityFeedWidget({ activity }: { activity: any[] | undefined }) {
   return (
     <div className="flex-1 flex flex-col">
-      <WidgetHeader icon={<Activity />} iconClassName="text-indigo-500" title="Recent Activity Feed" />
+      <WidgetHeader icon={<Activity />} iconClassName="text-primary" title="Recent Activity Feed" />
       <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 max-h-[220px]">
         {!activity || activity.length === 0 ? (
           <WidgetEmptyState label="No recent activity logs." />

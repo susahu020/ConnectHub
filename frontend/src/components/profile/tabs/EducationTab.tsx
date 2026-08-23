@@ -18,11 +18,11 @@ export function EducationTab({
 }) {
   return (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
+      <div className="bg-card dark:bg-card border dark:border-border rounded-3xl p-6 shadow-sm space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-extrabold uppercase text-slate-450 tracking-wider">Education Credentials</h3>
+          <h3 className="text-sm font-extrabold uppercase text-muted-foreground tracking-wider">Education Credentials</h3>
           {isOwnProfile && (
-            <button onClick={onAddEducation} className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-bold flex items-center space-x-1 shadow-sm">
+            <button onClick={onAddEducation} className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-primary-foreground rounded-xl text-xs font-bold flex items-center space-x-1 shadow-sm">
               <Plus className="h-3.5 w-3.5" />
               <span>Add Education</span>
             </button>
@@ -32,9 +32,9 @@ export function EducationTab({
         {profile?.educations && profile.educations.length > 0 ? (
           <div className="space-y-5">
             {profile.educations.map((edu: any) => (
-              <div key={edu.id} className="flex items-start justify-between border-b dark:border-slate-800 last:border-0 pb-4 last:pb-0 gap-4">
+              <div key={edu.id} className="flex items-start justify-between border-b dark:border-border last:border-0 pb-4 last:pb-0 gap-4">
                 <div className="space-y-1 text-xs">
-                  <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">{edu.institution}</h4>
+                  <h4 className="font-extrabold text-foreground text-sm">{edu.institution}</h4>
                   <p className="text-primary font-bold">
                     {edu.degree} {edu.branch ? `in ${edu.branch}` : ''}
                   </p>
@@ -60,11 +60,11 @@ export function EducationTab({
         )}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6">
+      <div className="bg-card dark:bg-card border dark:border-border rounded-3xl p-6 shadow-sm space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-extrabold uppercase text-slate-450 tracking-wider">Professional Certifications</h3>
+          <h3 className="text-sm font-extrabold uppercase text-muted-foreground tracking-wider">Professional Certifications</h3>
           {isOwnProfile && (
-            <button onClick={onAddCert} className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-bold flex items-center space-x-1 shadow-sm">
+            <button onClick={onAddCert} className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-primary-foreground rounded-xl text-xs font-bold flex items-center space-x-1 shadow-sm">
               <Plus className="h-3.5 w-3.5" />
               <span>Add Certificate</span>
             </button>
@@ -74,10 +74,10 @@ export function EducationTab({
         {profile?.certifications && profile.certifications.length > 0 ? (
           <div className="space-y-4">
             {profile.certifications.map((cert: any) => (
-              <div key={cert.id} className="p-4 bg-slate-50 dark:bg-slate-800/40 border dark:border-slate-800 rounded-2xl flex items-center justify-between gap-4">
+              <div key={cert.id} className="p-4 bg-muted dark:bg-card/40 border dark:border-border rounded-2xl flex items-center justify-between gap-4">
                 <div className="space-y-1 text-xs">
-                  <p className="font-extrabold text-slate-900 dark:text-white text-sm">{cert.name}</p>
-                  <p className="text-slate-500 font-bold text-xs">Issued by: {cert.issuedBy}</p>
+                  <p className="font-extrabold text-foreground text-sm">{cert.name}</p>
+                  <p className="text-muted-foreground font-bold text-xs">Issued by: {cert.issuedBy}</p>
                   <p className="text-[10px] text-muted-foreground font-semibold">
                     Issued: {new Date(cert.issueDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}
                   </p>

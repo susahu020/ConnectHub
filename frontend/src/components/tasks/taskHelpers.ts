@@ -7,7 +7,7 @@ export function getPriorityBadge(priority: string) {
     case 'NORMAL':
       return 'text-primary bg-primary/5 border-primary/20';
     default:
-      return 'text-slate-500 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700';
+      return 'text-muted-foreground bg-muted border-border';
   }
 }
 
@@ -32,7 +32,7 @@ export function getDaysInMonth(date: Date) {
 }
 
 export const KANBAN_COLUMNS = [
-  { title: 'To Do', status: 'TODO', color: 'border-t-slate-400 bg-slate-50/40 dark:bg-slate-900/10' },
+  { title: 'To Do', status: 'TODO', color: 'border-t-border bg-muted/40' },
   { title: 'In Progress', status: 'IN_PROGRESS', color: 'border-t-primary bg-primary/5' },
   { title: 'In Review', status: 'REVIEW', color: 'border-t-orange-400 bg-orange-50/10' },
   { title: 'Completed', status: 'COMPLETED', color: 'border-t-green-400 bg-green-50/10' },

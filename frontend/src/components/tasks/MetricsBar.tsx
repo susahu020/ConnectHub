@@ -40,7 +40,7 @@ export function MetricsBar({ filteredTasks }: { filteredTasks: any[] }) {
       {cards.map((card, idx) => (
         <div key={idx} className={`p-4 border rounded-2xl flex items-center justify-between shadow-2xs ${card.color}`}>
           <div className="space-y-0.5">
-            <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-450">{card.label}</span>
+            <span className="text-[10px] uppercase font-extrabold tracking-wider text-muted-foreground">{card.label}</span>
             <p className="text-lg font-black tracking-tight leading-none">{card.value}</p>
           </div>
           <span className="text-xl leading-none">{card.icon}</span>

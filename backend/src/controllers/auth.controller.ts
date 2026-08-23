@@ -23,14 +23,43 @@ import {
   checkFailedLoginLockout,
   registerFailedLogin,
   clearFailedLogins,
+  checkFailedTwoFactorLockout,
+  registerFailedTwoFactor,
+  clearFailedTwoFactor,
   enforceDuplicateLoginPolicy,
   cacheSession,
   invalidateSessionCache,
-  revokeSession
+  revokeSession,
+  revokeSessions,
+  notifyIfNewDevice
 } from '../services/session.service';
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'default-local-jwt-refresh-secret-123456';
+
+// Options for the HttpOnly refresh-token cookie. This was previously always
+// `sameSite: 'lax'`, which quietly breaks the moment the frontend and
+// backend are on different domains (e.g. a Vercel frontend + a Render
+// backend, or any other split-hosting setup) — Lax cookies are not sent on
+// cross-site fetch/XHR requests (only on top-level navigations), so the
+// browser would just never attach this cookie to the cross-origin
+// `credentials: 'include'` call to /auth/refresh. Login itself would look
+// like it worked (the Set-Cookie response succeeds either way), but the
+// first token refresh after that would silently fail and the user would be
+// logged out with no clear cause.
+//
+// SameSite=None is required for a cross-site cookie to actually be sent,
+// but browsers reject SameSite=None unless Secure is also set — which in
+// turn requires HTTPS, so this only applies when NODE_ENV=production (where
+// both Render and Vercel serve over HTTPS by default). In local dev, both
+// sides are on http://localhost, so Lax (and non-Secure) is correct there.
+const isProd = process.env.NODE_ENV === 'production';
+const getRefreshCookieOptions = (maxAge?: number) => ({
+  httpOnly: true,
+  secure: isProd,
+  sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+  ...(maxAge !== undefined ? { maxAge } : {}),
+});
 
 // Helper to generate access and refresh tokens
 const generateTokens = (userId: string, email: string, sessionId: string, rememberMe: boolean) => {
@@ -400,6 +429,10 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       expiresAt: expiresAt.getTime(),
     }, sessionLifespan / 1000);
 
+    // Fire-and-forget: never let alerting delay or fail the login itself
+    // (the helper already catches its own errors internally).
+    notifyIfNewDevice(user.id, user.email, sessionRecord.sessionId, browser, operatingSystem, location, ipAddress);
+
     // Update status and last login
     await prisma.user.update({
       where: { id: user.id },
@@ -420,16 +453,14 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
       },
     });
 
-    // Strip password
-    const { passwordHash: _, ...safeUser } = user;
+    // Strip password and 2FA secret material — the frontend never reads
+    // these off a user object (only the dedicated /auth/2fa/setup response
+    // carries a secret, once, during enrollment), so there's no reason for
+    // them to go out over the wire on every login.
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = user;
 
     // Set refresh token in secure HttpOnly cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: sessionLifespan,
-    });
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions(sessionLifespan));
 
     res.status(200).json({
       message: 'Login successful',
@@ -475,7 +506,7 @@ export const logout = async (req: AuthenticatedRequest, res: Response, next: Nex
       });
     }
 
-    res.clearCookie('refreshToken');
+    res.clearCookie('refreshToken', getRefreshCookieOptions());
     res.status(200).json({ message: 'Logged out successfully.' });
   } catch (error) {
     next(error);
@@ -510,8 +541,23 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
     });
 
     // A. Replay Attack Detection
-    if (!session || session.isRevoked || session.expiresAt < new Date()) {
-      res.status(401).json({ message: 'Session expired or invalid.' });
+    if (!session || session.expiresAt < new Date()) {
+      res.status(401).json({ message: 'Session expired or invalid.', code: 'SESSION_EXPIRED' });
+      return;
+    }
+
+    if (session.isRevoked) {
+      // Surface *why* this session died (single-session policy kicked it
+      // out, an admin force-logged-out or suspended the account, a password
+      // change invalidated it, etc.) rather than a generic "expired" — the
+      // person sitting at this now-dead session otherwise has no way to
+      // tell a silent bug apart from an intentional security action. The
+      // frontend (services/api.ts + components/providers.tsx) maps this
+      // code to a human-readable toast before redirecting to /login.
+      res.status(401).json({
+        message: 'This session has been signed out.',
+        code: session.revokedReason || 'SESSION_REVOKED',
+      });
       return;
     }
 
@@ -530,7 +576,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
         },
       });
 
-      res.clearCookie('refreshToken');
+      res.clearCookie('refreshToken', getRefreshCookieOptions());
       res.status(401).json({ message: 'Session compromised. Forced logout triggered.' });
       return;
     }
@@ -567,12 +613,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
     }, sessionLifespan / 1000);
 
     // Set new refresh token cookie
-    res.cookie('refreshToken', newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: sessionLifespan,
-    });
+    res.cookie('refreshToken', newRefreshToken, getRefreshCookieOptions(sessionLifespan));
 
     res.status(200).json({
       accessToken,
@@ -593,19 +634,13 @@ export const logoutAll = async (req: AuthenticatedRequest, res: Response, next: 
       return;
     }
 
-    // Fetch active sessions for user except current
-    const sessionsToRevoke = await prisma.session.findMany({
-      where: {
-        userId,
-        sessionId: { not: currentSessionId },
-        isRevoked: false,
-      },
-    });
-
-    // Revoke each session
-    for (const session of sessionsToRevoke) {
-      await revokeSession(session.sessionId, 'FORCE_OUT', 'Logged out remotely by user');
-    }
+    // Revoke every other active session in parallel (see revokeSessions'
+    // doc comment for why this used to be a sequential loop).
+    await revokeSessions(
+      { userId, sessionId: { not: currentSessionId }, isRevoked: false },
+      'FORCE_OUT',
+      'Logged out remotely by user'
+    );
 
     await prisma.auditLog.create({
       data: {
@@ -663,14 +698,8 @@ export const adminLogoutUser = async (req: Request, res: Response, next: NextFun
       return;
     }
 
-    // Find active sessions for user
-    const activeSessions = await prisma.session.findMany({
-      where: { userId: targetUserId, isRevoked: false },
-    });
-
-    for (const session of activeSessions) {
-      await revokeSession(session.sessionId, 'ADMIN_LOGOUT', 'Logged out by Administrator');
-    }
+    // Revoke every active session for this user in parallel
+    await revokeSessions({ userId: targetUserId, isRevoked: false }, 'ADMIN_LOGOUT', 'Logged out by Administrator');
 
     // Update status
     await prisma.user.update({
@@ -697,14 +726,11 @@ export const adminLogoutUser = async (req: Request, res: Response, next: NextFun
 // 9. ADMIN FORCE LOGOUT ALL SESSIONS GLOBALLY
 export const adminLogoutAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Find all active sessions
-    const activeSessions = await prisma.session.findMany({
-      where: { isRevoked: false },
-    });
-
-    for (const session of activeSessions) {
-      await revokeSession(session.sessionId, 'ADMIN_LOGOUT_ALL', 'Global termination by Administrator');
-    }
+    // Revoke every active session, company-wide, in parallel. This is the
+    // call site where the old sequential one-by-one loop hurt the most —
+    // it could mean revoking hundreds/thousands of sessions one HTTP
+    // request at a time.
+    await revokeSessions({ isRevoked: false }, 'ADMIN_LOGOUT_ALL', 'Global termination by Administrator');
 
     // Set all users status to offline
     await prisma.user.updateMany({
@@ -800,13 +826,11 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Change password, revoke reset tokens, and terminate active sessions
-    const activeSessions = await prisma.session.findMany({
-      where: { userId: resetRecord.userId, isRevoked: false },
-    });
-
-    for (const session of activeSessions) {
-      await revokeSession(session.sessionId, 'PASSWORD_CHANGE', 'Forced session termination due to password reset');
-    }
+    await revokeSessions(
+      { userId: resetRecord.userId, isRevoked: false },
+      'PASSWORD_CHANGE',
+      'Forced session termination due to password reset'
+    );
 
     await prisma.$transaction([
       prisma.user.update({
@@ -863,12 +887,11 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response, n
 
     // If logoutOthers is true, revoke other active sessions
     if (logoutOthers && currentSessionId) {
-      const activeSessions = await prisma.session.findMany({
-        where: { userId, sessionId: { not: currentSessionId }, isRevoked: false },
-      });
-      for (const session of activeSessions) {
-        await revokeSession(session.sessionId, 'PASSWORD_CHANGE', 'Forced session logout due to password change');
-      }
+      await revokeSessions(
+        { userId, sessionId: { not: currentSessionId }, isRevoked: false },
+        'PASSWORD_CHANGE',
+        'Forced session logout due to password change'
+      );
     }
 
     await prisma.user.update({
@@ -928,6 +951,21 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
+    // Account-level lockout for the 2FA code itself. A TOTP code is only 6
+    // digits (1,000,000 combinations) and a stolen/guessed password already
+    // gets an attacker past step one, so this step needs its own brute-force
+    // protection — mirrors the password lockout in login() above, tracked
+    // as a separate counter (by userId) so it doesn't share state with
+    // failed password attempts.
+    const lockoutEndTime = await checkFailedTwoFactorLockout(user.id);
+    if (lockoutEndTime) {
+      const minutesLeft = Math.ceil((lockoutEndTime.getTime() - Date.now()) / 60000);
+      res.status(423).json({
+        message: `Too many failed authentication attempts. Please try again in ${minutesLeft} minute(s).`,
+      });
+      return;
+    }
+
     let isValid = verifyTOTP(code, user.twoFactorSecret);
 
     // Support backup recovery code login
@@ -945,9 +983,31 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
     }
 
     if (!isValid) {
-      res.status(401).json({ message: 'Invalid authentication token code.' });
+      const { locked, remainingAttempts } = await registerFailedTwoFactor(user.id);
+
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'FAILED_LOGIN',
+          details: `Failed 2FA code attempt. Locked: ${locked}`,
+          ipAddress: req.ip,
+          userAgent: (req.headers['user-agent'] as string) || null,
+        },
+      });
+
+      if (locked) {
+        res.status(423).json({
+          message: 'Too many failed authentication attempts. Please try again in 15 minutes.',
+        });
+      } else {
+        res.status(401).json({
+          message: `Invalid authentication token code. ${remainingAttempts} attempt(s) remaining before lockout.`,
+        });
+      }
       return;
     }
+
+    await clearFailedTwoFactor(user.id);
 
     // Re-check suspension/active status here too — the account could have
     // been suspended or deactivated in the window between the password step
@@ -1003,6 +1063,8 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
       expiresAt: expiresAt.getTime(),
     }, sessionLifespan / 1000);
 
+    notifyIfNewDevice(user.id, user.email, sessionRecord.sessionId, browser, operatingSystem, location, ipAddress);
+
     await prisma.user.update({
       where: { id: user.id },
       data: { 
@@ -1021,14 +1083,9 @@ export const verifyLogin2FA = async (req: Request, res: Response, next: NextFunc
       },
     });
 
-    const { passwordHash: _, ...safeUser } = user;
+    const { passwordHash: _, twoFactorSecret: __, twoFactorBackupCodes: ___, ...safeUser } = user;
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: sessionLifespan,
-    });
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions(sessionLifespan));
 
     res.status(200).json({
       message: 'Login successful',
@@ -1400,6 +1457,8 @@ export const googleSsoCallback = async (req: Request, res: Response, next: NextF
       expiresAt: expiresAt.getTime(),
     }, sessionLifespan / 1000);
 
+    notifyIfNewDevice(user.id, user.email, sessionRecord.sessionId, browser, operatingSystem, location, ipAddress);
+
     await prisma.user.update({ where: { id: user.id }, data: { status: 'ONLINE', lastLoginAt: new Date() } });
 
     await prisma.auditLog.create({
@@ -1412,12 +1471,7 @@ export const googleSsoCallback = async (req: Request, res: Response, next: NextF
       },
     });
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: sessionLifespan,
-    });
+    res.cookie('refreshToken', refreshToken, getRefreshCookieOptions(sessionLifespan));
 
     res.redirect(`${frontendUrl}/sso-callback?accessToken=${encodeURIComponent(accessToken)}`);
   } catch (error) {

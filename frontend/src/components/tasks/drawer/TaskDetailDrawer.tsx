@@ -52,8 +52,8 @@ export function TaskDetailDrawer({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-      <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
-        <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1 rounded-lg">
+      <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+        <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1 rounded-lg">
           <X className="h-5 w-5" />
         </button>
 
@@ -78,8 +78,8 @@ export function TaskDetailDrawer({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4 border-t">
           <div className="lg:col-span-2 space-y-4">
             <div className="space-y-1">
-              <h4 className="font-bold text-xs uppercase text-slate-400">Task Scope</h4>
-              <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-350 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border">
+              <h4 className="font-bold text-xs uppercase text-muted-foreground">Task Scope</h4>
+              <p className="text-xs leading-relaxed text-muted-foreground dark:text-foreground bg-muted dark:bg-card/40 p-3 rounded-xl border">
                 {task.description || 'No description provided.'}
               </p>
             </div>

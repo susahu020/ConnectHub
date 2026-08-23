@@ -11,7 +11,7 @@ export function FileBreadcrumbs({
   onNavigateCrumb: (id: string) => void;
 }) {
   return (
-    <div className="flex items-center space-x-2 text-xs font-bold text-slate-400 bg-white dark:bg-slate-900 px-4 py-3 border rounded-xl shadow-xs">
+    <div className="flex items-center space-x-2 text-xs font-bold text-muted-foreground bg-card dark:bg-card px-4 py-3 border rounded-xl shadow-xs">
       <button onClick={onNavigateRoot} className="flex items-center space-x-1 hover:text-primary transition-all">
         <Home className="h-4 w-4" />
         <span>Root Drive</span>

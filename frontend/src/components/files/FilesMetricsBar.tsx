@@ -26,10 +26,10 @@ export function FilesMetricsBar({ explorer, fileTypeFilter }: { explorer: any; f
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-left">
       {cards.map((card, idx) => (
-        <div key={idx} className="p-4 border rounded-2xl flex items-center justify-between shadow-2xs bg-white dark:bg-slate-900">
+        <div key={idx} className="p-4 border rounded-2xl flex items-center justify-between shadow-2xs bg-card dark:bg-card">
           <div className="space-y-0.5">
-            <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-450">{card.label}</span>
-            <p className="text-lg font-black tracking-tight leading-none text-slate-800 dark:text-slate-205">{card.value}</p>
+            <span className="text-[10px] uppercase font-extrabold tracking-wider text-muted-foreground">{card.label}</span>
+            <p className="text-lg font-black tracking-tight leading-none text-foreground dark:text-foreground">{card.value}</p>
           </div>
           <span className="text-xl leading-none">{card.icon}</span>
         </div>
