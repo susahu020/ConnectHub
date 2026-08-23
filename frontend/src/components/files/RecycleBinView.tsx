@@ -1,24 +1,57 @@
 import React from 'react';
-import { Trash2, Folder, RefreshCw, Trash } from 'lucide-react';
+import { Trash2, Folder, RefreshCw, Trash, Eraser } from 'lucide-react';
+
+function daysAgoLabel(dateStr: string): string {
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return 'today';
+  if (days === 1) return '1 day ago';
+  return `${days} days ago`;
+}
+
+function purgeDateLabel(deletedAt: string, retentionDays: number): string {
+  const purgeDate = new Date(new Date(deletedAt).getTime() + retentionDays * 24 * 60 * 60 * 1000);
+  return purgeDate.toLocaleDateString();
+}
 
 export function RecycleBinView({
   loading,
   recycleBin,
   onRestore,
   onPermanentDelete,
+  onEmptyTrash,
 }: {
   loading: boolean;
   recycleBin: any;
   onRestore: (id: string, type: 'FILE' | 'FOLDER') => void;
   onPermanentDelete: (id: string, type: 'FILE' | 'FOLDER') => void;
+  onEmptyTrash: () => void;
 }) {
   const isEmpty = recycleBin?.folders?.length === 0 && recycleBin?.files?.length === 0;
+  const retentionDays: number | null = recycleBin?.retentionDays || null;
 
   return (
     <div className="space-y-6">
-      <div className="bg-red-500/5 border border-red-500/10 p-4 rounded-xl flex items-center space-x-2">
-        <Trash2 className="h-5 w-5 text-red-500" />
-        <span className="text-xs text-red-500 font-bold uppercase tracking-wider">Recycle Bin Directory</span>
+      <div className="bg-red-500/5 border border-red-500/10 p-4 rounded-xl flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center space-x-2">
+          <Trash2 className="h-5 w-5 text-red-500" />
+          <div>
+            <span className="text-xs text-red-500 font-bold uppercase tracking-wider block">Recycle Bin Directory</span>
+            {retentionDays && (
+              <span className="text-[10px] text-red-400">
+                Items are permanently deleted {retentionDays} day{retentionDays === 1 ? '' : 's'} after being moved here.
+              </span>
+            )}
+          </div>
+        </div>
+        {!isEmpty && (
+          <button
+            onClick={onEmptyTrash}
+            className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600"
+          >
+            <Eraser className="h-3.5 w-3.5" />
+            <span>Empty Trash</span>
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -33,7 +66,10 @@ export function RecycleBinView({
                 <Folder className="h-10 w-10 text-red-400 shrink-0 fill-red-50" />
                 <div className="min-w-0">
                   <h4 className="font-bold text-xs truncate text-foreground leading-snug">{fold.name}</h4>
-                  <p className="text-[10px] text-slate-450">Soft-deleted folder</p>
+                  <p className="text-[10px] text-slate-450">
+                    {fold.deletedAt ? `Deleted ${daysAgoLabel(fold.deletedAt)}` : 'Soft-deleted folder'}
+                    {retentionDays && fold.deletedAt && ` · purges ${purgeDateLabel(fold.deletedAt, retentionDays)}`}
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 pt-2 border-t text-[10px] font-bold">
@@ -63,7 +99,11 @@ export function RecycleBinView({
                 </div>
                 <div className="min-w-0">
                   <h4 className="font-bold text-xs truncate text-foreground leading-snug">{file.name}</h4>
-                  <p className="text-[10px] text-slate-450">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <p className="text-[10px] text-slate-450">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                    {file.deletedAt && ` · Deleted ${daysAgoLabel(file.deletedAt)}`}
+                    {retentionDays && file.deletedAt && ` · purges ${purgeDateLabel(file.deletedAt, retentionDays)}`}
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 pt-2 border-t text-[10px] font-bold">

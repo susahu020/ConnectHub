@@ -1,5 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+interface HoverInfo {
+  events: any[];
+  x: number;
+  y: number;
+}
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
@@ -26,6 +32,14 @@ export function CalendarMonthGrid({
   onToday: () => void;
   onSelectEvent: (event: any) => void;
 }) {
+  const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
+
+  const showHover = (e: React.MouseEvent<HTMLElement>, events: any[]) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoverInfo({ events, x: rect.left + rect.width / 2, y: rect.top });
+  };
+  const hideHover = () => setHoverInfo(null);
+
   return (
     <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-4">
       <div className="flex items-center justify-between pb-2">
@@ -87,19 +101,59 @@ export function CalendarMonthGrid({
                   <button
                     key={ev.id}
                     onClick={() => onSelectEvent(ev)}
+                    onMouseEnter={(e) => showHover(e, [ev])}
+                    onMouseLeave={hideHover}
                     className={`w-full text-left truncate px-1 py-0.5 rounded font-semibold transition-all hover:opacity-90 ${ev.color}`}
                   >
                     {ev.title}
                   </button>
                 ))}
                 {dayEvents.length > 3 && (
-                  <p className="text-[9px] text-slate-400 italic text-center font-semibold">+ {dayEvents.length - 3} more</p>
+                  <p
+                    onMouseEnter={(e) => showHover(e, dayEvents.slice(3))}
+                    onMouseLeave={hideHover}
+                    className="text-[9px] text-slate-400 italic text-center font-semibold cursor-default"
+                  >
+                    + {dayEvents.length - 3} more
+                  </p>
                 )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Hover preview: fixed-position so it escapes each day cell's
+          overflow-y-auto instead of being clipped by it. */}
+      {hoverInfo && (
+        <div
+          className="fixed z-50 pointer-events-none w-64 -translate-x-1/2 -translate-y-[calc(100%+10px)]"
+          style={{ left: hoverInfo.x, top: hoverInfo.y }}
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 divide-y divide-slate-100 dark:divide-slate-800 max-h-72 overflow-y-auto">
+            {hoverInfo.events.map((ev) => {
+              const Icon = ev.icon;
+              return (
+                <div key={ev.id} className="space-y-1 py-2 first:pt-0 last:pb-0">
+                  <div className="flex items-start gap-2">
+                    <span className={`h-5 w-5 rounded-md flex items-center justify-center shrink-0 ${ev.dotColor}`}>
+                      {Icon && <Icon className="h-3 w-3 text-white" />}
+                    </span>
+                    <p className="text-xs font-extrabold text-slate-800 dark:text-slate-100 leading-tight">{ev.title}</p>
+                  </div>
+                  {ev.description && (
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug pl-7">{ev.description}</p>
+                  )}
+                  {ev.meta && (
+                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold pl-7">{ev.meta}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="w-2.5 h-2.5 bg-white dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-800 rotate-45 mx-auto -mt-[7px]" />
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { useSocket } from '../../../hooks/useSocket';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '../../../context/ConfirmContext';
@@ -25,7 +26,13 @@ import { TaskDetailDrawer } from '../../../components/tasks/drawer/TaskDetailDra
 export default function TasksPage() {
   const { user } = useAuthStore();
   const { socket } = useSocket();
-  const isWritePermitted = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  // Drives visibility of "New Task" / "New Project" — matches what the
+  // backend's checkPermission('Tasks', 'Create') middleware will actually
+  // allow (see tasks.routes.ts), instead of a hardcoded ADMIN/MANAGER check
+  // that stays correct only for the seed defaults and silently drifts out
+  // of sync the moment an Admin customizes a role's Tasks:Create grant.
+  const { can } = usePermissions();
+  const isWritePermitted = can('Tasks', 'Create');
   const queryClient = useQueryClient();
   const confirm = useConfirm();
 

@@ -19,3 +19,17 @@ export const emitDataUpdate = (req: any, module: string) => {
     io.emit('data_update', { module, at: Date.now() });
   }
 };
+
+/**
+ * Same `data_update` event as emitDataUpdate above, but targeted at a single
+ * user's room instead of broadcast to every connected client. Use this for
+ * per-user private data (e.g. notifications) where every other connected
+ * user invalidating and refetching on someone else's read/delete would be
+ * both wasteful and pointless — they can't see that data anyway.
+ */
+export const emitDataUpdateToUser = (req: any, userId: string, module: string) => {
+  const io = req.app?.get?.('io');
+  if (io) {
+    io.to(`user:${userId}`).emit('data_update', { module, at: Date.now() });
+  }
+};

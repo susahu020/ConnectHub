@@ -40,12 +40,14 @@ import {
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { useSocket } from '../../../hooks/useSocket';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '../../../context/ConfirmContext';
 
 export default function GroupsPage() {
   const { user } = useAuthStore();
+  const { can } = usePermissions();
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
@@ -926,12 +928,14 @@ export default function GroupsPage() {
       <aside className={`w-full md:w-80 border-r flex flex-col shrink-0 bg-slate-50/50 dark:bg-slate-900/50 ${activeGroup ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b flex items-center justify-between">
           <h3 className="font-bold text-base">Channel Directory</h3>
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="p-1.5 bg-primary text-white rounded-lg hover:bg-primary/95 transition-all shadow-sm"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
+          {can('Groups', 'Create') && (
+            <button
+              onClick={() => setCreateModalOpen(true)}
+              className="p-1.5 bg-primary text-white rounded-lg hover:bg-primary/95 transition-all shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Channels Sidebar Search Bar */}

@@ -1,8 +1,15 @@
 import React from 'react';
 import { Calendar, Clock, CalendarDays, CreditCard, FileText, ArrowLeftRight, Award } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { CurvedTabs } from '../ui/CurvedTabs';
 
 export type HRTabType = 'leave' | 'attendance' | 'holidays' | 'expenses' | 'payslips' | 'shifts' | 'recognition';
 
+// label is the stable English fallback/dev-reference — actual display text
+// comes from t(`hr.tabs.${tab.id}`) in the component below. Kept as a
+// plain array (not defined inside the component) so it's not needlessly
+// recreated on every render; translation happens at render time instead,
+// same pattern as the Sidebar's NavItem.label fallback.
 const TABS: { id: HRTabType; label: string; icon: React.ReactNode }[] = [
   { id: 'leave', label: 'Leave', icon: <Calendar className="h-4 w-4" /> },
   { id: 'attendance', label: 'Attendance', icon: <Clock className="h-4 w-4" /> },
@@ -14,22 +21,14 @@ const TABS: { id: HRTabType; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function HRTabsNav({ activeTab, onChange }: { activeTab: HRTabType; onChange: (tab: HRTabType) => void }) {
+  const { t } = useTranslation();
+  const translatedTabs = TABS.map((tab) => ({ ...tab, label: t(`hr.tabs.${tab.id}`) }));
   return (
-    <div className="flex border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto scrollbar-none gap-2">
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          className={`flex items-center gap-2 px-5 py-3 border-b-2 text-sm font-bold whitespace-nowrap transition-all duration-200 leading-none ${
-            activeTab === tab.id
-              ? 'border-primary text-primary'
-              : 'border-transparent text-slate-400 hover:text-slate-650 hover:border-slate-200 dark:hover:border-slate-800'
-          }`}
-        >
-          {tab.icon}
-          {tab.label}
-        </button>
-      ))}
-    </div>
+    <CurvedTabs
+      className="mb-8"
+      tabs={translatedTabs}
+      activeId={activeTab}
+      onChange={(id) => onChange(id as HRTabType)}
+    />
   );
 }

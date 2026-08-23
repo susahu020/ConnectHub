@@ -156,6 +156,20 @@ export const getAnnouncementDetails = async (req: AuthenticatedRequest, res: Res
       return;
     }
 
+    // Same department-scoping getAnnouncements (list) already enforces —
+    // an org-wide announcement (departmentId: null) is visible to everyone,
+    // but one scoped to a specific department should only be readable by
+    // that department's members, plus managers/admins who can see every
+    // department. Without this, anyone who had (or guessed, or was sent) an
+    // announcement's id could read its full content, comments, and like
+    // list regardless of department, even though the list view correctly
+    // hides it from them.
+    const canViewOtherDepartments = req.user?.role === 'ADMIN' || req.user?.role === 'MANAGER';
+    if (announcement.departmentId && !canViewOtherDepartments && announcement.departmentId !== req.user?.departmentId) {
+      res.status(403).json({ message: 'This announcement is scoped to a department you are not part of.' });
+      return;
+    }
+
     // Record a per-user read receipt (idempotent — viewing again doesn't
     // create duplicate rows or inflate the counter). This is what lets the
     // creator/admin see exactly who has and hasn't read a critical
@@ -266,6 +280,17 @@ export const likeAnnouncement = async (req: AuthenticatedRequest, res: Response,
     const { id: announcementId } = req.params;
     const userId = req.user?.id!;
 
+    const announcement = await prisma.announcement.findUnique({ where: { id: announcementId }, select: { departmentId: true } });
+    if (!announcement) {
+      res.status(404).json({ message: 'Announcement not found.' });
+      return;
+    }
+    const canViewOtherDepartments = req.user?.role === 'ADMIN' || req.user?.role === 'MANAGER';
+    if (announcement.departmentId && !canViewOtherDepartments && announcement.departmentId !== req.user?.departmentId) {
+      res.status(403).json({ message: 'This announcement is scoped to a department you are not part of.' });
+      return;
+    }
+
     const existingLike = await prisma.announcementLike.findUnique({
       where: { announcementId_userId: { announcementId, userId } },
     });
@@ -293,6 +318,17 @@ export const addComment = async (req: AuthenticatedRequest, res: Response, next:
     const { id: announcementId } = req.params;
     const { content } = req.body;
     const userId = req.user?.id!;
+
+    const parentAnnouncement = await prisma.announcement.findUnique({ where: { id: announcementId }, select: { departmentId: true } });
+    if (!parentAnnouncement) {
+      res.status(404).json({ message: 'Announcement not found.' });
+      return;
+    }
+    const canViewOtherDepartments = req.user?.role === 'ADMIN' || req.user?.role === 'MANAGER';
+    if (parentAnnouncement.departmentId && !canViewOtherDepartments && parentAnnouncement.departmentId !== req.user?.departmentId) {
+      res.status(403).json({ message: 'This announcement is scoped to a department you are not part of.' });
+      return;
+    }
 
     const comment = await prisma.announcementComment.create({
       data: {

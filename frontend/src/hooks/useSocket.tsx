@@ -42,6 +42,36 @@ const MODULE_QUERY_KEYS: Record<string, string[]> = {
   groups: ['groups'],
   // Org-chart teams (distinct from chat groups)
   teams: ['admin-teams'],
+  // Org-wide branding/config: name, logo, colors, registration mode, SSO
+  // toggle, session/login policy — read by the org settings page, sidebar,
+  // and login screen.
+  organization: ['organization-settings'],
+  // Pending/accepted onboarding invitations (Admin panel)
+  invitations: ['admin-invitations'],
+  // Automation workflows (Admin panel)
+  workflows: ['workflows-list'],
+  // Shared file manager (uploads, folders, moves, deletes) — org-wide, not
+  // scoped to the uploader, so other users browsing the same folder need to
+  // see changes live.
+  files: ['files'],
+  // Scheduled meetings (invites, accept/decline, start/end) — each user's
+  // query is already scoped server-side to meetings they host or are
+  // invited to, so a broad invalidate here is cheap and safe.
+  meetings: ['calendar-meetings'],
+  // Custom RBAC roles (Admin > Roles list). Live per-user permission pushes
+  // for role-permission changes are handled separately via the dedicated
+  // 'role_assignment_updated' socket event, not this generic module.
+  roles: ['admin-roles'],
+  // Admin > Email notification feature toggles
+  'email-settings': ['admin-email-settings'],
+  // A user's own notification bell state (read/all-read/deleted). Emitted
+  // room-scoped to just that user (see emitDataUpdateToUser in
+  // backend/src/utils/realtime.ts), not broadcast org-wide.
+  notifications: ['notifications'],
+  // Own profile / another user's profile page (basic info, skills,
+  // experience, education, certifications, avatar, cover). Broadcast
+  // org-wide since anyone could be viewing anyone else's profile.
+  profile: ['profile'],
 };
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
@@ -121,10 +151,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       });
     });
 
-    // Sent directly to this user's own room when an admin assigns them a
-    // different custom role (see assignRole in rbac.controller.ts). Applies
-    // the new role/permissions to local state immediately — no page refresh,
-    // no waiting for the next login — and lets them know it happened.
+    // Sent directly to this user's own room when an admin assigns, changes,
+    // or removes their custom role (see assignRole in rbac.controller.ts),
+    // or when a time-bound role assignment expires on its own (see
+    // middleware/auth.middleware.ts). Applies the new role/permissions to
+    // local state immediately — no page refresh, no waiting for the next
+    // login — and lets them know it happened.
     socketInstance.on(
       'role_assignment_updated',
       ({
@@ -132,12 +164,16 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         roleName,
         permissions,
       }: {
-        customRoleId: string;
+        customRoleId: string | null;
         roleName: string;
         permissions: Record<string, Record<string, boolean>>;
       }) => {
         updateUser({ customRoleId, customRoleName: roleName, permissions });
-        toast.success(`Your role was updated to "${roleName}". New permissions are now active.`);
+        if (customRoleId && roleName) {
+          toast.success(`Your role was updated to "${roleName}". New permissions are now active.`);
+        } else {
+          toast(`Your custom role was removed — you're back to your base permissions.`, { icon: '🔄' });
+        }
         // Any screen showing this user's role (e.g. an admin viewing the
         // directory) should also pick up the change right away.
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });

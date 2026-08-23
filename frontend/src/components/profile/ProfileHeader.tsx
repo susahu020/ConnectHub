@@ -30,8 +30,8 @@ export function ProfileHeader({
   uploadingImage: boolean;
   onAvatarClick: () => void;
   onCoverClick: () => void;
-  avatarInputRef: React.RefObject<HTMLInputElement>;
-  coverInputRef: React.RefObject<HTMLInputElement>;
+  avatarInputRef: React.RefObject<HTMLInputElement | null>;
+  coverInputRef: React.RefObject<HTMLInputElement | null>;
   onAvatarChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onCoverChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onEditProfile: () => void;

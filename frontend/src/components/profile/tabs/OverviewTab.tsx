@@ -1,10 +1,28 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Trello, ExternalLink, Loader2 } from 'lucide-react';
+import { Trello, ExternalLink, Loader2, Lock } from 'lucide-react';
+import { useAuthStore } from '../../../lib/store';
 
-export function OverviewTab({ profile, userTasks, loadingTasks }: { profile: any; userTasks: any[] | undefined; loadingTasks: boolean }) {
+export function OverviewTab({
+  profile,
+  userTasks,
+  loadingTasks,
+  isOwnProfile,
+}: {
+  profile: any;
+  userTasks: any[] | undefined;
+  loadingTasks: boolean;
+  isOwnProfile: boolean;
+}) {
   const router = useRouter();
+  const currentUser = useAuthStore((s) => s.user);
   const completedCount = userTasks?.filter((t: any) => t.status === 'COMPLETED').length || 0;
+
+  // Emergency contact and date of birth are only ever sent by the backend
+  // to the profile owner or an Admin (see getProfileById) — this mirrors
+  // that same rule on the display side, so a colleague sees a clear "Only
+  // visible to you" placeholder instead of a field that just looks blank.
+  const canSeePrivateHrFields = isOwnProfile || currentUser?.role === 'ADMIN';
 
   return (
     <div className="space-y-6">
@@ -21,11 +39,39 @@ export function OverviewTab({ profile, userTasks, loadingTasks }: { profile: any
           <h3 className="text-sm font-extrabold uppercase text-slate-450 tracking-wider">Employee Information</h3>
           <div className="space-y-3 text-xs font-semibold">
             <div className="flex justify-between py-1 border-b dark:border-slate-800">
+              <span className="text-muted-foreground">User ID</span>
+              <span className="text-slate-800 dark:text-slate-205">{profile?.employeeId || 'Not Assigned'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b dark:border-slate-800">
+              <span className="text-muted-foreground">Date of Birth</span>
+              {canSeePrivateHrFields ? (
+                <span className="text-slate-850 dark:text-slate-200">
+                  {profile?.birthday ? new Date(profile.birthday).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not Specified'}
+                </span>
+              ) : (
+                <span className="text-slate-400 flex items-center gap-1">
+                  <Lock className="h-3 w-3" /> Only visible to them
+                </span>
+              )}
+            </div>
+            <div className="flex justify-between py-1 border-b dark:border-slate-800">
+              <span className="text-muted-foreground">Joining Date</span>
+              <span className="text-slate-850 dark:text-slate-200">
+                {profile?.joiningDate
+                  ? new Date(profile.joiningDate).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })
+                  : 'Not Set by HR Yet'}
+              </span>
+            </div>
+            <div className="flex justify-between py-1 border-b dark:border-slate-800">
+              <span className="text-muted-foreground">Location</span>
+              <span className="text-slate-800 dark:text-slate-205">{profile?.location || 'Not Specified'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b dark:border-slate-800">
               <span className="text-muted-foreground">Office Location</span>
               <span className="text-slate-800 dark:text-slate-205">{profile?.officeLocation || 'Main HQ'}</span>
             </div>
             <div className="flex justify-between py-1 border-b dark:border-slate-800">
-              <span className="text-muted-foreground">Employment Type</span>
+              <span className="text-muted-foreground">Employee Type</span>
               <span className="text-slate-800 dark:text-slate-205 uppercase text-[10px] font-black bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                 {profile?.employmentType || 'FULL_TIME'}
               </span>
@@ -40,15 +86,13 @@ export function OverviewTab({ profile, userTasks, loadingTasks }: { profile: any
             </div>
             <div className="flex justify-between py-1 border-b dark:border-slate-800">
               <span className="text-muted-foreground">Emergency Contact</span>
-              <span className="text-slate-850 dark:text-slate-200">{profile?.emergencyContact || 'Not Specified'}</span>
-            </div>
-            <div className="flex justify-between py-1 border-b dark:border-slate-800">
-              <span className="text-muted-foreground">Joining Date</span>
-              <span className="text-slate-850 dark:text-slate-200">
-                {profile?.createdAt
-                  ? new Date(profile.createdAt).toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })
-                  : 'Not Specified'}
-              </span>
+              {canSeePrivateHrFields ? (
+                <span className="text-slate-850 dark:text-slate-200">{profile?.emergencyContact || 'Not Specified'}</span>
+              ) : (
+                <span className="text-slate-400 flex items-center gap-1">
+                  <Lock className="h-3 w-3" /> Only visible to them
+                </span>
+              )}
             </div>
             <div className="flex justify-between py-1 border-b dark:border-slate-800">
               <span className="text-muted-foreground">Last Login</span>

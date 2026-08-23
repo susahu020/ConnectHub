@@ -28,7 +28,7 @@ export function WikiSidebar({
 }: {
   createMenuOpen: boolean;
   onToggleCreateMenu: () => void;
-  createDropdownRef: React.RefObject<HTMLDivElement>;
+  createDropdownRef: React.RefObject<HTMLDivElement | null>;
   onCreateDocument: (type: 'blank' | 'sop' | 'hr' | 'policy') => void;
   searchQuery: string;
   onSearchQueryChange: (v: string) => void;

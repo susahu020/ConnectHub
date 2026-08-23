@@ -44,7 +44,7 @@ export function WikiEditor({
   editContent: string;
   onEditContentChange: (v: string) => void;
   onApplyFormat: (formatType: string) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   return (
     <div className="space-y-4 max-w-4xl mx-auto">

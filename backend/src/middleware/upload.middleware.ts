@@ -20,7 +20,13 @@ const storage = multer.diskStorage({
 
 const fileFilter = (req: any, file: any, cb: any) => {
   const allowedExtensions = [
-    '.png', '.jpeg', '.jpg', '.gif', '.heic',
+    // Images — .svg, .webp, and .ico added: the organization logo/favicon
+    // uploader's file picker (frontend/.../organization/settings/page.tsx)
+    // explicitly advertises all three via its `accept` attribute (SVG is
+    // the standard scalable-logo format, ICO the standard favicon format),
+    // but they were missing here, so every one of those uploads failed
+    // with "Unsupported file type" despite the UI inviting exactly that.
+    '.png', '.jpeg', '.jpg', '.gif', '.heic', '.heif', '.svg', '.webp', '.ico',
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
     '.txt', '.zip', '.rar',
     '.mp3', '.wav',

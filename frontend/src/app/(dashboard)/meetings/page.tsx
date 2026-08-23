@@ -16,28 +16,38 @@ import {
   MessageSquare, 
   Eraser, 
   Download, 
+  Rss,
   PhoneOff, 
   Plus, 
   X, 
   Send, 
   Maximize2, 
+  Minimize2,
   Check, 
   Circle,
   HelpCircle,
   Calendar,
   Grid,
+  LayoutGrid,
   Loader2,
   Lock,
   Compass,
   Share2,
   Laptop,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Pin,
+  PinOff,
+  Crown,
+  Ban,
+  BarChart3,
+  Keyboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../../../hooks/useSocket';
 import { api } from '../../../services/api';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
+import { useConfirm } from '../../../context/ConfirmContext';
 
 // Remote video stream binder for WebRTC
 const RemoteVideo = ({ stream, className }: { stream: MediaStream; className?: string }) => {
@@ -52,6 +62,7 @@ const RemoteVideo = ({ stream, className }: { stream: MediaStream; className?: s
 
 export default function MeetingsPage() {
   const { user } = useAuthStore();
+  const confirm = useConfirm();
   const { socket } = useSocket();
   const { settings: orgSettings } = useOrganizationSettings();
   
@@ -107,6 +118,51 @@ export default function MeetingsPage() {
   const [hostStartedMeeting, setHostStartedMeeting] = useState(false);
   const [joinRequests, setJoinRequests] = useState<any[]>([]);
   const [waitingStatus, setWaitingStatus] = useState<'not_started' | 'asking' | 'denied'>('not_started');
+
+  // Co-host (Meet "co-host" / Teams "co-organizer") state. isCoHost is
+  // derived from coHostIds whenever either changes (see effect below),
+  // rather than being set directly, so it can never drift out of sync with
+  // the authoritative list.
+  const [coHostIds, setCoHostIds] = useState<string[]>([]);
+  const [isCoHost, setIsCoHost] = useState(false);
+  // Host OR co-host — the gate used throughout the room UI for moderation
+  // controls (admit, mute, remove, lock, breakout rooms, polls, spotlight).
+  const canModerate = isHost || isCoHost;
+  const [meetingMuteOnEntry, setMeetingMuteOnEntry] = useState(false);
+
+  // Meeting timer — startedAt comes from the DB (getMeetingByCode) for a
+  // guest joining a call already in progress, or is set locally the moment
+  // the host/co-host starts it, then ticks via the effect further down.
+  const [meetingStartedAt, setMeetingStartedAt] = useState<Date | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Pin (local-only, "pin for me") vs spotlight (host/co-host broadcasts it
+  // to everyone, overriding each viewer's local pin). Spotlight always wins
+  // when both are set, same as Meet.
+  const [localPinnedSocketId, setLocalPinnedSocketId] = useState<string | null>(null);
+  const [spotlightedSocketId, setSpotlightedSocketId] = useState<string | null>(null);
+  const [spotlightedName, setSpotlightedName] = useState<string | null>(null);
+  const effectivePinnedSocketId = spotlightedSocketId ?? localPinnedSocketId;
+
+  // Grid (everyone equal size) vs Speaker (one large tile) layout — a pure
+  // client-side view preference, not broadcast to anyone else.
+  const [viewMode, setViewMode] = useState<'grid' | 'speaker'>('grid');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+
+  // Per-peer connection quality, refreshed periodically from
+  // RTCPeerConnection.getStats() while in the room (see effect below).
+  const [connectionQuality, setConnectionQuality] = useState<Record<string, 'good' | 'fair' | 'poor'>>({});
+
+  // Live polls (Meet/Teams "Polls" activity) — ephemeral, mirrors the
+  // in-memory state on the server; nothing here is meant to survive a page
+  // refresh.
+  const [showCreatePollModal, setShowCreatePollModal] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [activePoll, setActivePoll] = useState<{ pollId: string; question: string; options: string[]; byName: string } | null>(null);
+  const [pollResults, setPollResults] = useState<{ counts: number[]; totalVotes: number } | null>(null);
+  const [myPollVote, setMyPollVote] = useState<number | null>(null);
   
   // Media States
   const [videoOn, setVideoOn] = useState(true);
@@ -132,7 +188,52 @@ export default function MeetingsPage() {
   useEffect(() => { userRef.current = user; }, [user]);
   const mediaStreamRef = useRef(mediaStream);
   useEffect(() => { mediaStreamRef.current = mediaStream; }, [mediaStream]);
-  
+
+  // isCoHost is always derived, never set directly, so it can't drift out of
+  // sync with coHostIds (which is itself kept current by the co_hosts_updated
+  // socket listener below).
+  useEffect(() => {
+    setIsCoHost(!isHost && !!user && coHostIds.includes(user.id));
+  }, [isHost, coHostIds, user]);
+
+  // Meeting timer — ticks once a second while in the room. meetingStartedAt
+  // is set either from the DB (joining a call already live) or locally the
+  // moment the host/co-host starts it.
+  useEffect(() => {
+    if (meetingStep !== 'room' || !meetingStartedAt) return;
+    const tick = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - meetingStartedAt.getTime()) / 1000)));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [meetingStep, meetingStartedAt]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Keyboard shortcuts (Ctrl/Cmd+D mic, Ctrl/Cmd+E camera) — mirrors Google
+  // Meet's own shortcuts. Ignored while typing in chat or anywhere else with
+  // text focus so a stray Ctrl+D in a message doesn't cut someone's mic.
+  useEffect(() => {
+    if (meetingStep !== 'room') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      if (isTyping || !(e.ctrlKey || e.metaKey)) return;
+      if (e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setAudioOn(prev => !prev);
+      } else if (e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        setVideoOn(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [meetingStep]);
+
   // Whiteboard Canvas
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -153,6 +254,45 @@ export default function MeetingsPage() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [mediaAccessFailed, setMediaAccessFailed] = useState(false);
 
+  // Lightweight per-peer connection quality, sampled from WebRTC stats every
+  // few seconds — packet loss and round-trip time are the two cheapest,
+  // most broadly-supported signals for "is this call about to get choppy."
+  useEffect(() => {
+    if (meetingStep !== 'room') return;
+    const sample = async () => {
+      const entries = Object.entries(peerConnections.current);
+      const results: Record<string, 'good' | 'fair' | 'poor'> = {};
+      await Promise.all(entries.map(async ([socketId, pc]) => {
+        try {
+          const stats = await pc.getStats();
+          let packetsLost = 0;
+          let packetsReceived = 0;
+          let rttMs: number | null = null;
+          stats.forEach((report: any) => {
+            if (report.type === 'inbound-rtp' && !report.isRemote) {
+              packetsLost += report.packetsLost || 0;
+              packetsReceived += report.packetsReceived || 0;
+            }
+            if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.currentRoundTripTime != null) {
+              rttMs = report.currentRoundTripTime * 1000;
+            }
+          });
+          const lossRatio = packetsReceived > 0 ? packetsLost / (packetsLost + packetsReceived) : 0;
+          if (lossRatio > 0.08 || (rttMs != null && rttMs > 400)) results[socketId] = 'poor';
+          else if (lossRatio > 0.02 || (rttMs != null && rttMs > 200)) results[socketId] = 'fair';
+          else results[socketId] = 'good';
+        } catch {
+          // getStats can transiently fail right as a connection is being torn
+          // down/renegotiated — just skip that peer for this sample.
+        }
+      }));
+      setConnectionQuality(results);
+    };
+    sample();
+    const interval = setInterval(sample, 5000);
+    return () => clearInterval(interval);
+  }, [meetingStep, participants]);
+
   // Breakout Rooms State — "main" always implicitly exists; any other rooms are
   // created by the host and broadcast to everyone via `breakout_rooms_updated`.
   const [breakoutRooms, setBreakoutRooms] = useState<{ id: string; name: string }[]>([
@@ -170,10 +310,24 @@ export default function MeetingsPage() {
   const [scheduleTime, setScheduleTime] = useState('');
   const [scheduleDuration, setScheduleDuration] = useState('30');
   const [scheduleInviteeIds, setScheduleInviteeIds] = useState<string[]>([]);
+  const [scheduleCoHostIds, setScheduleCoHostIds] = useState<string[]>([]);
+  const [scheduleMuteOnEntry, setScheduleMuteOnEntry] = useState(false);
+  const [scheduleRecurrenceRule, setScheduleRecurrenceRule] = useState(''); // '' = one-off
+  const [scheduleRecurrenceEndDate, setScheduleRecurrenceEndDate] = useState('');
   const [directoryUsers, setDirectoryUsers] = useState<any[]>([]);
   const [myMeetings, setMyMeetings] = useState<any[]>([]);
   const [loadingMyMeetings, setLoadingMyMeetings] = useState(true);
   const [respondingInviteId, setRespondingInviteId] = useState('');
+
+  // True while we're resolving a `?code=` link the user landed on (calendar
+  // invite, .ics link, subscribed-feed link, pasted invite URL) — shows a
+  // brief loading state on the lobby instead of a flash of the "New meeting /
+  // Join a meeting" form before we redirect them straight into the meeting.
+  const [resolvingLinkCode, setResolvingLinkCode] = useState(false);
+  // Guards against processing the same ?code= link twice — e.g. React 18
+  // Strict Mode double-invoking effects in dev, or this effect re-running
+  // for any other reason while the async lookup below is still in flight.
+  const handledLinkCodeRef = useRef<string | null>(null);
 
   // Meeting Recording
   const [recording, setRecording] = useState(false);
@@ -413,7 +567,7 @@ export default function MeetingsPage() {
     };
 
     const handlePermissionRequested = (payload: any) => {
-      if (!isHost) return;
+      if (!canModerate) return;
       setScreenSharePermissionRequests(prev =>
         prev.some(r => r.socketId === payload.socketId) ? prev : [...prev, payload]
       );
@@ -439,7 +593,7 @@ export default function MeetingsPage() {
       socket.off('screen_share_permission_requested', handlePermissionRequested);
       socket.off('screen_share_permission_result', handlePermissionResult);
     };
-  }, [socket, isHost]);
+  }, [socket, canModerate]);
 
   // Recording consent notice — every participant (not just the host) needs to
   // know a recording is running, matching Meet/Teams behavior.
@@ -475,21 +629,105 @@ export default function MeetingsPage() {
       toast('The host muted your microphone.', { icon: '🔇' });
     };
 
-    const handleRemoved = () => {
-      toast.error('You were removed from the meeting by the host.');
+    const handleRemoved = ({ banned }: { banned?: boolean } = {}) => {
+      toast.error(banned ? 'You were removed and blocked from this meeting by the host.' : 'You were removed from the meeting by the host.');
       handleDisconnect(false);
+    };
+
+    const handleAllMuted = ({ byName }: { byName: string }) => {
+      setAudioOn(false);
+      if (mediaStream) {
+        mediaStream.getAudioTracks().forEach(track => (track.enabled = false));
+      }
+      toast(`${byName} muted everyone in the room.`, { icon: '🔇' });
+    };
+
+    const handleSpotlightChanged = ({ targetSocketId, targetName }: { targetSocketId: string | null; targetName: string | null }) => {
+      setSpotlightedSocketId(targetSocketId);
+      setSpotlightedName(targetName);
+      if (targetSocketId) toast(`${targetName} was spotlighted for everyone.`, { icon: '⭐' });
     };
 
     socket.on('meeting_lock_changed', handleLockChanged);
     socket.on('force_muted', handleForceMuted);
     socket.on('removed_from_meeting', handleRemoved);
+    socket.on('all_participants_muted', handleAllMuted);
+    socket.on('participant_spotlight_changed', handleSpotlightChanged);
 
     return () => {
       socket.off('meeting_lock_changed', handleLockChanged);
       socket.off('force_muted', handleForceMuted);
       socket.off('removed_from_meeting', handleRemoved);
+      socket.off('all_participants_muted', handleAllMuted);
+      socket.off('participant_spotlight_changed', handleSpotlightChanged);
     };
   }, [socket, mediaStream]);
+
+  // Co-hosts stay in sync live — including for the person who was just
+  // (de)promoted, so their own moderation controls appear/disappear without
+  // needing a refresh.
+  useEffect(() => {
+    if (!socket) return;
+    const handleCoHostsUpdated = ({ coHostIds: next }: { coHostIds: string[] }) => setCoHostIds(next);
+    socket.on('co_hosts_updated', handleCoHostsUpdated);
+    return () => { socket.off('co_hosts_updated', handleCoHostsUpdated); };
+  }, [socket]);
+
+  // Live polls — ephemeral, mirrors the in-memory poll state the server
+  // holds for the meeting.
+  useEffect(() => {
+    if (!socket) return;
+
+    const handlePollStarted = (payload: { pollId: string; question: string; options: string[]; byName: string }) => {
+      setActivePoll(payload);
+      setPollResults({ counts: payload.options.map(() => 0), totalVotes: 0 });
+      setMyPollVote(null);
+      toast(`${payload.byName} started a poll`, { icon: '📊' });
+    };
+
+    const handlePollResultsUpdated = ({ counts, totalVotes }: { pollId: string; counts: number[]; totalVotes: number }) => {
+      setPollResults({ counts, totalVotes });
+    };
+
+    const handlePollEnded = ({ pollId }: { pollId: string }) => {
+      setActivePoll(prev => (prev?.pollId === pollId ? null : prev));
+      setMyPollVote(null);
+    };
+
+    socket.on('poll_started', handlePollStarted);
+    socket.on('poll_results_updated', handlePollResultsUpdated);
+    socket.on('poll_ended', handlePollEnded);
+
+    return () => {
+      socket.off('poll_started', handlePollStarted);
+      socket.off('poll_results_updated', handlePollResultsUpdated);
+      socket.off('poll_ended', handlePollEnded);
+    };
+  }, [socket]);
+
+  const handleCreatePoll = () => {
+    if (!socket || !canModerate) return;
+    const cleanOptions = pollOptions.map(o => o.trim()).filter(Boolean);
+    if (!pollQuestion.trim() || cleanOptions.length < 2) {
+      toast.error('A poll needs a question and at least 2 options.');
+      return;
+    }
+    socket.emit('create_poll', { meetingId, question: pollQuestion.trim(), options: cleanOptions });
+    setShowCreatePollModal(false);
+    setPollQuestion('');
+    setPollOptions(['', '']);
+  };
+
+  const handleVotePoll = (optionIndex: number) => {
+    if (!socket || !activePoll) return;
+    setMyPollVote(optionIndex);
+    socket.emit('submit_poll_vote', { meetingId, pollId: activePoll.pollId, optionIndex });
+  };
+
+  const handleEndPoll = () => {
+    if (!socket || !activePoll || !canModerate) return;
+    socket.emit('end_poll', { meetingId, pollId: activePoll.pollId });
+  };
 
   // Breakout room list stays in sync for everyone as the host creates/renames/
   // removes rooms, and everyone gets pulled back to main when the host closes them.
@@ -520,25 +758,94 @@ export default function MeetingsPage() {
   }, [socket]);
 
   const handleToggleMeetingLock = () => {
-    if (!socket || !isHost) return;
+    if (!socket || !canModerate) return;
     const next = !meetingLocked;
     setMeetingLocked(next);
     socket.emit('toggle_meeting_lock', { meetingId, locked: next });
   };
 
   const handleForceMuteParticipant = (targetSocketId: string, name: string) => {
-    if (!socket || !isHost) return;
+    if (!socket || !canModerate) return;
     const room = activeRoomId === 'main' ? meetingId : `${meetingId}_${activeRoomId}`;
     socket.emit('force_mute_participant', { meetingId, room, targetSocketId });
     toast.success(`Muted ${name}.`);
   };
 
-  const handleRemoveParticipant = (targetSocketId: string, name: string) => {
-    if (!socket || !isHost) return;
+  // "Mute all" — mutes everyone currently in the active room in one action,
+  // the way Meet/Teams both offer for larger calls.
+  const handleMuteAllParticipants = () => {
+    if (!socket || !canModerate) return;
     const room = activeRoomId === 'main' ? meetingId : `${meetingId}_${activeRoomId}`;
-    socket.emit('remove_participant', { meetingId, room, targetSocketId });
+    socket.emit('mute_all_participants', { meetingId, room });
+    toast.success('Muted everyone in the room.');
+  };
+
+  // Plain removal ends the target's current session but leaves the door open
+  // for them to send a fresh join request. `ban: true` additionally blocks
+  // them from rejoining at all (mirrors Meet/Teams "Remove from meeting" +
+  // block), so it gets its own confirmation given it's the less reversible
+  // of the two.
+  const handleRemoveParticipant = async (targetSocketId: string, name: string, ban = false) => {
+    if (!socket || !canModerate) return;
+    if (ban) {
+      const ok = await confirm({
+        title: 'Remove and block?',
+        message: `${name} will be removed from the call and won't be able to rejoin using this meeting's link or code.`,
+        confirmText: 'Remove and block',
+        type: 'danger',
+      });
+      if (!ok) return;
+    }
+    const room = activeRoomId === 'main' ? meetingId : `${meetingId}_${activeRoomId}`;
+    socket.emit('remove_participant', { meetingId, room, targetSocketId, ban });
     setParticipants(prev => prev.filter(p => p.socketId !== targetSocketId));
-    toast.success(`Removed ${name} from the meeting.`);
+    toast.success(ban ? `Removed ${name} and blocked them from rejoining.` : `Removed ${name} from the meeting.`);
+  };
+
+  // Co-host management — host-only (a co-host can't promote/demote other
+  // co-hosts). Persists via REST (so it survives a refresh) and the server
+  // also broadcasts `co_hosts_updated` so every client — including the
+  // newly (de)promoted one — picks up the change live.
+  const [updatingCoHostId, setUpdatingCoHostId] = useState('');
+  const handleToggleCoHost = async (targetUserId: string, name: string, makeCoHost: boolean) => {
+    if (!isHost) return;
+    const next = makeCoHost ? [...coHostIds, targetUserId] : coHostIds.filter((id) => id !== targetUserId);
+    setUpdatingCoHostId(targetUserId);
+    try {
+      await api.updateMeetingCoHosts(meetingId, next);
+      setCoHostIds(next);
+      toast.success(makeCoHost ? `${name} is now a co-host.` : `${name} is no longer a co-host.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Could not update co-hosts.');
+    } finally {
+      setUpdatingCoHostId('');
+    }
+  };
+
+  // "Pin for me" — local only, no broadcast. Toggling it off (clicking the
+  // already-pinned tile again) returns to the default grid.
+  const handleTogglePin = (targetSocketId: string) => {
+    setLocalPinnedSocketId(prev => (prev === targetSocketId ? null : targetSocketId));
+  };
+
+  // "Spotlight for everyone" — host/co-host only, overrides everyone's local
+  // pin until toggled off or the meeting ends.
+  const handleSpotlightParticipant = (targetSocketId: string, name: string, spotlight: boolean) => {
+    if (!socket || !canModerate) return;
+    const room = activeRoomId === 'main' ? meetingId : `${meetingId}_${activeRoomId}`;
+    socket.emit('spotlight_participant', { meetingId, room, targetSocketId, targetName: name, spotlighted: spotlight });
+  };
+
+  const handleToggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      toast.error('Fullscreen isn\'t available in this browser.');
+    }
   };
 
   const handleAdmitAllRequests = () => {
@@ -553,6 +860,18 @@ export default function MeetingsPage() {
     setBreakoutRooms([{ id: 'main', name: 'Main Room' }]);
     setActiveRoomId('main');
     setShowBreakoutMenu(false);
+    setCoHostIds([]);
+    setMeetingMuteOnEntry(false);
+    setMeetingStartedAt(null);
+    setElapsedSeconds(0);
+    setLocalPinnedSocketId(null);
+    setSpotlightedSocketId(null);
+    setSpotlightedName(null);
+    setViewMode('grid');
+    setConnectionQuality({});
+    setActivePoll(null);
+    setPollResults(null);
+    setMyPollVote(null);
     
     if (socket) {
       const room = activeRoomId === 'main' ? meetingId : `${meetingId}_${activeRoomId}`;
@@ -579,16 +898,72 @@ export default function MeetingsPage() {
     toast.success(endForEveryone ? 'Meeting ended.' : 'You left the meeting.');
   };
 
-  // Load URL query params on mount
+  // Auto-launch straight into a meeting when the URL carries a join code —
+  // e.g. a calendar invite (.ics) link, a subscribed calendar-feed entry, or
+  // a pasted invite link. Matches Google Meet/Teams: clicking the link takes
+  // you straight to the meeting page (waiting room if it hasn't started yet,
+  // or directly into the call if it's already live) instead of dropping you
+  // on the plain lobby form and making you press "Join" again.
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('joinCode');
-      if (code) {
-        setMeetingId(code);
-        setIsHost(false);
-      }
-    }
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    // `code` is what the backend puts in .ics / calendar-feed links (see
+    // getMeetingIcs / getCalendarFeed); `joinCode` is what this page's own
+    // "Invite Link" / "Send invite" buttons generate (buildInviteLink).
+    // Accepting either means both link sources land the visitor in the
+    // meeting instead of only one of them working.
+    const rawCode = params.get('code') || params.get('joinCode');
+    if (!rawCode || handledLinkCodeRef.current === rawCode) return;
+    handledLinkCodeRef.current = rawCode;
+
+    // Strip the code from the visible URL immediately so refreshing mid-call,
+    // hitting back, or copying the address bar later doesn't re-trigger this
+    // flow or hand around a now-stale code.
+    window.history.replaceState({}, '', window.location.pathname);
+
+    const code = rawCode.trim().toLowerCase();
+    setResolvingLinkCode(true);
+    api.getMeetingByCode(code)
+      .then((meeting: any) => {
+        if (meeting.status === 'CANCELLED') {
+          toast.error('This meeting has been cancelled by the host.');
+          return;
+        }
+        const iAmHost = !!userRef.current && meeting.hostId === userRef.current.id;
+        const iAmCoHost = !iAmHost && !!userRef.current && (meeting.coHostIds || []).includes(userRef.current.id);
+        setMeetingId(meeting.code);
+        setHostUserId(meeting.hostId);
+        setCoHostIds(meeting.coHostIds || []);
+        setMeetingMuteOnEntry(!!meeting.muteOnEntry);
+
+        if (iAmHost || iAmCoHost) {
+          setIsHost(iAmHost);
+          if (meeting.status === 'LIVE') {
+            // Host/co-host is reconnecting to a call already started elsewhere
+            // (e.g. opened their own invite link from a second device/tab) —
+            // drop them straight into the room, no waiting room needed.
+            setHostStartedMeeting(true);
+            setMeetingStartedAt(meeting.startedAt ? new Date(meeting.startedAt) : new Date());
+            setMeetingStep('room');
+          } else {
+            // Not started yet. The meeting should only go live when someone
+            // explicitly starts it — so surface the same "share / start now"
+            // panel the instant-meeting flow uses, rather than auto-starting
+            // it just because the link was opened.
+            setNewMeetingCode(meeting.code);
+            setShowShareModal(true);
+          }
+        } else {
+          setIsHost(false);
+          setHostStartedMeeting(meeting.status === 'LIVE');
+          setMeetingStartedAt(meeting.startedAt ? new Date(meeting.startedAt) : null);
+          setMeetingStep('waiting');
+        }
+      })
+      .catch((err: any) => {
+        toast.error(err?.message || 'No meeting found with that code. Double-check it and try again.');
+      })
+      .finally(() => setResolvingLinkCode(false));
   }, []);
 
   // WebRTC User Media initializer
@@ -716,10 +1091,19 @@ export default function MeetingsPage() {
     });
 
     // Listen for host's admission result (received by Guest)
-    socket.on('meeting_admission_result', ({ admit, meetingId: decisionId, locked }) => {
+    socket.on('meeting_admission_result', ({ admit, meetingId: decisionId, locked, banned }) => {
       if (admit) {
         setMeetingStep('room');
+        setMeetingStartedAt(prev => prev ?? new Date());
+        // Applied client-side (from the host's muteOnEntry setting, fetched
+        // earlier via getMeetingByCode) rather than waiting on a server round
+        // trip — avoids a race with the media-acquisition effect that runs
+        // the moment meetingStep flips to 'room'.
+        if (meetingMuteOnEntry) setAudioOn(false);
         toast.success('You have been admitted to the meeting!');
+      } else if (banned) {
+        setWaitingStatus('denied');
+        toast.error('You have been removed from this meeting by the host.');
       } else {
         setWaitingStatus('denied');
         toast.error(locked ? 'This meeting is locked by the host.' : 'The host denied your entry request.');
@@ -744,9 +1128,18 @@ export default function MeetingsPage() {
         return [...prev, participant];
       });
       toast.success(`${participant.name} joined the call.`);
-      
-      // Initiate WebRTC connection to the joining peer
-      createWebRTCOffer(participant.socketId);
+
+      // Deliberately NOT calling createWebRTCOffer here. The joining peer's
+      // own 'meeting_active_participants' handler above already offers to
+      // every participant already in the room (including us) — if we also
+      // offer back to them here, both sides send a simultaneous SDP offer
+      // for the same pair with no rollback/"polite peer" logic to resolve
+      // the collision, which is the classic WebRTC glare failure: the
+      // signaling exchange can end up stuck (setRemoteDescription rejected
+      // because we're not in 'stable' state), silently dropping that one
+      // participant's audio/video for everyone else. Only the newer peer
+      // needs to initiate; we just wait for their offer and answer it via
+      // the 'webrtc_signal' handler below.
     });
 
     // Listen for participant leaving the call room
@@ -903,7 +1296,7 @@ export default function MeetingsPage() {
       socket.off('clear_whiteboard');
       socket.off('reaction_received');
     };
-  }, [socket]);
+  }, [socket, meetingMuteOnEntry]);
 
   // Join the persistent, whole-meeting channel for the entire time we're in the
   // call — this is what meeting-wide host controls (end meeting, lock, recording
@@ -1333,7 +1726,12 @@ export default function MeetingsPage() {
     setChatInput('');
   };
 
-  const buildInviteLink = (code: string) => `${window.location.origin}/meetings?joinCode=${code}`;
+  // `code` matches the query param the backend's .ics / calendar-feed links
+  // use (buildIcsCalendar in getMeetingIcs / getCalendarFeed) — keeping this
+  // in sync means every link source (in-app "Invite Link" button, calendar
+  // download, calendar subscription feed) leads to the same auto-launch
+  // behavior in the mount effect above.
+  const buildInviteLink = (code: string) => `${window.location.origin}/meetings?code=${code}`;
 
   const handleCopyLink = (code: string) => {
     navigator.clipboard.writeText(buildInviteLink(code));
@@ -1370,7 +1768,7 @@ export default function MeetingsPage() {
 
   // Host-only: create a new breakout room and broadcast the updated list to everyone
   const handleAddBreakoutRoom = () => {
-    if (!socket || !isHost) return;
+    if (!socket || !canModerate) return;
     const name = newBreakoutRoomName.trim() || `Breakout Room ${breakoutRooms.length}`;
     const newRoom = { id: `br-${Date.now()}`, name };
     const updatedRooms = breakoutRooms.filter(r => r.id !== 'main').concat(newRoom);
@@ -1378,17 +1776,18 @@ export default function MeetingsPage() {
     setNewBreakoutRoomName('');
   };
 
-  // Host-only: remove a single breakout room. Anyone currently inside it will be
-  // moved back to main automatically once the updated list reaches their client.
+  // Host or co-host: remove a single breakout room. Anyone currently inside it
+  // will be moved back to main automatically once the updated list reaches
+  // their client.
   const handleRemoveBreakoutRoom = (roomId: string) => {
-    if (!socket || !isHost) return;
+    if (!socket || !canModerate) return;
     const updatedRooms = breakoutRooms.filter(r => r.id !== 'main' && r.id !== roomId);
     socket.emit('update_breakout_rooms', { meetingId, rooms: updatedRooms });
   };
 
-  // Host-only: close all breakout rooms at once, pulling everyone back to main
+  // Host or co-host: close all breakout rooms at once, pulling everyone back to main
   const handleCloseBreakoutRooms = () => {
-    if (!socket || !isHost) return;
+    if (!socket || !canModerate) return;
     socket.emit('close_breakout_rooms', { meetingId });
     socket.emit('update_breakout_rooms', { meetingId, rooms: [] });
     toast.success('Breakout rooms closed. Everyone has been moved back to the main room.');
@@ -1417,8 +1816,32 @@ export default function MeetingsPage() {
     if (meetingStep === 'lobby') refetchMyMeetings();
   }, [meetingStep]);
 
+  // Keep "My Meetings" live: every other page's meeting data is React Query
+  // and gets invalidated automatically off the backend's `data_update`
+  // broadcast (see MODULE_QUERY_KEYS.meetings in hooks/useSocket.tsx), but
+  // this list is plain local state, so it needs its own listener. Without
+  // this, a new invite (or a host starting/cancelling a meeting) only shows
+  // up here after the invitee navigates away and back — not the moment it
+  // actually happens, which is what "shows up in their Meeting section"
+  // means for someone with this page open right now.
+  useEffect(() => {
+    if (!socket) return;
+    const handleMeetingsDataUpdate = ({ module }: { module: string }) => {
+      if (module === 'meetings' && meetingStep === 'lobby') refetchMyMeetings();
+    };
+    socket.on('data_update', handleMeetingsDataUpdate);
+    return () => { socket.off('data_update', handleMeetingsDataUpdate); };
+  }, [socket, meetingStep]);
+
   const toggleScheduleInvitee = (userId: string) => {
     setScheduleInviteeIds(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]);
+    // A co-host has to actually be invited — if they're being unchecked as an
+    // invitee, drop any co-host designation along with it.
+    setScheduleCoHostIds(prev => prev.filter(id => id !== userId));
+  };
+
+  const toggleScheduleCoHost = (userId: string) => {
+    setScheduleCoHostIds(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]);
   };
 
   const handleScheduleMeeting = async () => {
@@ -1436,21 +1859,39 @@ export default function MeetingsPage() {
       return;
     }
 
+    if (scheduleRecurrenceRule && !scheduleRecurrenceEndDate) {
+      toast.error('Pick when the recurring series should stop.');
+      return;
+    }
+
     setScheduling(true);
     try {
-      await api.scheduleMeeting({
+      const result: any = await api.scheduleMeeting({
         title: scheduleTitle.trim() || undefined,
         scheduledFor: scheduledFor.toISOString(),
         durationMins: parseInt(scheduleDuration, 10) || 30,
         inviteeIds: scheduleInviteeIds,
+        recurrenceRule: scheduleRecurrenceRule || undefined,
+        recurrenceEndDate: scheduleRecurrenceRule && scheduleRecurrenceEndDate ? new Date(scheduleRecurrenceEndDate).toISOString() : undefined,
+        coHostIds: scheduleCoHostIds,
+        muteOnEntry: scheduleMuteOnEntry,
       });
-      toast.success(scheduleInviteeIds.length > 0 ? 'Meeting scheduled and invites sent!' : 'Meeting scheduled!');
+      const occurrences = result?.occurrencesCreated || 1;
+      toast.success(
+        occurrences > 1
+          ? `${occurrences} occurrences scheduled${scheduleInviteeIds.length > 0 ? ' and invites sent' : ''}!`
+          : scheduleInviteeIds.length > 0 ? 'Meeting scheduled and invites sent!' : 'Meeting scheduled!'
+      );
       setShowScheduleModal(false);
       setScheduleTitle('');
       setScheduleDate('');
       setScheduleTime('');
       setScheduleDuration('30');
       setScheduleInviteeIds([]);
+      setScheduleCoHostIds([]);
+      setScheduleMuteOnEntry(false);
+      setScheduleRecurrenceRule('');
+      setScheduleRecurrenceEndDate('');
       refetchMyMeetings();
     } catch (err: any) {
       toast.error(err.message || 'Failed to schedule the meeting.');
@@ -1472,24 +1913,112 @@ export default function MeetingsPage() {
     }
   };
 
+  const [cancellingMeetingId, setCancellingMeetingId] = useState('');
+  const [downloadingIcsId, setDownloadingIcsId] = useState('');
+  const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+  const [subscribingFeed, setSubscribingFeed] = useState(false);
+  const [feedUrls, setFeedUrls] = useState<{ feedUrl: string; webcalUrl: string } | null>(null);
+  const handleGetCalendarFeed = async () => {
+    setShowSubscribeModal(true);
+    if (feedUrls) return; // already fetched this session, no need to regenerate every open
+    setSubscribingFeed(true);
+    try {
+      const result = await api.regenerateCalendarFeedToken();
+      setFeedUrls(result);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to set up your calendar subscription.');
+      setShowSubscribeModal(false);
+    } finally {
+      setSubscribingFeed(false);
+    }
+  };
+  const handleRegenerateFeed = async () => {
+    setSubscribingFeed(true);
+    try {
+      const result = await api.regenerateCalendarFeedToken();
+      setFeedUrls(result);
+      toast.success('New link generated — the old one no longer works.');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to regenerate your calendar link.');
+    } finally {
+      setSubscribingFeed(false);
+    }
+  };
+
+  const handleDownloadIcs = async (meeting: any) => {
+    setDownloadingIcsId(meeting.id);
+    try {
+      await api.downloadMeetingIcs(meeting.id, meeting.code);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download this meeting.');
+    } finally {
+      setDownloadingIcsId('');
+    }
+  };
+
+  const handleCancelMeeting = async (meeting: any) => {
+    const ok = await confirm({
+      title: 'Cancel Meeting',
+      message: `Cancel "${meeting.title || 'this meeting'}"? Everyone invited will be able to see it was cancelled.`,
+      confirmText: 'Cancel Meeting',
+      type: 'danger',
+    });
+    if (!ok) return;
+
+    // useConfirm only ever resolves true/false, so a recurring meeting
+    // needs a second, separate confirm rather than trying to squeeze a
+    // three-way answer (cancel series / cancel one / do nothing) out of one
+    // dialog — dismissing this second one safely falls back to the less
+    // destructive choice (just this occurrence), not the whole series.
+    let scope: 'occurrence' | 'series' = 'occurrence';
+    if (meeting.recurrenceRule) {
+      const cancelSeries = await confirm({
+        title: 'Cancel the Whole Series?',
+        message: `This meeting repeats ${meeting.recurrenceRule.toLowerCase()}. Cancel every future occurrence too, or just this one?`,
+        confirmText: 'Cancel Whole Series',
+        cancelText: 'Just This One',
+        type: 'danger',
+      });
+      scope = cancelSeries ? 'series' : 'occurrence';
+    }
+
+    setCancellingMeetingId(meeting.id);
+    try {
+      const result: any = await api.cancelMeeting(meeting.id, scope);
+      toast.success(scope === 'series' ? `Series cancelled (${result?.cancelledCount || ''} occurrences).` : 'Meeting cancelled.');
+      refetchMyMeetings();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to cancel the meeting.');
+    } finally {
+      setCancellingMeetingId('');
+    }
+  };
+
   // Host starting a meeting they scheduled earlier (as opposed to the instant
   // "New meeting" flow, which goes through the share-modal + handleStartCreatedMeeting).
-  const handleStartScheduledMeeting = async (code: string) => {
+  const handleStartScheduledMeeting = async (meeting: any) => {
+    const code = meeting.code;
     try {
       await api.startMeeting(code);
     } catch (err: any) {
       toast.error(err.message || 'Could not start the meeting.');
       return;
     }
+    const iAmHost = meeting.hostId === user?.id;
     setMeetingId(code);
-    setHostUserId(user?.id || '');
-    setIsHost(true);
+    setHostUserId(meeting.hostId);
+    // A co-host starting the meeting stays a co-host, not the host — isCoHost
+    // picks this up automatically from coHostIds via the derivation effect.
+    setIsHost(iAmHost);
+    setCoHostIds(meeting.coHostIds || []);
+    setMeetingMuteOnEntry(!!meeting.muteOnEntry);
     setHostStartedMeeting(true);
+    setMeetingStartedAt(new Date());
     setMeetingStep('room');
     if (socket) {
       socket.emit('start_meeting', { meetingId: code });
     }
-    toast.success('Meeting started successfully as host.');
+    toast.success(iAmHost ? 'Meeting started successfully as host.' : 'Meeting started successfully as co-host.');
   };
 
   const handleCreateMeeting = async () => {
@@ -1527,13 +2056,13 @@ export default function MeetingsPage() {
   }, [socket, meetingStep, meetingId, hostStartedMeeting, user]);
 
   // Accepts either a bare code ("abc-defg-hij") or a full pasted invite link
-  // (".../meetings?joinCode=abc-defg-hij") — Google Meet/Teams both let you
-  // paste either into the same box.
+  // (".../meetings?code=abc-defg-hij", or the older "?joinCode=..." form) —
+  // Google Meet/Teams both let you paste either into the same box.
   const extractMeetingCode = (input: string): string => {
     const trimmed = input.trim();
     try {
       const url = new URL(trimmed);
-      const codeFromUrl = url.searchParams.get('joinCode');
+      const codeFromUrl = url.searchParams.get('code') || url.searchParams.get('joinCode');
       if (codeFromUrl) return codeFromUrl.trim().toLowerCase();
     } catch {
       // Not a URL — treat the whole input as a raw code.
@@ -1556,11 +2085,42 @@ export default function MeetingsPage() {
       // we hand to the socket layer matches what the host is broadcasting on.
       const meeting = await api.getMeetingByCode(code);
 
-      setIsHost(false);
+      if (meeting.status === 'CANCELLED') {
+        toast.error('This meeting has been cancelled by the host.');
+        return;
+      }
+
+      // If the current user IS this meeting's host (e.g. clicking "Join" on
+      // their own already-live meeting from the My Meetings list, or
+      // reconnecting after a dropped connection), keep them as host rather
+      // than dropping them into the guest waiting room — otherwise they'd
+      // silently lose host controls (end for everyone, lock, admit requests)
+      // on their own call. A co-host gets the same "can start it" treatment
+      // (Meet/Teams "co-organizer can start" parity) but keeps co-host
+      // status rather than becoming host.
+      const iAmHost = !!user && meeting.hostId === user.id;
+      const iAmCoHost = !iAmHost && !!user && (meeting.coHostIds || []).includes(user.id);
       setMeetingId(meeting.code);
       setHostUserId(meeting.hostId);
-      setHostStartedMeeting(meeting.status === 'LIVE');
-      setMeetingStep('waiting');
+      setCoHostIds(meeting.coHostIds || []);
+      setMeetingMuteOnEntry(!!meeting.muteOnEntry);
+
+      if (iAmHost || iAmCoHost) {
+        setIsHost(iAmHost);
+        if (meeting.status === 'LIVE') {
+          setHostStartedMeeting(true);
+          setMeetingStartedAt(meeting.startedAt ? new Date(meeting.startedAt) : new Date());
+          setMeetingStep('room');
+        } else {
+          setNewMeetingCode(meeting.code);
+          setShowShareModal(true);
+        }
+      } else {
+        setIsHost(false);
+        setHostStartedMeeting(meeting.status === 'LIVE');
+        setMeetingStartedAt(meeting.startedAt ? new Date(meeting.startedAt) : null);
+        setMeetingStep('waiting');
+      }
     } catch (err: any) {
       toast.error(err.message || 'No meeting found with that code. Double-check it and try again.');
     } finally {
@@ -1577,15 +2137,21 @@ export default function MeetingsPage() {
       return;
     }
 
+    // hostUserId was set correctly (to the meeting's real host, not
+    // necessarily this user) by whichever flow opened this share modal — an
+    // instant "New meeting" always makes the creator the host, but a
+    // co-host opening a not-yet-started meeting's link lands here too.
+    const iAmHost = !hostUserId || hostUserId === user?.id;
     setShowShareModal(false);
-    setIsHost(true);
+    setIsHost(iAmHost);
     setHostStartedMeeting(true);
+    setMeetingStartedAt(new Date());
     setMeetingStep('room');
 
     if (socket) {
       socket.emit('start_meeting', { meetingId: newMeetingCode });
     }
-    toast.success('Meeting started successfully as host.');
+    toast.success(iAmHost ? 'Meeting started successfully as host.' : 'Meeting started successfully as co-host.');
   };
 
   // Host Action: Accept or Cancel a guest entry request
@@ -1606,11 +2172,26 @@ export default function MeetingsPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-white dark:bg-slate-905 dark:bg-slate-950 p-3 sm:p-8 overflow-hidden h-[calc(100vh-4rem)]">
+    <div
+      className={`flex-1 flex flex-col bg-white dark:bg-slate-905 dark:bg-slate-950 p-3 sm:p-8 h-[calc(100vh-4rem)] ${
+        meetingStep === 'lobby' ? 'overflow-y-auto' : 'overflow-hidden'
+      }`}
+    >
       
+      {/* Resolving a ?code= link (calendar invite, feed entry, pasted link) —
+          shown instead of the lobby form so opening a meeting link goes
+          straight through to the meeting rather than flashing the "New
+          meeting / Join a meeting" screen first. */}
+      {meetingStep === 'lobby' && resolvingLinkCode && (
+        <div className="flex-grow flex flex-col items-center justify-center gap-3 text-slate-450 dark:text-slate-400">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-xs font-semibold">Opening your meeting...</p>
+        </div>
+      )}
+
       {/* GOOGLE MEET LOBBY SCREEN */}
-      {meetingStep === 'lobby' && (
-        <div className="flex-grow flex flex-col lg:flex-row items-center justify-center max-w-6xl mx-auto w-full gap-12 lg:gap-24">
+      {meetingStep === 'lobby' && !resolvingLinkCode && (
+        <div className="flex-grow flex flex-col lg:flex-row items-center lg:items-start justify-center max-w-6xl mx-auto w-full gap-12 lg:gap-24 lg:pt-10 pb-10">
           
           {/* LEFT SIDE: GOOGLE MEET CONFIG PANEL */}
           <div className="w-full lg:w-1/2 space-y-12 text-left animate-in fade-in duration-300">
@@ -1644,6 +2225,15 @@ export default function MeetingsPage() {
               >
                 <Calendar className="h-4.5 w-4.5" />
                 <span>Schedule</span>
+              </button>
+
+              <button
+                onClick={handleGetCalendarFeed}
+                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm rounded-xl transition-all flex items-center space-x-2"
+                title="Subscribe to your meetings from Google Calendar, Outlook, or Apple Calendar"
+              >
+                <Rss className="h-4.5 w-4.5" />
+                <span>Sync to Calendar App</span>
               </button>
 
               {/* Unified code-entry pill: icon + input + attached Join action, so
@@ -1682,7 +2272,7 @@ export default function MeetingsPage() {
                 </div>
               ) : (() => {
                 const upcoming = myMeetings
-                  .filter((m: any) => m.status !== 'ENDED' && m.scheduledFor)
+                  .filter((m: any) => m.status !== 'ENDED' && m.status !== 'CANCELLED' && m.scheduledFor)
                   .sort((a: any, b: any) => new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime())
                   .slice(0, 5);
 
@@ -1706,20 +2296,49 @@ export default function MeetingsPage() {
                             <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
                               {m.title || 'Untitled Meeting'}
                               {isLive && <span className="ml-2 text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded align-middle">LIVE</span>}
+                              {m.recurrenceRule && (
+                                <span className="ml-2 text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded align-middle capitalize">
+                                  Repeats {m.recurrenceRule.toLowerCase()}
+                                </span>
+                              )}
                             </p>
                             <p className="text-[10px] text-slate-450 mt-0.5">
-                              {when} {m.isHost ? '· You\'re hosting' : `· Hosted by ${m.host?.firstName} ${m.host?.lastName}`}
+                              {when} {m.isHost ? '· You\'re hosting' : m.isCoHost ? '· You\'re a co-host' : `· Hosted by ${m.host?.firstName} ${m.host?.lastName}`}
                             </p>
                           </div>
 
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {m.isHost ? (
+                            {m.status !== 'CANCELLED' && (
                               <button
-                                onClick={() => isLive ? handleJoinExisting(m.code) : handleStartScheduledMeeting(m.code)}
-                                className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-[10px] font-bold transition-all"
+                                disabled={downloadingIcsId === m.id}
+                                onClick={() => handleDownloadIcs(m)}
+                                title="Add to your calendar app (.ics)"
+                                aria-label={`Add ${m.title || 'meeting'} to calendar`}
+                                className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50"
                               >
-                                {isLive ? 'Join' : 'Start'}
+                                <Download className="h-3.5 w-3.5" />
                               </button>
+                            )}
+                            {m.isHost ? (
+                              <>
+                                <button
+                                  onClick={() => isLive ? handleJoinExisting(m.code) : handleStartScheduledMeeting(m)}
+                                  className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-[10px] font-bold transition-all"
+                                >
+                                  {isLive ? 'Join' : 'Start'}
+                                </button>
+                                {!isLive && (
+                                  <button
+                                    disabled={cancellingMeetingId === m.id}
+                                    onClick={() => handleCancelMeeting(m)}
+                                    title="Cancel meeting"
+                                    aria-label={`Cancel ${m.title || 'meeting'}`}
+                                    className="px-2.5 py-1.5 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 text-red-600 rounded-lg text-[10px] font-bold transition-all disabled:opacity-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </>
                             ) : m.myInviteStatus === 'DECLINED' ? (
                               <span className="text-[10px] font-bold text-slate-400 px-2">Declined</span>
                             ) : m.myInviteStatus === 'PENDING' ? (
@@ -1739,6 +2358,16 @@ export default function MeetingsPage() {
                                   Decline
                                 </button>
                               </>
+                            ) : m.isCoHost ? (
+                              // Co-hosts (Meet "co-organizer" parity) can start the
+                              // meeting themselves once they've accepted the invite —
+                              // just without the host-only Cancel option.
+                              <button
+                                onClick={() => isLive ? handleJoinExisting(m.code) : handleStartScheduledMeeting(m)}
+                                className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-[10px] font-bold transition-all"
+                              >
+                                {isLive ? 'Join' : 'Start'}
+                              </button>
                             ) : isLive ? (
                               <button
                                 onClick={() => handleJoinExisting(m.code)}
@@ -1795,7 +2424,7 @@ export default function MeetingsPage() {
       {/* SHARE YOUR NEW MEETING MODAL */}
       <AnimatePresence>
         {showScheduleModal && (
-          <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1864,6 +2493,35 @@ export default function MeetingsPage() {
               </div>
 
               <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Repeats</label>
+                <select
+                  value={scheduleRecurrenceRule}
+                  onChange={(e) => setScheduleRecurrenceRule(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                >
+                  <option value="">Doesn't repeat</option>
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="BIWEEKLY">Every 2 weeks</option>
+                  <option value="MONTHLY">Monthly</option>
+                </select>
+              </div>
+
+              {scheduleRecurrenceRule && (
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Repeat Until</label>
+                  <input
+                    type="date"
+                    value={scheduleRecurrenceEndDate}
+                    min={scheduleDate || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setScheduleRecurrenceEndDate(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Capped at {52} occurrences either way.</p>
+                </div>
+              )}
+
+              <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
                   Invite teammates {scheduleInviteeIds.length > 0 && `(${scheduleInviteeIds.length} selected)`}
                 </label>
@@ -1871,20 +2529,51 @@ export default function MeetingsPage() {
                   {directoryUsers.length === 0 ? (
                     <p className="text-[11px] text-slate-400 italic px-3 py-3">No teammates found.</p>
                   ) : (
-                    directoryUsers.map((emp: any) => (
-                      <label key={emp.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={scheduleInviteeIds.includes(emp.id)}
-                          onChange={() => toggleScheduleInvitee(emp.id)}
-                          className="rounded"
-                        />
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{emp.firstName} {emp.lastName}</span>
-                      </label>
-                    ))
+                    directoryUsers.map((emp: any) => {
+                      const invited = scheduleInviteeIds.includes(emp.id);
+                      return (
+                      <div key={emp.id} className="flex items-center justify-between gap-2.5 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850">
+                        <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={invited}
+                            onChange={() => toggleScheduleInvitee(emp.id)}
+                            className="rounded shrink-0"
+                          />
+                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">{emp.firstName} {emp.lastName}</span>
+                        </label>
+                        {/* Co-host designation — only makes sense once they're
+                            actually invited (Meet/Teams "co-organizer" parity). */}
+                        {invited && (
+                          <button
+                            type="button"
+                            onClick={() => toggleScheduleCoHost(emp.id)}
+                            title={scheduleCoHostIds.includes(emp.id) ? 'Remove co-host' : 'Make co-host'}
+                            className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wide transition-all ${
+                              scheduleCoHostIds.includes(emp.id)
+                                ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
+                                : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <Crown className="h-3 w-3" /> Co-host
+                          </button>
+                        )}
+                      </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
+
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={scheduleMuteOnEntry}
+                  onChange={(e) => setScheduleMuteOnEntry(e.target.checked)}
+                  className="rounded"
+                />
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Mute participants on entry</span>
+              </label>
 
               <button
                 onClick={handleScheduleMeeting}
@@ -1899,7 +2588,7 @@ export default function MeetingsPage() {
         )}
 
         {showShareModal && (
-          <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1962,6 +2651,60 @@ export default function MeetingsPage() {
         )}
       </AnimatePresence>
 
+      {/* CALENDAR SUBSCRIPTION MODAL */}
+      {showSubscribeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Sync to Calendar App">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => setShowSubscribeModal(false)}
+              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base flex items-center gap-2"><Rss className="h-4 w-4 text-primary" /> Sync to Your Calendar App</h3>
+              <p className="text-xs text-slate-400">
+                Paste this link into Google Calendar, Outlook, or Apple Calendar as a subscription — new meetings
+                you're invited to will show up automatically, no manual export needed.
+              </p>
+            </div>
+
+            {subscribingFeed && !feedUrls ? (
+              <div className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+            ) : feedUrls ? (
+              <>
+                <div className="flex items-start justify-between gap-2 bg-slate-50 dark:bg-slate-950 px-4 py-3 rounded-xl border text-left">
+                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-350 break-all select-all leading-relaxed">
+                    {feedUrls.feedUrl}
+                  </span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(feedUrls.feedUrl); toast.success('Copied!'); }}
+                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all shrink-0"
+                    title="Copy link"
+                  >
+                    <Copy className="h-4.5 w-4.5" />
+                  </button>
+                </div>
+                <a
+                  href={feedUrls.webcalUrl}
+                  className="block text-center px-4 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-xl shadow-md transition-all"
+                >
+                  Open directly in my calendar app
+                </a>
+                <button
+                  onClick={handleRegenerateFeed}
+                  disabled={subscribingFeed}
+                  className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                >
+                  Link not working, or shared by mistake? Generate a new one
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+
       {/* WAITING ROOM / PERMISSIONS GATEWAY */}
       {meetingStep === 'waiting' && (
         <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto space-y-6 text-center animate-fade-in py-12">
@@ -1973,7 +2716,7 @@ export default function MeetingsPage() {
                 <AlertCircle className="h-10 w-10" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Meeting hasn't started yet</h2>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Meeting not started by host</h2>
                 <p className="text-xs text-slate-450 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
                   The host has not started this meeting workspace yet. You will automatically enter the room as soon as the host starts the call.
                 </p>
@@ -2073,6 +2816,11 @@ export default function MeetingsPage() {
                     <span className="font-semibold text-primary bg-primary/10 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                       {participants.length + 1} participant{participants.length + 1 > 1 ? 's' : ''}
                     </span>
+                    {meetingStartedAt && (
+                      <span className="font-mono font-semibold text-slate-500">
+                        {String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0')}:{String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0')}:{String(elapsedSeconds % 60).padStart(2, '0')}
+                      </span>
+                    )}
                     <span>| Room Code: {meetingId}</span>
                     {recordingNotice && (
                       <span className="font-black text-red-600 bg-red-50 dark:bg-red-950/40 px-1.5 py-0.5 rounded flex items-center space-x-1">
@@ -2095,7 +2843,41 @@ export default function MeetingsPage() {
                   </button>
                 )}
 
-                {isHost && (
+                {canModerate && (
+                  <button
+                    onClick={() => setShowCreatePollModal(true)}
+                    title="Create a poll"
+                    className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-350 transition-all"
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setViewMode(prev => prev === 'grid' ? 'speaker' : 'grid')}
+                  title={viewMode === 'grid' ? 'Switch to speaker view' : 'Switch to grid view'}
+                  className={`p-2 rounded-xl transition-all ${viewMode === 'speaker' ? 'bg-primary text-white' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350'}`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                </button>
+
+                <button
+                  onClick={handleToggleFullscreen}
+                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                  className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-350 transition-all"
+                >
+                  {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </button>
+
+                <button
+                  onClick={() => setShowKeyboardShortcuts(true)}
+                  title="Keyboard shortcuts"
+                  className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-350 transition-all"
+                >
+                  <Keyboard className="h-3.5 w-3.5" />
+                </button>
+
+                {canModerate && (
                   <button
                     onClick={handleToggleMeetingLock}
                     title={meetingLocked ? 'Unlock meeting' : 'Lock meeting (no new joins)'}
@@ -2147,7 +2929,7 @@ export default function MeetingsPage() {
                           >
                             {room.name}
                           </button>
-                          {isHost && room.id !== 'main' && (
+                          {canModerate && room.id !== 'main' && (
                             <button
                               onClick={() => handleRemoveBreakoutRoom(room.id)}
                               title="Remove room"
@@ -2159,11 +2941,11 @@ export default function MeetingsPage() {
                         </div>
                       ))}
 
-                      {!isHost && breakoutRooms.length === 1 && (
+                      {!canModerate && breakoutRooms.length === 1 && (
                         <p className="text-[10px] text-slate-400 italic px-2 py-1">The host hasn't created any breakout rooms yet.</p>
                       )}
 
-                      {isHost && (
+                      {canModerate && (
                         <div className="border-t pt-2 space-y-1.5">
                           <div className="flex items-center gap-1">
                             <input
@@ -2310,7 +3092,12 @@ export default function MeetingsPage() {
 
               {/* Participant streams grid list */}
               {participants.map((part) => (
-                <div key={part.socketId} className="bg-white dark:bg-slate-900 border rounded-3xl p-3.5 flex flex-col justify-between shadow-sm relative min-h-[220px]">
+                <div
+                  key={part.socketId}
+                  className={`bg-white dark:bg-slate-900 border rounded-3xl p-3.5 flex flex-col justify-between shadow-sm relative min-h-[220px] transition-all ${
+                    effectivePinnedSocketId === part.socketId ? 'ring-2 ring-primary md:col-span-2 lg:col-span-2 md:row-span-2' : ''
+                  }`}
+                >
                   <div className="flex-1 rounded-2xl overflow-hidden bg-slate-955 flex items-center justify-center relative aspect-video">
                     {part.videoOn ? (
                       <div className="w-full h-full bg-slate-800 dark:bg-slate-905 flex items-center justify-center relative">
@@ -2340,27 +3127,71 @@ export default function MeetingsPage() {
                       </div>
                     )}
 
-                    {/* Host moderation controls — visible on hover, host only */}
-                    {isHost && (
-                      <div className="absolute inset-0 bg-black/0 hover:bg-black/40 transition-all group flex items-center justify-center opacity-0 hover:opacity-100">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleForceMuteParticipant(part.socketId, part.name)}
-                            title="Mute participant"
-                            className="p-2 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition-all"
-                          >
-                            <MicOff className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleRemoveParticipant(part.socketId, part.name)}
-                            title="Remove from meeting"
-                            className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md transition-all"
-                          >
-                            <UserX className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                    {/* Connection quality dot — green/amber/red from live WebRTC stats */}
+                    <span
+                      title={`Connection: ${connectionQuality[part.socketId] || 'good'}`}
+                      className={`absolute top-2 left-2 w-2 h-2 rounded-full ${
+                        connectionQuality[part.socketId] === 'poor' ? 'bg-red-500' :
+                        connectionQuality[part.socketId] === 'fair' ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                    />
+
+                    {/* Per-tile controls — visible on hover. Pin is available to
+                        anyone (local-only); mute/remove/ban/spotlight are
+                        host or co-host only. */}
+                    <div className="absolute inset-0 bg-black/0 hover:bg-black/40 transition-all group flex items-center justify-center opacity-0 hover:opacity-100">
+                      <div className="flex items-center space-x-1.5 flex-wrap justify-center">
+                        <button
+                          onClick={() => handleTogglePin(part.socketId)}
+                          title={localPinnedSocketId === part.socketId ? 'Unpin' : 'Pin for me'}
+                          className="p-2 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition-all"
+                        >
+                          {localPinnedSocketId === part.socketId ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                        </button>
+                        {canModerate && (
+                          <>
+                            <button
+                              onClick={() => handleSpotlightParticipant(part.socketId, part.name, spotlightedSocketId !== part.socketId)}
+                              title={spotlightedSocketId === part.socketId ? 'Remove spotlight' : 'Spotlight for everyone'}
+                              className="p-2 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition-all"
+                            >
+                              <Users className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleForceMuteParticipant(part.socketId, part.name)}
+                              title="Mute participant"
+                              className="p-2 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition-all"
+                            >
+                              <MicOff className="h-3.5 w-3.5" />
+                            </button>
+                            {isHost && (
+                              <button
+                                onClick={() => handleToggleCoHost(part.userId, part.name, !coHostIds.includes(part.userId))}
+                                title={coHostIds.includes(part.userId) ? 'Remove co-host' : 'Make co-host'}
+                                disabled={updatingCoHostId === part.userId}
+                                className="p-2 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition-all disabled:opacity-50"
+                              >
+                                <Crown className={`h-3.5 w-3.5 ${coHostIds.includes(part.userId) ? 'text-amber-500' : ''}`} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleRemoveParticipant(part.socketId, part.name)}
+                              title="Remove from meeting"
+                              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md transition-all"
+                            >
+                              <UserX className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleRemoveParticipant(part.socketId, part.name, true)}
+                              title="Remove and block from rejoining"
+                              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md transition-all"
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
-                    )}
+                    </div>
 
                     <span className="absolute bottom-2 left-2 bg-black/60 text-white font-bold text-[9px] px-2 py-0.5 rounded-md backdrop-blur-xs select-none">
                       {part.name}
@@ -2368,7 +3199,9 @@ export default function MeetingsPage() {
                   </div>
 
                   <div className="mt-2.5 flex items-center justify-between text-[10px]">
-                    <span className="font-extrabold text-slate-500 uppercase tracking-wider">{part.userId === hostUserId ? 'Host' : 'Participant'}</span>
+                    <span className="font-extrabold text-slate-500 uppercase tracking-wider">
+                      {part.userId === hostUserId ? 'Host' : coHostIds.includes(part.userId) ? 'Co-host' : 'Participant'}
+                    </span>
                     <div className="flex items-center space-x-1.5">
                       {part.isMuted ? <MicOff className="h-3.5 w-3.5 text-red-500" /> : <Mic className="h-3.5 w-3.5 text-emerald-500" />}
                       {part.videoOn ? <Video className="h-3.5 w-3.5 text-emerald-500" /> : <VideoOff className="h-3.5 w-3.5 text-red-500" />}
@@ -2452,7 +3285,7 @@ export default function MeetingsPage() {
               {/* End / Hang up */}
               <button
                 onClick={() => {
-                  if (isHost) {
+                  if (canModerate) {
                     setShowEndMeetingModal(true);
                   } else {
                     handleDisconnect(false);
@@ -2517,6 +3350,17 @@ export default function MeetingsPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    {/* Mute-all bar — host/co-host only, only worth showing once
+                        there's actually someone else to mute. */}
+                    {canModerate && participants.length > 0 && (
+                      <button
+                        onClick={handleMuteAllParticipants}
+                        className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wide py-2 rounded-xl border border-dashed text-slate-500 hover:text-primary hover:border-primary transition-all"
+                      >
+                        <MicOff className="h-3 w-3" /> Mute all
+                      </button>
+                    )}
+
                     {/* Local participant row */}
                     <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border text-left font-sans">
                       <div className="flex items-center space-x-2.5">
@@ -2525,8 +3369,8 @@ export default function MeetingsPage() {
                         </div>
                         <div className="space-y-0.5">
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{user?.firstName}</p>
-                          <span className="text-[9px] font-black text-primary uppercase tracking-wider block font-bold">
-                            {isHost ? 'Host' : 'Participant'}
+                          <span className="text-[9px] font-black text-primary uppercase tracking-wider block font-bold flex items-center gap-1">
+                            {isHost ? 'Host' : isCoHost ? (<><Crown className="h-2.5 w-2.5" /> Co-host</>) : 'Participant'}
                           </span>
                         </div>
                       </div>
@@ -2534,7 +3378,9 @@ export default function MeetingsPage() {
                     </div>
 
                     {/* Participant rows */}
-                    {participants.map((part) => (
+                    {participants.map((part) => {
+                      const partIsCoHost = coHostIds.includes(part.userId);
+                      return (
                       <div key={part.socketId} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:bg-slate-950 transition-all border text-left font-sans">
                         <div className="flex items-center space-x-2.5">
                           <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs flex items-center justify-center">
@@ -2542,11 +3388,13 @@ export default function MeetingsPage() {
                           </div>
                           <div className="space-y-0.5">
                             <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{part.name}</p>
-                            <span className="text-[9px] font-black text-slate-450 uppercase tracking-wider block">{part.userId === hostUserId ? 'Host' : 'Participant'}</span>
+                            <span className="text-[9px] font-black text-slate-450 uppercase tracking-wider flex items-center gap-1">
+                              {part.userId === hostUserId ? 'Host' : partIsCoHost ? (<><Crown className="h-2.5 w-2.5 text-amber-500" /> Co-host</>) : 'Participant'}
+                            </span>
                           </div>
                         </div>
                         <div className="flex items-center space-x-1.5">
-                          {isHost && (
+                          {canModerate && (
                             <>
                               <button
                                 onClick={() => handleForceMuteParticipant(part.socketId, part.name)}
@@ -2555,6 +3403,16 @@ export default function MeetingsPage() {
                               >
                                 <MicOff className="h-3.5 w-3.5" />
                               </button>
+                              {isHost && (
+                                <button
+                                  onClick={() => handleToggleCoHost(part.userId, part.name, !partIsCoHost)}
+                                  title={partIsCoHost ? 'Remove co-host' : 'Make co-host'}
+                                  disabled={updatingCoHostId === part.userId}
+                                  className={`p-1.5 rounded-lg transition-all disabled:opacity-50 ${partIsCoHost ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30' : 'text-slate-450 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                >
+                                  <Crown className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleRemoveParticipant(part.socketId, part.name)}
                                 title="Remove from meeting"
@@ -2562,12 +3420,20 @@ export default function MeetingsPage() {
                               >
                                 <UserX className="h-3.5 w-3.5" />
                               </button>
+                              <button
+                                onClick={() => handleRemoveParticipant(part.socketId, part.name, true)}
+                                title="Remove and block from rejoining"
+                                className="p-1.5 rounded-lg text-slate-450 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-all"
+                              >
+                                <Ban className="h-3.5 w-3.5" />
+                              </button>
                             </>
                           )}
                           <span className="w-2 h-2 bg-emerald-500 rounded-full shrink-0" />
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -2596,13 +3462,14 @@ export default function MeetingsPage() {
 
       {/* HOST SIDE POPUP NOTIFICATION (Asking to Accept or Cancel guest entry) */}
       <AnimatePresence>
-        {isHost && meetingStep === 'room' && joinRequests.map((req) => (
+        {isHost && meetingStep === 'room' && joinRequests.map((req, i) => (
           <motion.div
             key={req.id}
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
-            className="fixed right-6 top-24 z-55 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-2xl w-80 space-y-4 text-left"
+            style={{ top: `${96 + i * 168}px` }}
+            className="fixed right-6 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-2xl w-80 space-y-4 text-left"
           >
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-primary/10 dark:bg-primary/20 text-primary rounded-full flex items-center justify-center font-bold text-sm">
@@ -2640,8 +3507,8 @@ export default function MeetingsPage() {
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
-            style={{ top: `${96 + i * 168}px` }}
-            className="fixed right-6 z-55 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-2xl w-80 space-y-4 text-left"
+            style={{ top: `${96 + (joinRequests.length + i) * 168}px` }}
+            className="fixed right-6 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-2xl w-80 space-y-4 text-left"
           >
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center">
@@ -2674,7 +3541,7 @@ export default function MeetingsPage() {
       {/* HOST END MEETING CONFIRMATION MODAL */}
       <AnimatePresence>
         {showEndMeetingModal && (
-          <div className="fixed inset-0 z-55 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2719,6 +3586,155 @@ export default function MeetingsPage() {
                 >
                   Just leave
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CREATE POLL MODAL — host/co-host only */}
+      <AnimatePresence>
+        {showCreatePollModal && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-left"
+            >
+              <button
+                onClick={() => setShowCreatePollModal(false)}
+                className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <h3 className="text-sm font-bold text-slate-850 dark:text-slate-100 flex items-center gap-1.5">
+                <BarChart3 className="h-4 w-4 text-primary" /> Create a poll
+              </h3>
+              <input
+                type="text"
+                value={pollQuestion}
+                onChange={(e) => setPollQuestion(e.target.value)}
+                placeholder="Ask a question..."
+                className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <div className="space-y-2">
+                {pollOptions.map((opt, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={opt}
+                      onChange={(e) => setPollOptions(prev => prev.map((o, idx) => idx === i ? e.target.value : o))}
+                      placeholder={`Option ${i + 1}`}
+                      className="flex-1 bg-slate-50 dark:bg-slate-850 border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    {pollOptions.length > 2 && (
+                      <button
+                        onClick={() => setPollOptions(prev => prev.filter((_, idx) => idx !== i))}
+                        className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {pollOptions.length < 8 && (
+                  <button
+                    onClick={() => setPollOptions(prev => [...prev, ''])}
+                    className="text-[10px] font-bold text-primary flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add option
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={handleCreatePoll}
+                className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold text-xs rounded-xl transition-all"
+              >
+                Launch poll
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ACTIVE POLL CARD — visible to everyone in the room while a poll is live */}
+      <AnimatePresence>
+        {meetingStep === 'room' && activePoll && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-24 left-6 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-2xl w-80 space-y-3 text-left"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-black text-primary uppercase tracking-wider flex items-center gap-1">
+                <BarChart3 className="h-3 w-3" /> Poll · {activePoll.byName}
+              </span>
+              {canModerate && (
+                <button onClick={handleEndPoll} className="text-[9px] font-bold text-slate-400 hover:text-red-600">
+                  End poll
+                </button>
+              )}
+            </div>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{activePoll.question}</p>
+            <div className="space-y-1.5">
+              {activePoll.options.map((opt, i) => {
+                const count = pollResults?.counts[i] || 0;
+                const total = pollResults?.totalVotes || 0;
+                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                const isMine = myPollVote === i;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleVotePoll(i)}
+                    className={`w-full text-left rounded-xl border px-2.5 py-2 relative overflow-hidden transition-all ${isMine ? 'border-primary' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'}`}
+                  >
+                    <div className="absolute inset-y-0 left-0 bg-primary/10 transition-all" style={{ width: `${pct}%` }} />
+                    <div className="relative flex items-center justify-between text-[11px]">
+                      <span className={`font-semibold ${isMine ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>
+                        {isMine && <Check className="inline h-3 w-3 mr-1" />}{opt}
+                      </span>
+                      <span className="font-bold text-slate-450">{pct}%</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[9px] text-slate-400 text-right">{pollResults?.totalVotes || 0} vote{(pollResults?.totalVotes || 0) === 1 ? '' : 's'}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* KEYBOARD SHORTCUTS MODAL */}
+      <AnimatePresence>
+        {showKeyboardShortcuts && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-xs p-4" onClick={() => setShowKeyboardShortcuts(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl w-full max-w-xs space-y-4 shadow-2xl relative text-left"
+            >
+              <button
+                onClick={() => setShowKeyboardShortcuts(false)}
+                className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <h3 className="text-sm font-bold text-slate-850 dark:text-slate-100 flex items-center gap-1.5">
+                <Keyboard className="h-4 w-4 text-primary" /> Keyboard shortcuts
+              </h3>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Toggle microphone</span>
+                  <kbd className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md font-mono text-[10px]">Ctrl/⌘ + D</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Toggle camera</span>
+                  <kbd className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md font-mono text-[10px]">Ctrl/⌘ + E</kbd>
+                </div>
               </div>
             </motion.div>
           </div>

@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import prisma from '../config/db';
 
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456';
@@ -33,6 +34,30 @@ export const meetingHosts = new Map<string, string>();
 
 // Meetings the host has locked — no new join requests are accepted while locked.
 export const lockedMeetings = new Set<string>();
+
+// meetingId -> Set of co-host user ids, mirrored from Meeting.coHostIds (the
+// DB row is the source of truth; this is just a fast in-memory cache
+// populated on 'start_meeting' and kept current by 'update_co_hosts' so every
+// moderation-action handler below doesn't need a DB round trip per call).
+export const meetingCoHosts = new Map<string, Set<string>>();
+
+// meetingId -> Set of banned user ids, mirrored from Meeting.bannedUserIds
+// the same way. Checked the moment a join/admission request comes in, before
+// the host is ever bothered with a request from someone they already removed.
+export const meetingBans = new Map<string, Set<string>>();
+
+interface ActivePoll {
+  id: string;
+  question: string;
+  options: string[];
+  votes: Map<string, number>; // userId -> option index
+  createdBy: string;
+}
+// meetingId -> Map of pollId -> poll. Ephemeral like the rest of in-call
+// state (reactions, whiteboard strokes) — polls aren't meant to be a
+// permanent record, only a live-in-the-room activity, so nothing here is
+// persisted to the database.
+export const meetingPolls = new Map<string, Map<string, ActivePoll>>();
 
 export const initSocket = (server: HttpServer) => {
   const io = new Server(server, {
@@ -217,6 +242,23 @@ export const initSocket = (server: HttpServer) => {
       socket.leave(`project:${projectId}`);
     });
 
+    // Frontend emits this whenever a group chat is opened (see groups/page.tsx),
+    // to cover a group the user was just added to (or just created) during the
+    // current session — the group-room joins above only run once, at connect
+    // time, from the membership list as of that moment. Without this handler
+    // the emit was a silent no-op: the socket would never join `group:<id>`
+    // for a group created/joined after connect, so that user would receive no
+    // realtime messages in it until their next reconnect/refresh.
+    socket.on('join_room', async ({ roomId }: { roomId: string }) => {
+      const membership = await prisma.groupMember.findFirst({
+        where: { groupId: roomId, userId },
+        select: { id: true },
+      });
+      if (membership) {
+        socket.join(`group:${roomId}`);
+      }
+    });
+
     // ----------------------------------------------------
     // MEETING WORKSPACE REAL-TIME EVENTS
     // ----------------------------------------------------
@@ -231,11 +273,30 @@ export const initSocket = (server: HttpServer) => {
       }
     });
 
-    socket.on('start_meeting', ({ meetingId }) => {
+    socket.on('start_meeting', async ({ meetingId }) => {
+      // This is what actually flips a meeting live for every guest waiting in
+      // the lobby, so it needs the same host-or-co-host check as any other
+      // moderation action — without it, any authenticated socket that knew
+      // the meeting code could register itself as host in meetingHosts below.
+      let meeting;
+      try {
+        meeting = await prisma.meeting.findUnique({ where: { code: meetingId } });
+      } catch (err) {
+        console.error('Failed to look up meeting for start_meeting authorization:', err);
+        return;
+      }
+      if (!meeting || (meeting.hostId !== userId && !meeting.coHostIds.includes(userId))) return;
+
       activeMeetings.add(meetingId);
-      meetingHosts.set(meetingId, userId);
+      meetingHosts.set(meetingId, meeting.hostId);
+      // Warm the co-host/ban caches from the DB right away rather than
+      // waiting for the first moderation action or join request to trigger
+      // the self-heal lookups — otherwise the very first request-to-join of
+      // the call could briefly miss a ban that was set before this restart.
+      meetingCoHosts.set(meetingId, new Set(meeting.coHostIds || []));
+      meetingBans.set(meetingId, new Set(meeting.bannedUserIds || []));
       io.to(`meeting_lobby:${meetingId}`).emit('meeting_started', { meetingId });
-      console.log(`Meeting started by host: ${meetingId}`);
+      console.log(`Meeting started: ${meetingId} (by ${meeting.hostId === userId ? 'host' : 'co-host'} ${userId})`);
     });
 
     // Every participant joins this persistent, meeting-wide channel for the entire
@@ -255,6 +316,25 @@ export const initSocket = (server: HttpServer) => {
     socket.on('request_to_join_meeting', async ({ meetingId, guestName }) => {
       if (lockedMeetings.has(meetingId)) {
         socket.emit('meeting_admission_result', { admit: false, meetingId, locked: true });
+        return;
+      }
+      // Defense-in-depth: the REST getMeetingByCode lookup already blocks a
+      // banned user before they ever reach the waiting screen, but a client
+      // could in principle skip straight to this socket event, so the ban is
+      // enforced here too rather than trusted to have been checked upstream.
+      let banSet = meetingBans.get(meetingId);
+      if (!banSet) {
+        try {
+          const meeting = await prisma.meeting.findUnique({ where: { code: meetingId } });
+          banSet = new Set(meeting?.bannedUserIds || []);
+          meetingBans.set(meetingId, banSet);
+        } catch (err) {
+          console.error('Failed to look up bans before admitting a join request:', err);
+          banSet = new Set();
+        }
+      }
+      if (banSet.has(userId)) {
+        socket.emit('meeting_admission_result', { admit: false, meetingId, banned: true });
         return;
       }
       const payload = {
@@ -339,52 +419,150 @@ export const initSocket = (server: HttpServer) => {
       return false;
     };
 
+    // Loads (and caches) the co-host set for a meeting straight from the DB
+    // the first time it's needed in this process — same self-heal pattern as
+    // assertIsHost, since meetingCoHosts is normally populated proactively on
+    // 'start_meeting' but won't be if the server restarted mid-call.
+    const getCoHostSet = async (meetingId: string): Promise<Set<string>> => {
+      let set = meetingCoHosts.get(meetingId);
+      if (set) return set;
+      try {
+        const meeting = await prisma.meeting.findUnique({ where: { code: meetingId } });
+        set = new Set(meeting?.coHostIds || []);
+      } catch (err) {
+        console.error('Failed to look up co-hosts for authorization:', err);
+        set = new Set();
+      }
+      meetingCoHosts.set(meetingId, set);
+      return set;
+    };
+
+    // Co-hosts (Meet "co-host" / Teams "co-organizer") get every in-call
+    // moderation power the host has — this is the gate every one of those
+    // actions uses below, instead of assertIsHost alone.
+    const assertIsHostOrCoHost = async (meetingId: string): Promise<boolean> => {
+      if (await assertIsHost(meetingId)) return true;
+      const coHosts = await getCoHostSet(meetingId);
+      return coHosts.has(userId);
+    };
+
+    const getBanSet = async (meetingId: string): Promise<Set<string>> => {
+      let set = meetingBans.get(meetingId);
+      if (set) return set;
+      try {
+        const meeting = await prisma.meeting.findUnique({ where: { code: meetingId } });
+        set = new Set(meeting?.bannedUserIds || []);
+      } catch (err) {
+        console.error('Failed to look up bans for authorization:', err);
+        set = new Set();
+      }
+      meetingBans.set(meetingId, set);
+      return set;
+    };
+
     socket.on('admit_meeting_guest', async ({ meetingId, guestSocketId, admit }) => {
-      if (!(await assertIsHost(meetingId))) return;
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
       // Send the decision directly to the guest's socket
       io.to(guestSocketId).emit('meeting_admission_result', { admit, meetingId });
       console.log(`Host decision for guest socket ${guestSocketId} in ${meetingId}: ${admit ? 'ADMITTED' : 'DENIED'}`);
     });
 
     socket.on('toggle_meeting_lock', async ({ meetingId, locked }) => {
-      if (!(await assertIsHost(meetingId))) return;
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
       if (locked) lockedMeetings.add(meetingId);
       else lockedMeetings.delete(meetingId);
       io.to(`meeting:${meetingId}`).emit('meeting_lock_changed', { locked });
     });
 
-    // Host creates/renames/removes breakout rooms. `rooms` is the full desired list
-    // (excluding "main", which always implicitly exists); broadcasting the whole
-    // list keeps every client's room picker in sync without diffing client-side.
+    // Host/co-host creates/renames/removes breakout rooms. `rooms` is the full
+    // desired list (excluding "main", which always implicitly exists);
+    // broadcasting the whole list keeps every client's room picker in sync
+    // without diffing client-side.
     socket.on('update_breakout_rooms', async ({ meetingId, rooms }) => {
-      if (!(await assertIsHost(meetingId))) return;
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
       io.to(`meeting:${meetingId}`).emit('breakout_rooms_updated', { rooms });
     });
 
-    // Host closes all breakout rooms — every participant currently in one gets
-    // moved back to the main room automatically.
+    // Host/co-host closes all breakout rooms — every participant currently in
+    // one gets moved back to the main room automatically.
     socket.on('close_breakout_rooms', async ({ meetingId }) => {
-      if (!(await assertIsHost(meetingId))) return;
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
       io.to(`meeting:${meetingId}`).emit('breakout_rooms_closed');
     });
 
     socket.on('force_mute_participant', async ({ meetingId, room, targetSocketId }) => {
-      if (!(await assertIsHost(meetingId))) return;
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
       io.to(targetSocketId).emit('force_muted');
     });
 
-    socket.on('remove_participant', async ({ meetingId, room, targetSocketId }) => {
-      if (!(await assertIsHost(meetingId))) return;
+    // "Mute all" — mutes every current participant in the room in one action
+    // (Meet/Teams both have this for large calls), except the caller
+    // themself. Participants can still unmute themselves afterward — this
+    // isn't a lock, just a bulk version of force_mute_participant.
+    socket.on('mute_all_participants', async ({ meetingId, room }) => {
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
+      const roomKey = room || meetingId;
+      const list = meetingParticipants.get(roomKey) || [];
+      list.forEach((p) => {
+        if (p.socketId !== socket.id) {
+          io.to(p.socketId).emit('force_muted');
+        }
+      });
+      io.to(`meeting_room:${roomKey}`).emit('all_participants_muted', {
+        byName: `${user.firstName} ${user.lastName}`,
+      });
+    });
+
+    // "Spotlight for everyone" — pins one participant's video in every
+    // attendee's layout, overriding their individual local pin. Purely a
+    // broadcast of intent; the actual layout change happens client-side.
+    // Local-only pinning (no broadcast) needs no server round trip at all,
+    // so it isn't handled here.
+    socket.on('spotlight_participant', async ({ meetingId, room, targetSocketId, targetName, spotlighted }) => {
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
+      const roomKey = room || meetingId;
+      io.to(`meeting_room:${roomKey}`).emit('participant_spotlight_changed', {
+        targetSocketId: spotlighted ? targetSocketId : null,
+        targetName: spotlighted ? targetName : null,
+      });
+    });
+
+    // `ban: true` mirrors Meet/Teams "Remove from meeting" with the block
+    // option — as opposed to a plain removal, which only ends the target's
+    // *current* session and lets them send a fresh join request afterward.
+    socket.on('remove_participant', async ({ meetingId, room, targetSocketId, ban }) => {
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
       // `room` is the roomKey the host is currently in (main or a breakout room) —
       // that's where the target participant actually lives, which may differ from
       // the base meetingId used purely for host authorization above.
       const roomKey = room || meetingId;
       const list = meetingParticipants.get(roomKey);
+      const target = list?.find((p) => p.socketId === targetSocketId);
+
+      // A co-host removing the primary host would leave the meeting with no
+      // one accountable for it (and could be used to lock the actual host
+      // out of their own call) — refuse it outright regardless of who's
+      // asking.
+      if (target && meetingHosts.get(meetingId) === target.userId) return;
+
       if (list) {
         meetingParticipants.set(roomKey, list.filter(p => p.socketId !== targetSocketId));
       }
-      io.to(targetSocketId).emit('removed_from_meeting');
+      io.to(targetSocketId).emit('removed_from_meeting', { banned: !!ban });
       socket.to(`meeting_room:${roomKey}`).emit('participant_left', { socketId: targetSocketId });
+
+      if (ban && target) {
+        const banSet = await getBanSet(meetingId);
+        banSet.add(target.userId);
+        try {
+          await prisma.meeting.update({
+            where: { code: meetingId },
+            data: { bannedUserIds: [...banSet] },
+          });
+        } catch (err) {
+          console.error('Failed to persist meeting ban:', err);
+        }
+      }
     });
 
     socket.on('join_meeting_room', ({ meetingId }) => {
@@ -507,7 +685,7 @@ export const initSocket = (server: HttpServer) => {
     // Recording consent notice — broadcast to everyone in the room the moment
     // the host starts/stops, mirroring Meet/Teams' "this meeting is being recorded" banner.
     socket.on('recording_state', async ({ meetingId, recording }) => {
-      if (!(await assertIsHost(meetingId))) return;
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
       socket.to(`meeting:${meetingId}`).emit('meeting_recording_state_changed', {
         recording,
         byName: `${user.firstName} ${user.lastName}`,
@@ -520,6 +698,61 @@ export const initSocket = (server: HttpServer) => {
         senderName: `${user.firstName} ${user.lastName}`,
         reaction
       });
+    });
+
+    // ----------------------------------------------------
+    // LIVE POLLS (Meet/Teams "Polls" activity) — ephemeral, in-memory only,
+    // scoped to the meeting-wide channel so a poll reaches everyone
+    // regardless of which breakout room they're currently in.
+    // ----------------------------------------------------
+    socket.on('create_poll', async ({ meetingId, question, options }) => {
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
+      const cleanQuestion = typeof question === 'string' ? question.trim().slice(0, 300) : '';
+      const cleanOptions = Array.isArray(options)
+        ? options.map((o: any) => (typeof o === 'string' ? o.trim().slice(0, 120) : '')).filter(Boolean).slice(0, 8)
+        : [];
+      if (!cleanQuestion || cleanOptions.length < 2) return;
+
+      const poll: ActivePoll = {
+        id: crypto.randomUUID(),
+        question: cleanQuestion,
+        options: cleanOptions,
+        votes: new Map(),
+        createdBy: userId,
+      };
+      if (!meetingPolls.has(meetingId)) meetingPolls.set(meetingId, new Map());
+      meetingPolls.get(meetingId)!.set(poll.id, poll);
+
+      io.to(`meeting:${meetingId}`).emit('poll_started', {
+        pollId: poll.id,
+        question: poll.question,
+        options: poll.options,
+        byName: `${user.firstName} ${user.lastName}`,
+      });
+    });
+
+    // Anyone in the meeting can vote — one vote per user per poll, and
+    // submitting again changes their existing vote rather than adding a
+    // second one, same as Meet/Teams polls.
+    socket.on('submit_poll_vote', ({ meetingId, pollId, optionIndex }) => {
+      const poll = meetingPolls.get(meetingId)?.get(pollId);
+      if (!poll || typeof optionIndex !== 'number' || optionIndex < 0 || optionIndex >= poll.options.length) return;
+      poll.votes.set(userId, optionIndex);
+
+      const counts = poll.options.map((_, i) => [...poll.votes.values()].filter((v) => v === i).length);
+      io.to(`meeting:${meetingId}`).emit('poll_results_updated', {
+        pollId,
+        counts,
+        totalVotes: poll.votes.size,
+      });
+    });
+
+    socket.on('end_poll', async ({ meetingId, pollId }) => {
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
+      const poll = meetingPolls.get(meetingId)?.get(pollId);
+      if (!poll) return;
+      meetingPolls.get(meetingId)?.delete(pollId);
+      io.to(`meeting:${meetingId}`).emit('poll_ended', { pollId });
     });
 
     // Broadcasts that this socket has started/stopped sharing their screen, so
@@ -559,9 +792,9 @@ export const initSocket = (server: HttpServer) => {
       }
     });
 
-    // Host's decision, routed back to just the requesting guest.
+    // Host/co-host's decision, routed back to just the requesting guest.
     socket.on('screen_share_permission_result', async ({ meetingId, targetSocketId, approved }) => {
-      if (!(await assertIsHost(meetingId))) return;
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
       io.to(targetSocketId).emit('screen_share_permission_result', { approved });
     });
 
@@ -575,13 +808,16 @@ export const initSocket = (server: HttpServer) => {
 
     // Terminate meeting for all participants
     socket.on('end_meeting', async ({ meetingId }) => {
-      if (!(await assertIsHost(meetingId))) return;
+      if (!(await assertIsHostOrCoHost(meetingId))) return;
       meetingParticipants.delete(meetingId);
       activeMeetings.delete(meetingId);
       meetingHosts.delete(meetingId);
       lockedMeetings.delete(meetingId);
+      meetingCoHosts.delete(meetingId);
+      meetingBans.delete(meetingId);
+      meetingPolls.delete(meetingId);
       io.to(`meeting:${meetingId}`).emit('meeting_ended');
-      console.log(`Meeting ${meetingId} terminated for all participants by Host.`);
+      console.log(`Meeting ${meetingId} terminated for all participants.`);
     });
 
     // ----------------------------------------------------

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, Eye, Check, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { statusBadgeClass } from '../statusBadge';
 
 export function PayslipsTab({
@@ -19,45 +20,46 @@ export function PayslipsTab({
   onMarkPaid: (id: string) => void;
   onDeletePayslip: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Earnings & Payslips</h3>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t('hr.payslips.heading')}</h3>
         {isAdmin && (
           <button
             onClick={onGeneratePayslip}
             className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-white bg-primary rounded-xl shadow-md hover:bg-primary-dark transition-all"
           >
             <Plus className="h-4 w-4" />
-            Generate Payslip
+            {t('hr.payslips.generate')}
           </button>
         )}
       </div>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-850">
-          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isAdmin ? 'All Generated Payslips' : 'My Payslips'}</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isAdmin ? t('hr.payslips.allPayslips') : t('hr.payslips.myPayslips')}</p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-400 tracking-wider border-b">
-                {isAdmin && <th className="px-5 py-3">Employee</th>}
-                <th className="px-5 py-3">Month / Year</th>
-                <th className="px-5 py-3">Basic Salary</th>
-                <th className="px-5 py-3">Allowances</th>
-                <th className="px-5 py-3">Deductions</th>
-                <th className="px-5 py-3">Net Salary</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right">Action</th>
+                {isAdmin && <th className="px-5 py-3">{t('hr.payslips.employee')}</th>}
+                <th className="px-5 py-3">{t('hr.payslips.monthYear')}</th>
+                <th className="px-5 py-3">{t('hr.payslips.basicSalary')}</th>
+                <th className="px-5 py-3">{t('hr.payslips.allowances')}</th>
+                <th className="px-5 py-3">{t('hr.payslips.deductions')}</th>
+                <th className="px-5 py-3">{t('hr.payslips.netSalary')}</th>
+                <th className="px-5 py-3">{t('hr.payslips.status')}</th>
+                <th className="px-5 py-3 text-right">{t('hr.payslips.action')}</th>
               </tr>
             </thead>
             <tbody className="divide-y text-xs">
               {payslips.length === 0 ? (
                 <tr>
                   <td colSpan={isAdmin ? 8 : 7} className="text-center py-8 text-slate-400">
-                    No payslips available.
+                    {t('hr.payslips.noPayslips')}
                   </td>
                 </tr>
               ) : (
@@ -83,23 +85,23 @@ export function PayslipsTab({
                     </td>
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => onViewPayslip(pay)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500" title="View Details">
+                        <button onClick={() => onViewPayslip(pay)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500" title={t('hr.payslips.viewDetails')}>
                           <Eye className="h-4 w-4" />
                         </button>
                         {isAdmin && pay.status === 'UNPAID' && (
-                          <button onClick={() => onMarkPaid(pay.id)} className="p-1 rounded bg-green-500/10 text-green-600 hover:bg-green-500/20" title="Mark Paid">
+                          <button onClick={() => onMarkPaid(pay.id)} className="p-1 rounded bg-green-500/10 text-green-600 hover:bg-green-500/20" title={t('hr.payslips.markPaid')}>
                             <Check className="h-4 w-4" />
                           </button>
                         )}
                         {isAdmin && (
                           <button
                             onClick={() => {
-                              if (confirm('Are you sure you want to delete this payslip?')) {
+                              if (confirm(t('hr.payslips.deleteConfirm'))) {
                                 onDeletePayslip(pay.id);
                               }
                             }}
                             className="p-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-                            title="Delete payslip"
+                            title={t('hr.payslips.deletePayslip')}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

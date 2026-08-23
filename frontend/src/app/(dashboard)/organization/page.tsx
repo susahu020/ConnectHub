@@ -15,6 +15,7 @@ import {
   Upload,
   Send,
   Mail,
+  Phone,
   Globe,
   MapPin,
   Image as ImageIcon,
@@ -24,6 +25,7 @@ import {
   ClipboardPen,
 } from 'lucide-react';
 import { api } from '../../../services/api';
+import { CurvedTabs } from '../../../components/ui/CurvedTabs';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '../../../context/ConfirmContext';
@@ -99,6 +101,7 @@ export default function OrganizationPage() {
         faviconUrl: orgSettingsData.faviconUrl || '',
         primaryColor: orgSettingsData.primaryColor || '#4f46e5',
         supportEmail: orgSettingsData.supportEmail || '',
+        supportPhone: orgSettingsData.supportPhone || '',
         website: orgSettingsData.website || '',
         address: orgSettingsData.address || '',
         defaultWatermarkText: orgSettingsData.defaultWatermarkText || '',
@@ -416,37 +419,16 @@ export default function OrganizationPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b text-xs font-bold text-slate-400">
-        <button
-          onClick={() => setActiveTab('org')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
-            activeTab === 'org' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
-          }`}
-        >
-          <Building2 className="h-4 w-4" />
-          <span>Organization</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('departments')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
-            activeTab === 'departments' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
-          }`}
-        >
-          <Building2 className="h-4 w-4" />
-          <span>Departments</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('teams')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
-            activeTab === 'teams' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
-          }`}
-        >
-          <UsersRound className="h-4 w-4" />
-          <span>Teams</span>
-        </button>
-      </div>
+      <CurvedTabs
+        className="mb-0"
+        tabs={[
+          { id: 'org', label: 'Organization', icon: <Building2 className="h-4 w-4" /> },
+          { id: 'departments', label: 'Departments', icon: <Building2 className="h-4 w-4" /> },
+          { id: 'teams', label: 'Teams', icon: <UsersRound className="h-4 w-4" /> },
+        ]}
+        activeId={activeTab}
+        onChange={(id) => setActiveTab(id as typeof activeTab)}
+      />
 
       {/* Tab Workspaces */}
       <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
@@ -640,6 +622,18 @@ export default function OrganizationPage() {
                         onChange={(e) => setOrgForm({ ...orgForm, supportEmail: e.target.value })}
                         className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="support@example.com"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                        <Phone className="h-3 w-3" /> Support Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={orgForm.supportPhone || ''}
+                        onChange={(e) => setOrgForm({ ...orgForm, supportPhone: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        placeholder="+1 (800) 555-0100"
                       />
                     </div>
                     <div className="space-y-1">

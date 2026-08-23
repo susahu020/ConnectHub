@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeftRight, Plus, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function ShiftsTab({
   shiftAssignments,
@@ -24,17 +25,18 @@ export function ShiftsTab({
   onDeleteShiftAssignment: (id: string) => void;
   onUpdateSwapStatus: (id: string, status: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Shift Calendar & Swaps</h3>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t('hr.shifts.heading')}</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenSwapModal}
             className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-slate-700 bg-white border border-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-350 rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
           >
             <ArrowLeftRight className="h-4 w-4" />
-            Request Shift Swap
+            {t('hr.shifts.requestSwap')}
           </button>
           {isManager && (
             <>
@@ -43,14 +45,14 @@ export function ShiftsTab({
                 className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-white bg-slate-800 dark:bg-slate-700 rounded-xl shadow-md hover:bg-slate-900 transition-all"
               >
                 <Plus className="h-4 w-4" />
-                Define Shift
+                {t('hr.shifts.defineShift')}
               </button>
               <button
                 onClick={onOpenAssignShiftModal}
                 className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-white bg-primary rounded-xl shadow-md hover:bg-primary-dark transition-all"
               >
                 <Plus className="h-4 w-4" />
-                Assign Shift
+                {t('hr.shifts.assignShift')}
               </button>
             </>
           )}
@@ -60,24 +62,24 @@ export function ShiftsTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-850">
-            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isManager ? 'Organization Shift Roster' : 'My Shift Calendar'}</p>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{isManager ? t('hr.shifts.orgRoster') : t('hr.shifts.myCalendar')}</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-400 tracking-wider border-b">
-                  {isManager && <th className="px-5 py-3">Employee</th>}
-                  <th className="px-5 py-3">Shift Name</th>
-                  <th className="px-5 py-3">Hours</th>
-                  <th className="px-5 py-3">Date Range</th>
-                  {isAdmin && <th className="px-5 py-3 text-right">Action</th>}
+                  {isManager && <th className="px-5 py-3">{t('hr.shifts.employee')}</th>}
+                  <th className="px-5 py-3">{t('hr.shifts.shiftName')}</th>
+                  <th className="px-5 py-3">{t('hr.shifts.hours')}</th>
+                  <th className="px-5 py-3">{t('hr.shifts.dateRange')}</th>
+                  {isAdmin && <th className="px-5 py-3 text-right">{t('hr.shifts.action')}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y text-xs">
                 {shiftAssignments.length === 0 ? (
                   <tr>
                     <td colSpan={isManager ? (isAdmin ? 5 : 4) : 3} className="text-center py-8 text-slate-400">
-                      No shifts assigned.
+                      {t('hr.shifts.noShifts')}
                     </td>
                   </tr>
                 ) : (
@@ -104,12 +106,12 @@ export function ShiftsTab({
                         <td className="px-5 py-4 text-right">
                           <button
                             onClick={() => {
-                              if (confirm('Are you sure you want to delete this shift assignment?')) {
+                              if (confirm(t('hr.shifts.deleteAssignmentConfirm'))) {
                                 onDeleteShiftAssignment(assign.id);
                               }
                             }}
                             className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-500"
-                            title="Delete Shift Assignment"
+                            title={t('hr.shifts.deleteAssignment')}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -124,10 +126,10 @@ export function ShiftsTab({
         </div>
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-          <h4 className="text-sm font-black text-slate-850 dark:text-white mb-4">Swap Requests Feed</h4>
+          <h4 className="text-sm font-black text-slate-850 dark:text-white mb-4">{t('hr.shifts.swapRequestsFeed')}</h4>
           <div className="space-y-4">
             {swapRequests.length === 0 ? (
-              <p className="text-xs text-slate-400 text-center py-6">No shift swap requests.</p>
+              <p className="text-xs text-slate-400 text-center py-6">{t('hr.shifts.noSwapRequests')}</p>
             ) : (
               swapRequests.map((swap: any) => (
                 <div key={swap.id} className="border border-slate-100 dark:border-slate-850 rounded-xl p-3.5 space-y-2">
@@ -144,8 +146,8 @@ export function ShiftsTab({
                     </span>
                   </div>
                   <p className="text-[10px] text-slate-500">
-                    Swapping: <span className="font-bold">{swap.requesterAssignment?.shift?.name}</span> ({swap.requesterAssignment?.shift?.startTime}) with{' '}
-                    <span className="font-bold">{swap.assigneeAssignment?.shift?.name}</span> ({swap.assigneeAssignment?.shift?.startTime})
+                    {t('hr.shifts.swapping')} <span className="font-bold">{swap.requesterAssignment?.shift?.name}</span> ({swap.requesterAssignment?.shift?.startTime}){' '}
+                    {t('hr.shifts.with')} <span className="font-bold">{swap.assigneeAssignment?.shift?.name}</span> ({swap.assigneeAssignment?.shift?.startTime})
                   </p>
 
                   {isManager && swap.status === 'PENDING' && swap.requesterId !== currentUserId && swap.assigneeId !== currentUserId && (
@@ -154,13 +156,13 @@ export function ShiftsTab({
                         onClick={() => onUpdateSwapStatus(swap.id, 'APPROVED')}
                         className="px-2.5 py-1 text-[10px] font-black text-white bg-green-500 rounded-lg hover:bg-green-600 transition-all"
                       >
-                        Approve
+                        {t('hr.shifts.approve')}
                       </button>
                       <button
                         onClick={() => onUpdateSwapStatus(swap.id, 'REJECTED')}
                         className="px-2.5 py-1 text-[10px] font-black text-slate-650 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all"
                       >
-                        Reject
+                        {t('hr.shifts.reject')}
                       </button>
                     </div>
                   )}

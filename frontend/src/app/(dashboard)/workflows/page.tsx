@@ -17,10 +17,45 @@ import {
   Clock,
   Sparkles,
   Loader2,
+  CheckCircle,
+  XCircle,
+  CalendarClock,
+  Mail,
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
+
+// Small "last run" indicator for a single workflow card. Kept as its own
+// component so each card's run history is its own query (cheap, and
+// avoids re-fetching all cards' runs whenever one workflow changes).
+function LastRunBadge({ workflowId }: { workflowId: string }) {
+  const { data: runs = [], isLoading } = useQuery({
+    queryKey: ['workflow-runs', workflowId],
+    queryFn: () => api.getWorkflowRuns(workflowId),
+  });
+
+  if (isLoading) {
+    return <div className="h-3 w-20 bg-muted animate-pulse rounded" />;
+  }
+
+  if (runs.length === 0) {
+    return <span className="text-[8px] text-slate-400 font-semibold">Never run yet</span>;
+  }
+
+  const lastRun = runs[0];
+  const isSuccess = lastRun.status === 'SUCCESS';
+
+  return (
+    <span
+      className={`text-[8px] font-bold flex items-center gap-1 ${isSuccess ? 'text-emerald-500' : 'text-rose-500'}`}
+      title={isSuccess ? undefined : lastRun.error || 'Run failed'}
+    >
+      {isSuccess ? <CheckCircle className="h-2.5 w-2.5" /> : <XCircle className="h-2.5 w-2.5" />}
+      Last run {new Date(lastRun.ranAt).toLocaleString()}
+    </span>
+  );
+}
 
 export default function WorkflowsPage() {
   const router = useRouter();
@@ -32,6 +67,18 @@ export default function WorkflowsPage() {
   const [flowName, setFlowName] = useState('');
   const [flowTrigger, setFlowTrigger] = useState('TASK_COMPLETED');
   const [flowAction, setFlowAction] = useState('NOTIFY_MANAGER');
+  const [flowDepartmentId, setFlowDepartmentId] = useState('');
+
+  // Only DOCUMENT_UPLOADED carries a departmentId-bearing payload today
+  // (the uploader's own department) — scoping other triggers by department
+  // would silently never match, so only offer it where it actually works.
+  const supportsDepartmentCondition = flowTrigger === 'DOCUMENT_UPLOADED';
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments-list'],
+    queryFn: () => api.getDepartments(),
+    enabled: user?.role === 'ADMIN' && supportsDepartmentCondition,
+  });
 
   // Workflows configure company-wide automation policy — admin only, same as the Admin Panel.
   useEffect(() => {
@@ -54,7 +101,11 @@ export default function WorkflowsPage() {
       queryClient.invalidateQueries({ queryKey: ['workflows-list'] });
       setCreateModalOpen(false);
       setFlowName('');
+      setFlowDepartmentId('');
       toast.success('Workflow automation created!');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Could not create this automation.');
     },
   });
 
@@ -64,6 +115,10 @@ export default function WorkflowsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows-list'] });
       toast.success('Workflow status updated.');
+    },
+    onError: (err: any) => {
+      queryClient.invalidateQueries({ queryKey: ['workflows-list'] });
+      toast.error(err?.message || 'Could not update this automation.');
     },
   });
 
@@ -86,6 +141,7 @@ export default function WorkflowsPage() {
       trigger: flowTrigger,
       action: flowAction,
       isActive: true,
+      conditions: supportsDepartmentCondition && flowDepartmentId ? { departmentId: flowDepartmentId } : undefined,
     });
   };
 
@@ -94,6 +150,7 @@ export default function WorkflowsPage() {
       case 'TASK_COMPLETED': return 'When Task is Completed';
       case 'EMPLOYEE_JOINED': return 'When Employee Joins (Onboarding)';
       case 'DOCUMENT_UPLOADED': return 'When Document is Uploaded';
+      case 'LEAVE_REQUESTED': return 'When Leave is Requested';
       default: return trig;
     }
   };
@@ -103,6 +160,7 @@ export default function WorkflowsPage() {
       case 'NOTIFY_MANAGER': return 'Notify Manager';
       case 'ASSIGN_ONBOARDING_TASKS': return 'Assign Onboarding Checklist';
       case 'NOTIFY_TEAM': return 'Notify Teammates';
+      case 'SEND_EMAIL_ONLY': return 'Send Email Only';
       default: return act;
     }
   };
@@ -112,6 +170,7 @@ export default function WorkflowsPage() {
       case 'TASK_COMPLETED': return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
       case 'EMPLOYEE_JOINED': return <UserCheck className="h-5 w-5 text-info" />;
       case 'DOCUMENT_UPLOADED': return <FileText className="h-5 w-5 text-amber-500" />;
+      case 'LEAVE_REQUESTED': return <CalendarClock className="h-5 w-5 text-violet-500" />;
       default: return <Sparkles className="h-5 w-5 text-primary" />;
     }
   };
@@ -144,9 +203,17 @@ export default function WorkflowsPage() {
       {/* Rules Directory Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading ? (
-          <div className="col-span-full text-center py-12 text-xs text-slate-400 italic">
-            Retrieving automation rules...
-          </div>
+          [...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white dark:bg-slate-900 border rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="h-2.5 w-14 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-8 bg-muted animate-pulse rounded-full" />
+              </div>
+              <div className="h-8 w-8 bg-muted animate-pulse rounded-lg" />
+              <div className="h-3 w-3/4 bg-muted animate-pulse rounded" />
+              <div className="h-2.5 w-1/2 bg-muted animate-pulse rounded" />
+            </div>
+          ))
         ) : workflows.length === 0 ? (
           <div className="col-span-full bg-white dark:bg-slate-900 border rounded-3xl p-12 text-center space-y-3">
             <Sparkles className="h-8 w-8 text-primary mx-auto animate-pulse" />
@@ -182,6 +249,9 @@ export default function WorkflowsPage() {
                 <h3 className="font-extrabold text-xs text-slate-850 dark:text-slate-100 truncate pr-6" title={flow.name}>
                   {flow.name}
                 </h3>
+                {flow.conditions?.departmentId && (
+                  <p className="text-[8px] text-violet-500 font-bold">Scoped to one department</p>
+                )}
               </div>
 
               {/* Recipe Flow UI */}
@@ -214,9 +284,7 @@ export default function WorkflowsPage() {
 
               {/* Card Footer Delete Button */}
               <div className="flex items-center justify-between border-t dark:border-slate-800 pt-3">
-                <span className="text-[8px] text-slate-400 font-semibold">
-                  Added: {new Date(flow.createdAt).toLocaleDateString()}
-                </span>
+                <LastRunBadge workflowId={flow.id} />
                 <button
                   onClick={() => {
                     if (confirm('Delete this workflow automation permanently?')) {
@@ -266,12 +334,13 @@ export default function WorkflowsPage() {
                 <label className="text-slate-400 uppercase text-[9px] tracking-wider">When (Event Trigger)</label>
                 <select
                   value={flowTrigger}
-                  onChange={(e) => setFlowTrigger(e.target.value)}
+                  onChange={(e) => { setFlowTrigger(e.target.value); setFlowDepartmentId(''); }}
                   className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs font-bold"
                 >
                   <option value="TASK_COMPLETED">When Task status becomes COMPLETED</option>
                   <option value="EMPLOYEE_JOINED">When New Employee completes Onboarding</option>
                   <option value="DOCUMENT_UPLOADED">When Document/File is Uploaded</option>
+                  <option value="LEAVE_REQUESTED">When an Employee requests Leave</option>
                 </select>
               </div>
 
@@ -285,8 +354,27 @@ export default function WorkflowsPage() {
                   <option value="NOTIFY_MANAGER">Notify employee's manager</option>
                   <option value="ASSIGN_ONBOARDING_TASKS">Auto-assign onboarding tasks checklist</option>
                   <option value="NOTIFY_TEAM">Notify teammates (Department members)</option>
+                  <option value="SEND_EMAIL_ONLY">Send a direct email only (no in-app notification)</option>
                 </select>
               </div>
+
+              {supportsDepartmentCondition && (
+                <div className="space-y-1.5">
+                  <label className="text-slate-400 uppercase text-[9px] tracking-wider">Limit to Department (optional)</label>
+                  <select
+                    value={flowDepartmentId}
+                    onChange={(e) => setFlowDepartmentId(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs font-bold"
+                  >
+                    <option value="">All departments</option>
+                    {departments.map((dept: any) => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-[9px] text-slate-400 leading-relaxed">Only run this automation for uploads from members of the selected department.</p>
+                </div>
+              )}
+
 
               <button
                 type="submit"

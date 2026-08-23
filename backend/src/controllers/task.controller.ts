@@ -399,6 +399,12 @@ export const addTaskComment = async (req: AuthenticatedRequest, res: Response, n
     const { content } = req.body;
     const userId = req.user?.id!;
 
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      res.status(404).json({ message: 'Task not found.' });
+      return;
+    }
+
     const comment = await prisma.taskComment.create({
       data: {
         taskId,
