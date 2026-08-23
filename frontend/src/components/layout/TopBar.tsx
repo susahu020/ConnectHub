@@ -74,7 +74,7 @@ export function TopBar({
   const visibleNotifs = showUnreadOnly ? notifications.filter((n) => !n.isRead) : notifications;
 
   return (
-    <header className="h-16 bg-card border-b border-border flex items-center justify-between gap-4 px-4 sm:px-6 z-30 shrink-0">
+    <header className="h-16 bg-white dark:bg-slate-900 border-b border-border flex items-center justify-between gap-4 px-4 sm:px-6 z-30 shrink-0">
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={onOpenMobileSidebar}
@@ -92,7 +92,7 @@ export function TopBar({
       <div className="flex items-center gap-2 sm:gap-3 flex-1 justify-end min-w-0">
         {/* Global search */}
         <div ref={searchRef} className="relative w-full max-w-xs">
-          <div className="flex items-center gap-2 bg-muted/60 focus-within:bg-background px-3 py-1.5 rounded-lg border border-transparent focus-within:border-border text-[13px] font-medium text-muted-foreground transition-colors w-full">
+          <div className="flex items-center gap-2 bg-muted/60 focus-within:bg-white dark:focus-within:bg-slate-950 px-3 py-1.5 rounded-lg border border-transparent focus-within:border-border text-[13px] font-medium text-muted-foreground transition-colors w-full">
             <Search className="h-4 w-4 shrink-0" />
             <input
               type="text"
@@ -115,7 +115,7 @@ export function TopBar({
           </div>
 
           {searchFocused && searchQuery.trim() !== '' && (
-            <div className="absolute top-11 right-0 sm:left-0 w-[22rem] max-w-[90vw] bg-popover/98 backdrop-blur-md border border-border rounded-xl shadow-2xl z-[999] p-3 space-y-4 max-h-[420px] overflow-y-auto animate-slide-up text-left">
+            <div className="absolute top-11 right-0 sm:left-0 w-[22rem] max-w-[90vw] bg-white/98 dark:bg-slate-900/98 backdrop-blur-md border border-border rounded-xl shadow-2xl z-[999] p-3 space-y-4 max-h-[420px] overflow-y-auto animate-slide-up text-left">
               {searchCategories.map(
                 (category) =>
                   category.items.length > 0 && (
@@ -192,7 +192,7 @@ export function TopBar({
               <div onClick={onCloseNotif} className="fixed inset-0 z-40" aria-hidden="true" />
               <div
                 role="menu"
-                className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-popover border border-border rounded-xl shadow-2xl z-50 p-3.5 space-y-3"
+                className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white dark:bg-slate-900 border border-border rounded-xl shadow-2xl z-50 p-3.5 space-y-3"
               >
                 <div className="flex items-center justify-between border-b border-border pb-2.5">
                   <h4 className="font-semibold text-[13px]">{t('topbar.notifications')}</h4>
