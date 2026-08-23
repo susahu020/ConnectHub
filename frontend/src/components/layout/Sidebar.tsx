@@ -94,7 +94,7 @@ export function Sidebar({
 
       <aside
         aria-label="Primary navigation"
-        className={`fixed inset-y-0 left-0 z-50 h-full flex flex-col shrink-0 bg-white dark:bg-slate-900 border-r border-border transition-[width,transform] duration-200 ease-out md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 h-full flex flex-col shrink-0 bg-card border-r border-border transition-[width,transform] duration-200 ease-out md:relative md:translate-x-0 ${
           collapsed ? 'w-[72px]' : 'w-64'
         } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
@@ -232,7 +232,7 @@ export function Sidebar({
                 )}
               </div>
               <span
-                className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card ${
                   STATUS_DOT_CLASS[user.status] ?? 'bg-slate-400'
                 }`}
               />
@@ -259,7 +259,7 @@ export function Sidebar({
             {statusMenuOpen && (
               <div
                 role="menu"
-                className={`absolute bottom-12 bg-white dark:bg-slate-900 border border-border p-1.5 rounded-xl shadow-xl w-48 z-50 space-y-0.5 animate-slide-up ${
+                className={`absolute bottom-12 bg-popover border border-border p-1.5 rounded-xl shadow-xl w-48 z-50 space-y-0.5 animate-slide-up ${
                   collapsed ? 'left-14' : 'left-1'
                 }`}
               >

@@ -1816,6 +1816,23 @@ export default function MeetingsPage() {
     if (meetingStep === 'lobby') refetchMyMeetings();
   }, [meetingStep]);
 
+  // Keep "My Meetings" live: every other page's meeting data is React Query
+  // and gets invalidated automatically off the backend's `data_update`
+  // broadcast (see MODULE_QUERY_KEYS.meetings in hooks/useSocket.tsx), but
+  // this list is plain local state, so it needs its own listener. Without
+  // this, a new invite (or a host starting/cancelling a meeting) only shows
+  // up here after the invitee navigates away and back — not the moment it
+  // actually happens, which is what "shows up in their Meeting section"
+  // means for someone with this page open right now.
+  useEffect(() => {
+    if (!socket) return;
+    const handleMeetingsDataUpdate = ({ module }: { module: string }) => {
+      if (module === 'meetings' && meetingStep === 'lobby') refetchMyMeetings();
+    };
+    socket.on('data_update', handleMeetingsDataUpdate);
+    return () => { socket.off('data_update', handleMeetingsDataUpdate); };
+  }, [socket, meetingStep]);
+
   const toggleScheduleInvitee = (userId: string) => {
     setScheduleInviteeIds(prev => prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]);
     // A co-host has to actually be invited — if they're being unchecked as an
@@ -2155,7 +2172,11 @@ export default function MeetingsPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-white dark:bg-slate-905 dark:bg-slate-950 p-3 sm:p-8 overflow-hidden h-[calc(100vh-4rem)]">
+    <div
+      className={`flex-1 flex flex-col bg-white dark:bg-slate-905 dark:bg-slate-950 p-3 sm:p-8 h-[calc(100vh-4rem)] ${
+        meetingStep === 'lobby' ? 'overflow-y-auto' : 'overflow-hidden'
+      }`}
+    >
       
       {/* Resolving a ?code= link (calendar invite, feed entry, pasted link) —
           shown instead of the lobby form so opening a meeting link goes
@@ -2170,7 +2191,7 @@ export default function MeetingsPage() {
 
       {/* GOOGLE MEET LOBBY SCREEN */}
       {meetingStep === 'lobby' && !resolvingLinkCode && (
-        <div className="flex-grow flex flex-col lg:flex-row items-center justify-center max-w-6xl mx-auto w-full gap-12 lg:gap-24">
+        <div className="flex-grow flex flex-col lg:flex-row items-center lg:items-start justify-center max-w-6xl mx-auto w-full gap-12 lg:gap-24 lg:pt-10 pb-10">
           
           {/* LEFT SIDE: GOOGLE MEET CONFIG PANEL */}
           <div className="w-full lg:w-1/2 space-y-12 text-left animate-in fade-in duration-300">
