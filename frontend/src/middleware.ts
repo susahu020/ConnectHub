@@ -51,7 +51,12 @@ export function middleware(req: NextRequest) {
 
   if (!hasSession && !isPublicPath) {
     const loginUrl = new URL('/login', req.url);
-    loginUrl.searchParams.set('next', pathname);
+    // Preserve the full path *and* query string, not just pathname — a
+    // meeting invite link (e.g. /meetings?code=abc-defg-hij) carries the
+    // join code in its query string, and dropping it here would strand an
+    // unauthenticated invitee on a bare /meetings page (no code) after they
+    // log in, instead of straight into the meeting they clicked through for.
+    loginUrl.searchParams.set('next', pathname + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 

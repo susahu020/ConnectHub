@@ -24,6 +24,11 @@ build/
 **/.env.*
 .env.development
 .env.production
+# The .example files are templates meant to be committed — the broad
+# **/.env.* pattern above would otherwise also swallow these, which would
+# mean nobody cloning the repo fresh ever actually gets the template.
+!.env.example
+!**/.env.example
 
 # Logs
 logs

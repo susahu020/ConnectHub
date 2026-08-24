@@ -14,6 +14,41 @@ export const isModerator = (role?: string) => role === 'ADMIN' || role === 'MANA
 export const canAccessPage = (page: { isPublished: boolean; authorId: string }, userId: string, role?: string) =>
   page.isPublished || page.authorId === userId || isModerator(role);
 
+// Wiki editing is intentionally collaborative (see updateWikiPage below), so
+// two people saving the same page within milliseconds of each other is a
+// real scenario, not just a theoretical one. Reading "the latest version
+// number" and then creating the next one are two separate round trips, so
+// two concurrent requests can both read the same latest version and both
+// try to create the same next version number. The @@unique([pageId,
+// version]) constraint on WikiVersion turns the second one into a P2002
+// error instead of a silent duplicate — this retries a few times with a
+// fresh read of the latest version each time, so the losing request still
+// succeeds (just gets renumbered) instead of surfacing an error to a user
+// who did nothing wrong.
+const createNextWikiVersion = async (
+  pageId: string,
+  title: string,
+  content: string,
+  changedById: string
+) => {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const latest = await prisma.wikiVersion.findFirst({
+      where: { pageId },
+      orderBy: { version: 'desc' },
+      select: { version: true },
+    });
+    const nextVersion = (latest?.version || 0) + 1;
+    try {
+      return await prisma.wikiVersion.create({
+        data: { pageId, version: nextVersion, title, content, changedById },
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2002' && attempt < 4) continue;
+      throw err;
+    }
+  }
+};
+
 // 1. GET /api/wiki — List pages
 export const getWikiPages = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -108,15 +143,7 @@ export const createWikiPage = async (req: AuthenticatedRequest, res: Response, n
     });
 
     // Create version 1
-    await prisma.wikiVersion.create({
-      data: {
-        pageId: page.id,
-        version: 1,
-        title: page.title,
-        content: page.content,
-        changedById: authorId,
-      },
-    });
+    await createNextWikiVersion(page.id, page.title, page.content, authorId);
 
     emitDataUpdate(req, 'wiki');
     res.status(201).json(page);
@@ -135,10 +162,7 @@ export const updateWikiPage = async (req: AuthenticatedRequest, res: Response, n
     const changedById = req.user!.id;
     const { title, content, category, isPublished } = req.body || {};
 
-    const page = await prisma.wikiPage.findUnique({
-      where: { id },
-      include: { versions: { orderBy: { version: 'desc' }, take: 1 } },
-    });
+    const page = await prisma.wikiPage.findUnique({ where: { id } });
 
     if (!page) {
       return res.status(404).json({ message: 'Wiki page not found.' });
@@ -158,19 +182,8 @@ export const updateWikiPage = async (req: AuthenticatedRequest, res: Response, n
       },
     });
 
-    // Compute next version number
-    const latestVer = page.versions[0]?.version || 0;
-    
     // Create new version history record
-    await prisma.wikiVersion.create({
-      data: {
-        pageId: id,
-        version: latestVer + 1,
-        title: updated.title,
-        content: updated.content,
-        changedById,
-      },
-    });
+    await createNextWikiVersion(id, updated.title, updated.content, changedById);
 
     emitDataUpdate(req, 'wiki');
     res.json(updated);
@@ -237,16 +250,7 @@ export const rollbackWikiPage = async (req: AuthenticatedRequest, res: Response,
     });
 
     // Save as next version
-    const latestVer = page.versions[0]?.version || 0;
-    await prisma.wikiVersion.create({
-      data: {
-        pageId: id,
-        version: latestVer + 1,
-        title: updated.title,
-        content: updated.content,
-        changedById,
-      },
-    });
+    await createNextWikiVersion(id, updated.title, updated.content, changedById);
 
     emitDataUpdate(req, 'wiki');
     res.json(updated);

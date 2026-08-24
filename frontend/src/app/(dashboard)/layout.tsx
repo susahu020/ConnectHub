@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -38,15 +39,27 @@ import { CelebrationModal } from '../../components/layout/CelebrationModal';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useTranslation();
   const { user, logout, token, isAuthenticated, updateUser } = useAuthStore();
   const { socket } = useSocket();
   const { settings: orgSettings } = useOrganizationSettings();
+  const queryClient = useQueryClient();
+
+  // Notification bell state — React Query now (queryKey: ['notifications']),
+  // so cross-tab/device sync (read/all-read/deleted elsewhere) is handled by
+  // the generic data_update system (see hooks/useSocket.tsx) instead of the
+  // bespoke notification_read/all_notifications_read/notification_deleted
+  // socket events this layout used to listen for directly.
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.getNotifications(),
+    enabled: isAuthenticated,
+  });
 
   // State
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState('light');
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [showUnreadOnly, setShowUnreadOnly] = useState(true);
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -257,21 +270,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   };
 
-  // Load Notifications
-  const fetchNotifications = async () => {
-    if (!isAuthenticated) return;
-    try {
-      const data = await api.getNotifications();
-      setNotifications(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-  }, [isAuthenticated]);
-
   // Handle incoming real-time notifications
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -285,7 +283,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!socket) return;
 
     const handleNewNotification = (notification: any) => {
-      setNotifications((prev) => [notification, ...prev]);
+      queryClient.setQueryData(['notifications'], (prev: any[] = []) => [notification, ...prev]);
       toast((t) => (
         <span className="flex flex-col text-xs font-semibold">
           <strong className="text-primary">{notification.title}</strong>
@@ -318,15 +316,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     socket.on('message', (msg) => {
       // If it's a message notification, re-fetch notifications
       if (msg.senderId !== user?.id) {
-        fetchNotifications();
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
       }
     });
+
+    // Read/all-read/deleted cross-device sync is handled generically now —
+    // see MODULE_QUERY_KEYS['notifications'] in hooks/useSocket.tsx, which
+    // invalidates this same ['notifications'] query on the data_update event.
 
     return () => {
       socket.off('notification_received', handleNewNotification);
       socket.off('message');
     };
-  }, [socket, user]);
+  }, [socket, user, queryClient]);
 
   // Sync theme
   useEffect(() => {
@@ -359,7 +361,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const markNotifRead = async (id: string) => {
     try {
       await api.markNotificationRead(id);
-      setNotifications((prev) =>
+      queryClient.setQueryData(['notifications'], (prev: any[] = []) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
     } catch (err) {
@@ -370,7 +372,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const markAllNotifRead = async () => {
     try {
       await api.markAllNotificationsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      queryClient.setQueryData(['notifications'], (prev: any[] = []) => prev.map((n) => ({ ...n, isRead: true })));
       toast.success('All notifications marked as read.');
     } catch (err) {
       console.error(err);
@@ -392,52 +394,59 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navGroups: NavGroup[] = [
     {
       label: 'Overview',
-      items: [{ name: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard /> }],
+      translatedLabel: t('nav.sections.overview'),
+      items: [{ name: 'Dashboard', label: t('nav.items.dashboard'), href: '/dashboard', icon: <LayoutDashboard /> }],
     },
     {
       label: 'Collaborate',
+      translatedLabel: t('nav.sections.collaborate'),
       items: [
-        { name: 'Direct Chat', href: '/chat', icon: <MessageSquare /> },
-        { name: 'Channels', href: '/groups', icon: <Users /> },
-        { name: 'Meetings', href: '/meetings', icon: <Video /> },
-        { name: 'Announcements', href: '/announcements', icon: <Megaphone /> },
+        { name: 'Direct Chat', label: t('nav.items.directChat'), href: '/chat', icon: <MessageSquare /> },
+        { name: 'Channels', label: t('nav.items.channels'), href: '/groups', icon: <Users /> },
+        { name: 'Meetings', label: t('nav.items.meetings'), href: '/meetings', icon: <Video /> },
+        { name: 'Announcements', label: t('nav.items.announcements'), href: '/announcements', icon: <Megaphone /> },
       ],
     },
     {
       label: 'Work',
+      translatedLabel: t('nav.sections.work'),
       items: [
-        { name: 'Tasks', href: '/tasks', icon: <Trello /> },
-        { name: 'Calendar', href: '/calendar', icon: <Calendar /> },
-        ...(isAdmin ? [{ name: 'Automations', href: '/workflows', icon: <Sparkles /> }] : []),
+        { name: 'Tasks', label: t('nav.items.tasks'), href: '/tasks', icon: <Trello /> },
+        { name: 'Calendar', label: t('nav.items.calendar'), href: '/calendar', icon: <Calendar /> },
+        ...(isAdmin ? [{ name: 'Automations', label: t('nav.items.automations'), href: '/workflows', icon: <Sparkles /> }] : []),
       ],
     },
     {
       label: 'Resources',
+      translatedLabel: t('nav.sections.resources'),
       items: [
-        { name: 'Knowledge Base', href: '/wiki', icon: <BookOpen /> },
-        { name: 'File Storage', href: '/files', icon: <FolderHeart /> },
+        { name: 'Knowledge Base', label: t('nav.items.knowledgeBase'), href: '/wiki', icon: <BookOpen /> },
+        { name: 'File Storage', label: t('nav.items.fileStorage'), href: '/files', icon: <FolderHeart /> },
       ],
     },
     {
       label: 'People',
+      translatedLabel: t('nav.sections.people'),
       items: [
-        { name: 'HR Portal', href: '/hr', icon: <Briefcase /> },
-        { name: 'Directory', href: '/directory', icon: <Contact /> },
-        { name: 'Org Chart', href: '/org-chart', icon: <Network /> },
-        ...(isManagerOrAdmin ? [{ name: 'Analytics', href: '/analytics', icon: <BarChart3 /> }] : []),
+        { name: 'HR Portal', label: t('nav.items.hrPortal'), href: '/hr', icon: <Briefcase /> },
+        { name: 'Directory', label: t('nav.items.directory'), href: '/directory', icon: <Contact /> },
+        { name: 'Org Chart', label: t('nav.items.orgChart'), href: '/org-chart', icon: <Network /> },
+        ...(isManagerOrAdmin ? [{ name: 'Analytics', label: t('nav.items.analytics'), href: '/analytics', icon: <BarChart3 /> }] : []),
       ],
     },
     ...(isAdmin ? [{
       label: 'Organization',
+      translatedLabel: t('nav.sections.organization'),
       items: [
-        { name: 'Organization', href: '/organization', icon: <Building2 /> },
+        { name: 'Organization', label: t('nav.items.organization'), href: '/organization', icon: <Building2 /> },
       ],
     }] : []),
     {
       label: 'General',
+      translatedLabel: t('nav.sections.general'),
       items: [
-        { name: 'Settings', href: '/settings', icon: <Settings2 /> },
-        ...(isAdmin ? [{ name: 'Admin Panel', href: '/admin', icon: <ShieldAlert /> }] : []),
+        { name: 'Settings', label: t('nav.items.settings'), href: '/settings', icon: <Settings2 /> },
+        ...(isAdmin ? [{ name: 'Admin Panel', label: t('nav.items.adminPanel'), href: '/admin', icon: <ShieldAlert /> }] : []),
       ],
     },
   ];

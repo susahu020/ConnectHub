@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function CreateTaskModal({
   open,
@@ -62,6 +63,7 @@ export function CreateTaskModal({
   watcherIds: string[];
   onWatcherIdsChange: (v: string[]) => void;
 }) {
+  const { t } = useTranslation();
   if (!open) return null;
 
   return (
@@ -71,14 +73,14 @@ export function CreateTaskModal({
           <X className="h-5 w-5" />
         </button>
         <div className="space-y-1">
-          <h3 className="font-bold text-lg text-slate-850 dark:text-slate-200">Assign New Task</h3>
+          <h3 className="font-bold text-lg text-slate-850 dark:text-slate-200">{t('createTaskModal.title')}</h3>
           <p className="text-xs text-slate-400">
             Initialize task for: <span className="font-bold text-primary">{projectName}</span>
           </p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4 text-xs font-semibold">
           <div className="space-y-2">
-            <label className="text-slate-400 uppercase text-[10px]">Task Title</label>
+            <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.taskTitle')}</label>
             <input
               type="text"
               required
@@ -90,7 +92,7 @@ export function CreateTaskModal({
           </div>
 
           <div className="space-y-2">
-            <label className="text-slate-400 uppercase text-[10px]">Description</label>
+            <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.description')}</label>
             <textarea
               placeholder="Specify core scopes and requirements of task..."
               value={description}
@@ -101,7 +103,7 @@ export function CreateTaskModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Assigned Employee</label>
+              <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.assignedEmployee')}</label>
               <select
                 required
                 value={assigneeId}
@@ -118,22 +120,22 @@ export function CreateTaskModal({
             </div>
 
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Task Priority</label>
+              <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.priority')}</label>
               <select
                 value={priority}
                 onChange={(e) => onPriorityChange(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
               >
-                <option value="LOW">Low</option>
-                <option value="NORMAL">Normal</option>
-                <option value="HIGH">High</option>
-                <option value="URGENT">Urgent</option>
+                <option value="LOW">{t('createTaskModal.priorityLow')}</option>
+                <option value="NORMAL">{t('createTaskModal.priorityNormal')}</option>
+                <option value="HIGH">{t('createTaskModal.priorityHigh')}</option>
+                <option value="URGENT">{t('createTaskModal.priorityUrgent')}</option>
               </select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-slate-400 uppercase text-[10px]">Due Date</label>
+            <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.dueDate')}</label>
             <input
               type="date"
               value={dueDate}
@@ -144,7 +146,7 @@ export function CreateTaskModal({
 
           <div className="grid grid-cols-2 gap-4 border-t pt-3">
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Sprint Name</label>
+              <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.sprintName')}</label>
               <input
                 type="text"
                 placeholder="e.g. Sprint 1"
@@ -154,7 +156,7 @@ export function CreateTaskModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Milestone</label>
+              <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.milestone')}</label>
               <input
                 type="text"
                 placeholder="e.g. Beta release"
@@ -167,7 +169,7 @@ export function CreateTaskModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Estimated Hours</label>
+              <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.estimatedHours')}</label>
               <input
                 type="number"
                 step="0.5"
@@ -179,7 +181,7 @@ export function CreateTaskModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Labels (Comma separated)</label>
+              <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.labels')}</label>
               <input
                 type="text"
                 placeholder="e.g. bug, high-priority"
@@ -198,11 +200,11 @@ export function CreateTaskModal({
                 onChange={(e) => onIsRecurringChange(e.target.checked)}
                 className="rounded border-slate-300 text-primary focus:ring-primary h-4 w-4"
               />
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Is Recurring</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{t('createTaskModal.isRecurring')}</span>
             </label>
             {isRecurring && (
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Interval</label>
+                <label className="text-slate-400 uppercase text-[10px]">{t('createTaskModal.interval')}</label>
                 <select
                   value={recurrenceInterval}
                   onChange={(e) => onRecurrenceIntervalChange(e.target.value)}
@@ -217,7 +219,7 @@ export function CreateTaskModal({
           </div>
 
           <div className="space-y-2 border-t pt-3">
-            <label className="text-slate-400 uppercase text-[10px] block">Select Watchers</label>
+            <label className="text-slate-400 uppercase text-[10px] block">{t('createTaskModal.selectWatchers')}</label>
             <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border scrollbar-thin">
               {colleagues?.users?.length === 0 ? (
                 <p className="text-[10px] text-slate-400 italic col-span-2">No watchers found.</p>
@@ -246,7 +248,7 @@ export function CreateTaskModal({
           </div>
 
           <button type="submit" className="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/95 transition-all">
-            Allocate Task
+            {t('createTaskModal.submit')}
           </button>
         </form>
       </div>

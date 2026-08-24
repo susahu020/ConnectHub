@@ -81,6 +81,22 @@ interface NotificationParams {
   emailFeature?: EmailFeatureKey;
 }
 
+// Reads UserSettings.notificationPreferences[type][channel], defaulting to
+// true (enabled) when the user has no override for this category — so
+// every existing user keeps getting everything they always got, and only
+// someone who's actually visited Notification Preferences and turned a
+// specific category+channel off will see it suppressed.
+const resolveNotificationPreference = (
+  notificationPreferences: unknown,
+  type: string,
+  channel: 'inApp' | 'email'
+): boolean => {
+  if (!notificationPreferences || typeof notificationPreferences !== 'object') return true;
+  const categoryPrefs = (notificationPreferences as Record<string, any>)[type];
+  if (!categoryPrefs || typeof categoryPrefs !== 'object') return true;
+  return categoryPrefs[channel] !== false;
+};
+
 // Shared by real notification emails and the admin "send test email" tool
 // (see admin.controller.ts sendFeatureTestEmail) so a test send shows the
 // admin exactly what a real recipient's email looks like.
@@ -96,7 +112,7 @@ export const buildNotificationEmail = (title: string, message: string, orgName: 
       <hr style="border: 0; border-top: 1px solid #eaeaea; margin: 20px 0;">
       <p style="font-size: 11px; color: #888; line-height: 1.5;">
         This is an automated notification from ${orgName}. To change how you receive these updates, visit your 
-        <a href="http://localhost:3000/settings" style="color: #2563eb; text-decoration: none; font-weight: bold;">Account Settings</a>.
+        <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/settings" style="color: #2563eb; text-decoration: none; font-weight: bold;">Account Settings</a>.
       </p>
     </div>
   `;
@@ -106,8 +122,31 @@ export const buildNotificationEmail = (title: string, message: string, orgName: 
 export const createNotification = async (params: NotificationParams) => {
   const { userId, title, message, type, relatedId, io, emailFeature } = params;
 
+  // Every caller of this (task assignment, chat messages, meeting invites,
+  // announcements, group creation...) has already committed its primary
+  // write to the DB by the time it calls this. A failure in here — a
+  // malformed settings row, a transient DB hiccup — used to propagate as a
+  // thrown error, which meant the *caller's* request handler reported the
+  // whole action as failed (e.g. "task creation failed") even though the
+  // task/message/meeting genuinely was created. Worse, that false failure
+  // can prompt the client to retry and create a duplicate. Notifications
+  // are a side effect of the real action, not the real action itself, so
+  // failures here are caught and logged instead of bubbled up — the same
+  // treatment the email dispatch a few lines below already gets.
   try {
-    // 1. Create DB notification
+    // 1. Query user preferences first — a category the user has fully
+    // muted (Notification Preferences > In-app off) shouldn't even create a
+    // history row, not just skip the live push.
+    const userWithSettings = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { settings: true },
+    });
+    if (!userWithSettings) return null;
+
+    const categoryInAppEnabled = resolveNotificationPreference(userWithSettings.settings?.notificationPreferences, type, 'inApp');
+    if (!categoryInAppEnabled) return null;
+
+    // 2. Create DB notification
     const notification = await prisma.notification.create({
       data: {
         userId,
@@ -118,38 +157,36 @@ export const createNotification = async (params: NotificationParams) => {
       },
     });
 
-    // 2. Query user preferences
-    const userWithSettings = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { settings: true },
-    });
+    // 3. Real-time WebSocket push — a separate, lighter-weight switch than
+    // full suppression above: pushEnabled (Settings > Alert Channels) means
+    // "don't interrupt me live", while still leaving the notification in
+    // their history to check later. (Previously unused — nothing actually
+    // read this field, so turning it off did nothing.)
+    if (io && (userWithSettings.settings?.pushEnabled ?? true)) {
+      io.to(`user:${userId}`).emit('notification_received', notification);
+    }
 
-    if (userWithSettings) {
-      // 3. Real-time WebSocket Broadcast
-      if (io) {
-        io.to(`user:${userId}`).emit('notification_received', notification);
-      }
+    // 4. Email Notification (only if the user hasn't opted out at the
+    // channel level, the category level, AND the admin hasn't disabled this
+    // feature's emails platform-wide)
+    const userWantsEmail = userWithSettings.settings?.emailEnabled ?? true;
+    const categoryEmailEnabled = resolveNotificationPreference(userWithSettings.settings?.notificationPreferences, type, 'email');
+    const adminAllowsEmail = await isEmailFeatureEnabled(emailFeature);
+    const emailEnabled = userWantsEmail && categoryEmailEnabled && adminAllowsEmail;
+    if (emailEnabled && userWithSettings.email) {
+      const orgName = await getOrgName();
+      const { subject: emailSubject, text: emailText, html: emailHtml } = buildNotificationEmail(title, message, orgName);
 
-      // 4. Email Notification (only if the user hasn't opted out AND the
-      // admin hasn't disabled this feature's emails platform-wide)
-      const userWantsEmail = userWithSettings.settings?.emailEnabled ?? true;
-      const adminAllowsEmail = await isEmailFeatureEnabled(emailFeature);
-      const emailEnabled = userWantsEmail && adminAllowsEmail;
-      if (emailEnabled && userWithSettings.email) {
-        const orgName = await getOrgName();
-        const { subject: emailSubject, text: emailText, html: emailHtml } = buildNotificationEmail(title, message, orgName);
-        
-        // Dispatch email asynchronously
-        sendEmail(userWithSettings.email, emailSubject, emailText, emailHtml).catch((err) => {
-          console.error(`Mailer: Failed to send email to ${userWithSettings.email}:`, err);
-        });
-      }
+      // Dispatch email asynchronously
+      sendEmail(userWithSettings.email, emailSubject, emailText, emailHtml).catch((err) => {
+        console.error(`Mailer: Failed to send email to ${userWithSettings.email}:`, err);
+      });
     }
 
     return notification;
   } catch (error) {
-    console.error('Notification Service Error:', error);
-    throw error;
+    console.error('Notification Service Error (non-fatal to caller):', error);
+    return null;
   }
 };
 
@@ -178,7 +215,11 @@ export const createManyNotifications = async (params: MultipleNotificationsParam
     );
     return results;
   } catch (error) {
-    console.error('Notification Service createMany Error:', error);
-    throw error;
+    // createNotification no longer throws (see above), so this branch isn't
+    // reachable today — kept non-fatal anyway, for the same reason: a batch
+    // of notifications failing shouldn't take down the caller's already-
+    // successful primary action (e.g. group creation, an announcement post).
+    console.error('Notification Service createMany Error (non-fatal to caller):', error);
+    return [];
   }
 };

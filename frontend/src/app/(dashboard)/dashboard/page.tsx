@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
@@ -24,6 +25,7 @@ import { OnlineTeammatesWidget } from '../../../components/dashboard/widgets/Onl
 import { PerformanceWidget } from '../../../components/dashboard/widgets/PerformanceWidget';
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const { socket } = useSocket();
@@ -45,9 +47,9 @@ export default function DashboardPage() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('dashboard.greetingMorning');
+    if (hour < 18) return t('dashboard.greetingAfternoon');
+    return t('dashboard.greetingEvening');
   };
 
   // 1. Fetch dashboard statistics

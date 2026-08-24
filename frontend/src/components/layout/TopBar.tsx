@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Menu, Search, XCircle, Sun, Moon, Bell } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface SearchResultItem {
   id: string;
@@ -49,7 +50,7 @@ export function TopBar({
 }: {
   pageTitle: string;
   onOpenMobileSidebar: () => void;
-  searchRef: React.RefObject<HTMLDivElement>;
+  searchRef: React.RefObject<HTMLDivElement | null>;
   searchQuery: string;
   onSearchQueryChange: (v: string) => void;
   searchFocused: boolean;
@@ -68,6 +69,7 @@ export function TopBar({
   onMarkNotifRead: (id: string) => void;
   onMarkAllNotifRead: () => void;
 }) {
+  const { t } = useTranslation();
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const visibleNotifs = showUnreadOnly ? notifications.filter((n) => !n.isRead) : notifications;
 
@@ -94,7 +96,7 @@ export function TopBar({
             <Search className="h-4 w-4 shrink-0" />
             <input
               type="text"
-              placeholder="Search ConnectHub..."
+              placeholder={t('topbar.searchPlaceholder')}
               aria-label="Global platform search"
               value={searchQuery}
               onFocus={onSearchFocus}
@@ -172,7 +174,7 @@ export function TopBar({
         <div className="relative shrink-0">
           <button
             onClick={onToggleNotif}
-            aria-label="Notifications"
+            aria-label={t('topbar.notifications')}
             aria-haspopup="menu"
             aria-expanded={notifOpen}
             className="p-2 hover:bg-muted rounded-lg relative transition-colors"
@@ -193,7 +195,7 @@ export function TopBar({
                 className="absolute right-0 mt-2 w-80 max-w-[90vw] bg-white dark:bg-slate-900 border border-border rounded-xl shadow-2xl z-50 p-3.5 space-y-3"
               >
                 <div className="flex items-center justify-between border-b border-border pb-2.5">
-                  <h4 className="font-semibold text-[13px]">Notifications</h4>
+                  <h4 className="font-semibold text-[13px]">{t('topbar.notifications')}</h4>
                   <div className="flex items-center gap-3">
                     <label className="flex items-center gap-1.5 cursor-pointer select-none">
                       <input
@@ -203,7 +205,7 @@ export function TopBar({
                         className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
                       />
                       <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        Unread only
+                        {t('topbar.unreadOnly')}
                       </span>
                     </label>
                     {unreadCount > 0 && (
@@ -211,7 +213,7 @@ export function TopBar({
                         onClick={onMarkAllNotifRead}
                         className="text-[10px] text-primary font-semibold hover:underline uppercase tracking-wider"
                       >
-                        Mark all read
+                        {t('topbar.markAllRead')}
                       </button>
                     )}
                   </div>
@@ -219,7 +221,7 @@ export function TopBar({
                 <div className="max-h-72 overflow-y-auto space-y-1.5">
                   {visibleNotifs.length === 0 ? (
                     <div className="text-center text-[13px] text-muted-foreground py-8">
-                      No {showUnreadOnly ? 'unread' : ''} notifications yet.
+                      {t('topbar.noNotifications', { filter: showUnreadOnly ? t('topbar.unread') : '' })}
                     </div>
                   ) : (
                     visibleNotifs.map((notif) => (

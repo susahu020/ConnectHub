@@ -5,6 +5,59 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { invalidateRoleCache, getRolePermissions } from '../services/rbac.service';
 import { emitDataUpdate } from '../utils/realtime';
 
+// Collects roleId plus every role that (transitively) inherits from it, the
+// same set invalidateRoleCache() walks in rbac.service.ts — a permission
+// change on a parent role changes the *effective* permissions of every
+// descendant role too, not just roleId itself.
+const collectRoleAndDescendants = async (roleId: string): Promise<string[]> => {
+  const ids = [roleId];
+  const children = await prisma.customRole.findMany({ where: { parentId: roleId }, select: { id: true } });
+  for (const child of children) {
+    ids.push(...(await collectRoleAndDescendants(child.id)));
+  }
+  return ids;
+};
+
+// Pushes the freshly-recompiled permission set straight to every currently
+// signed-in user affected by a role permission change — every user directly
+// on this role, plus everyone on a role that inherits from it. Without this,
+// updateRolePermissions only invalidated the server-side Redis cache; users
+// already logged in kept acting on their stale, pre-change permission map
+// (visible in the UI, and enforced by hasPermission()) until they happened
+// to log out and back in.
+const pushRolePermissionUpdatesToAffectedUsers = async (req: AuthenticatedRequest, roleId: string): Promise<void> => {
+  const io = req.app.get('io');
+  if (!io) return;
+
+  const affectedRoleIds = await collectRoleAndDescendants(roleId);
+  const affectedUsers = await prisma.user.findMany({
+    where: { customRoleId: { in: affectedRoleIds } },
+    select: { id: true, customRoleId: true },
+  });
+  if (affectedUsers.length === 0) return;
+
+  // Compile each distinct role once (getRolePermissions is itself cached),
+  // not once per user, since many users typically share a role.
+  const permissionsByRole = new Map<string, Record<string, Record<string, boolean>>>();
+  const roleNameById = new Map<string, string>();
+  for (const affectedRoleId of new Set(affectedUsers.map((u) => u.customRoleId!))) {
+    const [permissions, roleRecord] = await Promise.all([
+      getRolePermissions(affectedRoleId),
+      prisma.customRole.findUnique({ where: { id: affectedRoleId }, select: { name: true } }),
+    ]);
+    permissionsByRole.set(affectedRoleId, permissions);
+    roleNameById.set(affectedRoleId, roleRecord?.name || '');
+  }
+
+  for (const user of affectedUsers) {
+    io.to(`user:${user.id}`).emit('role_assignment_updated', {
+      customRoleId: user.customRoleId,
+      roleName: roleNameById.get(user.customRoleId!) || '',
+      permissions: permissionsByRole.get(user.customRoleId!) || {},
+    });
+  }
+};
+
 /**
  * Get all custom roles.
  */
@@ -42,7 +95,16 @@ export const getRoleDetails = async (req: AuthenticatedRequest, res: Response, n
       return;
     }
 
-    res.status(200).json(role);
+    // `permissions` above is only the rows explicitly set ON this role —
+    // it does not include values this role inherits from its parent chain.
+    // `effectivePermissions` is the fully compiled module/action map (same
+    // compiler `hasPermission()` uses at request time) so the client can
+    // show what a role can *actually* do right now, and tell "explicitly
+    // granted on this role" apart from "granted only via inheritance" —
+    // see the note on updateRolePermissions for why that distinction matters.
+    const effectivePermissions = await getRolePermissions(id);
+
+    res.status(200).json({ ...role, effectivePermissions });
   } catch (error) {
     next(error);
   }
@@ -106,6 +168,8 @@ export const createRole = async (req: AuthenticatedRequest, res: Response, next:
     });
 
     res.status(201).json(role);
+
+    emitDataUpdate(req, 'roles');
   } catch (error) {
     next(error);
   }
@@ -117,7 +181,19 @@ export const createRole = async (req: AuthenticatedRequest, res: Response, next:
 export const updateRolePermissions = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id: roleId } = req.params;
-    const { permissions } = req.body; // Array of { module: string, action: string, isEnabled: boolean }
+    // Array of { module, action, isEnabled }. IMPORTANT: this should only
+    // contain cells the caller wants to explicitly set (override) on THIS
+    // role — every entry becomes a real CustomPermission row via the upsert
+    // below. Submitting the full MODULES x ACTIONS cross-product (including
+    // entries the admin never touched) would create an explicit `false` row
+    // for everything this role currently gets only via inheritance from its
+    // parent, silently wiping that inheritance out — because getRolePermissions()
+    // only falls back to the parent's value when the child has NO row at all
+    // for that module/action, explicit `false` included. See the frontend's
+    // permission-matrix editor (admin/page.tsx), which now submits only the
+    // cells the admin actually interacted with, plus any pre-existing
+    // explicit rows — never the full grid.
+    const { permissions } = req.body;
 
     if (!Array.isArray(permissions)) {
       res.status(400).json({ message: 'Permissions array is required.' });
@@ -165,6 +241,9 @@ export const updateRolePermissions = async (req: AuthenticatedRequest, res: Resp
         userAgent: req.headers['user-agent'] || null,
       },
     });
+
+    emitDataUpdate(req, 'roles');
+    await pushRolePermissionUpdatesToAffectedUsers(req, roleId);
 
     res.status(200).json({ message: 'Role permissions updated successfully.' });
   } catch (error) {
@@ -234,6 +313,8 @@ export const duplicateRole = async (req: AuthenticatedRequest, res: Response, ne
     });
 
     res.status(201).json(duplicatedRole);
+
+    emitDataUpdate(req, 'roles');
   } catch (error) {
     next(error);
   }
@@ -278,6 +359,8 @@ export const deleteRole = async (req: AuthenticatedRequest, res: Response, next:
     });
 
     res.status(200).json({ message: 'Role deleted successfully.' });
+
+    emitDataUpdate(req, 'roles');
   } catch (error) {
     next(error);
   }
@@ -289,7 +372,7 @@ export const deleteRole = async (req: AuthenticatedRequest, res: Response, next:
 export const assignRole = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId } = req.params;
-    const { roleId } = req.body; // customRoleId
+    const { roleId, expiresAt } = req.body; // customRoleId; expiresAt is optional (time-bound elevation)
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -297,10 +380,29 @@ export const assignRole = async (req: AuthenticatedRequest, res: Response, next:
       return;
     }
 
-    const role = await prisma.customRole.findUnique({ where: { id: roleId } });
-    if (!role) {
-      res.status(404).json({ message: 'Custom role not found.' });
-      return;
+    // roleId is nullable — this doubles as the unassign path (revert to
+    // base permissions only), which previously had no way to be reached
+    // from this endpoint at all.
+    let role: { name: string } | null = null;
+    if (roleId) {
+      role = await prisma.customRole.findUnique({ where: { id: roleId }, select: { name: true } });
+      if (!role) {
+        res.status(404).json({ message: 'Custom role not found.' });
+        return;
+      }
+    }
+
+    let parsedExpiresAt: Date | null = null;
+    if (roleId && expiresAt) {
+      parsedExpiresAt = new Date(expiresAt);
+      if (Number.isNaN(parsedExpiresAt.getTime())) {
+        res.status(400).json({ message: 'expiresAt is not a valid date.' });
+        return;
+      }
+      if (parsedExpiresAt <= new Date()) {
+        res.status(400).json({ message: 'expiresAt must be in the future.' });
+        return;
+      }
     }
 
     // Only the granular RBAC role is updated here. This must NOT also set
@@ -312,18 +414,22 @@ export const assignRole = async (req: AuthenticatedRequest, res: Response, next:
     // adminUpdateUser), which carry their own self- and last-admin guards.
     await prisma.user.update({
       where: { id: userId },
-      data: { customRoleId: roleId },
+      data: { customRoleId: roleId || null, customRoleExpiresAt: parsedExpiresAt },
     });
 
     // Invalidate session cache in Redis to refresh permissions immediately
-    await redis.del(`permissions:role:${roleId}`);
+    if (roleId) {
+      await redis.del(`permissions:role:${roleId}`);
+    }
 
     // Audit Log
     await prisma.auditLog.create({
       data: {
         userId: req.user?.id,
-        action: 'ASSIGN_ROLE',
-        details: `Assigned custom role "${role.name}" to user ${user.email}`,
+        action: role ? 'ASSIGN_ROLE' : 'UNASSIGN_ROLE',
+        details: role
+          ? `Assigned custom role "${role.name}" to user ${user.email}${parsedExpiresAt ? ` until ${parsedExpiresAt.toISOString()}` : ''}`
+          : `Removed custom role assignment from user ${user.email}`,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'] || null,
       },
@@ -342,15 +448,17 @@ export const assignRole = async (req: AuthenticatedRequest, res: Response, next:
     // making a follow-up round trip.
     const io = req.app.get('io');
     if (io) {
-      const permissions = await getRolePermissions(roleId);
+      const permissions = roleId ? await getRolePermissions(roleId) : {};
       io.to(`user:${userId}`).emit('role_assignment_updated', {
-        customRoleId: roleId,
-        roleName: role.name,
+        customRoleId: roleId || null,
+        roleName: role?.name || '',
         permissions,
       });
     }
 
-    res.status(200).json({ message: `Role "${role.name}" successfully assigned.` });
+    res.status(200).json({
+      message: role ? `Role "${role.name}" successfully assigned.` : 'Custom role assignment removed.',
+    });
 
   } catch (error) {
     next(error);

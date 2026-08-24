@@ -37,15 +37,31 @@ import {
   HardDrive,
   RefreshCw,
   Send,
-  Clock
+  Clock,
+  Grid,
+  Check
 } from 'lucide-react';
 import { api } from '../../../services/api';
+import { CurvedTabs } from '../../../components/ui/CurvedTabs';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '../../../context/ConfirmContext';
 
 const MODULES = ['Dashboard', 'Users', 'Groups', 'Announcements', 'Tasks', 'Files', 'Messages', 'Notifications', 'Reports', 'Admin', 'Analytics', 'Settings'];
 const ACTIONS = ['Create', 'Read', 'Update', 'Delete', 'Export', 'Import', 'Approve', 'Assign', 'Archive', 'Publish'];
+// Module/action cells that an actual `checkPermission(module, action)` call
+// somewhere in the API currently enforces (see backend/src/routes/*.ts).
+// Every other cell in the matrix is real data — an admin can toggle it and
+// it's saved — but today nothing reads it, so toggling it has no effect on
+// what the role can actually do. Surfaced in the UI so that isn't a surprise.
+const ENFORCED_PERMISSIONS = new Set([
+  'Tasks:Create', 'Tasks:Update', 'Tasks:Delete',
+  'Files:Create', 'Files:Update', 'Files:Delete',
+  'Groups:Create',
+  'Announcements:Create', 'Announcements:Delete',
+  'Users:Update',
+  'Reports:Export',
+]);
 
 // Admin-controlled email notification features. `key` must match a column
 // on the backend's EmailFeatureSettings model.
@@ -113,8 +129,16 @@ export default function AdminPage() {
 
   // Role management state
   const [selectedRole, setSelectedRole] = useState<any>(null);
-  const [rolePermissions, setRolePermissions] = useState<any[]>([]); // Array of { module, action, isEnabled }
+  // One entry per module/action cell: `isEnabled` is the EFFECTIVE value
+  // (inherited-from-parent or explicit — whichever applies), `isExplicit`
+  // tracks whether this role has its own row for that cell vs. is only
+  // getting the value via inheritance. Only `isExplicit` cells are ever
+  // sent to the server on save — see handleSavePermissions.
+  const [rolePermissions, setRolePermissions] = useState<
+    { module: string; action: string; isEnabled: boolean; isExplicit: boolean }[]
+  >([]);
   const [createRoleOpen, setCreateRoleOpen] = useState(false);
+  const [overviewOpen, setOverviewOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleDesc, setNewRoleDesc] = useState('');
   const [newRoleParent, setNewRoleParent] = useState('');
@@ -124,6 +148,10 @@ export default function AdminPage() {
   const [dupRoleOpen, setDupRoleOpen] = useState(false);
   const [dupTargetRole, setDupTargetRole] = useState<any>(null);
   const [dupNewName, setDupNewName] = useState('');
+  const [tempRoleOpen, setTempRoleOpen] = useState(false);
+  const [tempRoleTargetUser, setTempRoleTargetUser] = useState<any>(null);
+  const [tempRoleId, setTempRoleId] = useState('');
+  const [tempRoleExpiresAt, setTempRoleExpiresAt] = useState('');
   const [dupDesc, setDupDesc] = useState('');
 
   // Admin User controls state
@@ -168,6 +196,24 @@ export default function AdminPage() {
     queryKey: ['admin-roles'],
     queryFn: () => api.getRoles(),
     enabled: user?.role === 'ADMIN',
+  });
+
+  // Compiled (inherited + explicit) permissions for every role, keyed by
+  // role id, for the read-only cross-role overview. Only fetched when the
+  // overview is actually opened, and reuses the same getRoleDetails call
+  // the per-role matrix editor uses.
+  const { data: overviewData, isLoading: loadingOverview } = useQuery({
+    queryKey: ['admin-roles-overview', roles?.map((r: any) => r.id).join(',')],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        (roles || []).map(async (r: any) => {
+          const details = await api.getRoleDetails(r.id);
+          return [r.id, details.effectivePermissions || {}] as const;
+        })
+      );
+      return Object.fromEntries(entries) as Record<string, Record<string, Record<string, boolean>>>;
+    },
+    enabled: user?.role === 'ADMIN' && overviewOpen && !!roles?.length,
   });
 
   const { data: auditLogsData, isLoading: loadingLogs } = useQuery({
@@ -362,11 +408,15 @@ export default function AdminPage() {
 
   // User Role Update Mutation (Dynamic)
   const assignRoleMutation = useMutation({
-    mutationFn: ({ userId, roleId }: { userId: string; roleId: string }) =>
-      api.assignUserRole(userId, roleId),
+    mutationFn: ({ userId, roleId, expiresAt }: { userId: string; roleId: string | null; expiresAt?: string | null }) =>
+      api.assignUserRole(userId, roleId, expiresAt),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success('User role successfully updated.');
+      setTempRoleOpen(false);
+      setTempRoleTargetUser(null);
+      setTempRoleId('');
+      setTempRoleExpiresAt('');
     },
     onError: (err: any) => {
       toast.error(err.message || 'Failed to assign role.');
@@ -498,8 +548,20 @@ export default function AdminPage() {
   };
 
   const handleUserRoleAssign = (userId: string, roleId: string) => {
-    if (!roleId) return;
-    assignRoleMutation.mutate({ userId, roleId });
+    // Previously `if (!roleId) return;` silently ignored picking "-- No
+    // custom role --", meaning there was no way to remove a role assignment
+    // once set. roleId is now nullable end-to-end (see assignRole in
+    // rbac.controller.ts), so an empty selection now actually unassigns.
+    assignRoleMutation.mutate({ userId, roleId: roleId || null });
+  };
+
+  const handleGrantTemporaryRole = () => {
+    if (!tempRoleTargetUser || !tempRoleId || !tempRoleExpiresAt) return;
+    assignRoleMutation.mutate({
+      userId: tempRoleTargetUser.id,
+      roleId: tempRoleId,
+      expiresAt: new Date(tempRoleExpiresAt).toISOString(),
+    });
   };
 
   const handleSuspensionToggle = (userId: string, currentlySuspended: boolean) => {
@@ -532,15 +594,23 @@ export default function AdminPage() {
     try {
       const details = await api.getRoleDetails(role.id);
       setSelectedRole(details);
-      
-      const initialPerms: any[] = [];
+
+      // `effectivePermissions` (compiled: explicit-on-this-role, falling
+      // back to inherited-from-parent) drives what each checkbox SHOWS.
+      // `details.permissions` (raw rows that exist directly on this role)
+      // drives whether a cell is treated as an explicit override — a cell
+      // with no raw row here is inherited, and must stay that way unless
+      // the admin actually clicks it. See handleSavePermissions.
+      const effective = details.effectivePermissions || {};
+      const initialPerms: { module: string; action: string; isEnabled: boolean; isExplicit: boolean }[] = [];
       for (const m of MODULES) {
         for (const a of ACTIONS) {
-          const matched = details.permissions?.find((p: any) => p.module === m && p.action === a);
+          const explicitRow = details.permissions?.find((p: any) => p.module === m && p.action === a);
           initialPerms.push({
             module: m,
             action: a,
-            isEnabled: matched ? matched.isEnabled : false,
+            isEnabled: explicitRow ? explicitRow.isEnabled : !!effective[m]?.[a],
+            isExplicit: !!explicitRow,
           });
         }
       }
@@ -554,7 +624,11 @@ export default function AdminPage() {
     setRolePermissions((prev) =>
       prev.map((p) =>
         p.module === module && p.action === action
-          ? { ...p, isEnabled: !p.isEnabled }
+          // Interacting with a cell is a deliberate decision for THIS role,
+          // so it becomes an explicit override from here on — otherwise it
+          // would keep silently tracking (and get overwritten by) whatever
+          // the parent role happens to have.
+          ? { ...p, isEnabled: !p.isEnabled, isExplicit: true }
           : p
       )
     );
@@ -562,9 +636,15 @@ export default function AdminPage() {
 
   const handleSavePermissions = () => {
     if (!selectedRole) return;
+    // Only ever send cells the admin (or a prior save) explicitly set for
+    // THIS role — never the full module x action grid. Submitting a cell
+    // that's still just inherited would create a real explicit row for it
+    // (see updateRolePermissions), permanently pinning that role to today's
+    // inherited value and breaking it away from the parent role from then on.
+    const explicitOnly = rolePermissions.filter((p) => p.isExplicit);
     savePermissionsMutation.mutate({
       id: selectedRole.id,
-      permissions: rolePermissions,
+      permissions: explicitOnly,
     });
   };
 
@@ -704,68 +784,19 @@ export default function AdminPage() {
       </div>
 
       {/* Tabs panels switcher */}
-      <div className="flex border-b text-xs font-bold text-slate-400">
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
-            activeTab === 'users' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          <span>User Management</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('invitations')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
-            activeTab === 'invitations' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
-          }`}
-        >
-          <Send className="h-4 w-4" />
-          <span>Invitations</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('roles')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
-            activeTab === 'roles' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
-          }`}
-        >
-          <ShieldCheck className="h-4 w-4" />
-          <span>Role Management</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('logs')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
-            activeTab === 'logs' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
-          }`}
-        >
-          <FileClock className="h-4 w-4" />
-          <span>Audit Logs</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('health')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
-            activeTab === 'health' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
-          }`}
-        >
-          <HeartPulse className="h-4 w-4" />
-          <span>System Health</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('email')}
-          className={`flex items-center space-x-1.5 px-4 py-2.5 border-b-2 transition-all leading-none ${
-            activeTab === 'email' ? 'border-primary text-primary font-black' : 'border-transparent hover:text-foreground'
-          }`}
-        >
-          <Mail className="h-4 w-4" />
-          <span>Email Notifications</span>
-        </button>
-
-      </div>
+      <CurvedTabs
+        className="mb-0"
+        tabs={[
+          { id: 'users', label: 'User Management', icon: <Users className="h-4 w-4" /> },
+          { id: 'invitations', label: 'Invitations', icon: <Send className="h-4 w-4" /> },
+          { id: 'roles', label: 'Role Management', icon: <ShieldCheck className="h-4 w-4" /> },
+          { id: 'logs', label: 'Audit Logs', icon: <FileClock className="h-4 w-4" /> },
+          { id: 'health', label: 'System Health', icon: <HeartPulse className="h-4 w-4" /> },
+          { id: 'email', label: 'Email Notifications', icon: <Mail className="h-4 w-4" /> },
+        ]}
+        activeId={activeTab}
+        onChange={(id) => setActiveTab(id as typeof activeTab)}
+      />
 
       {/* Tab Workspaces */}
       <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
@@ -819,16 +850,37 @@ export default function AdminPage() {
                       <td className="py-3.5">{u.email}</td>
                       <td className="py-3.5">{u.designation || 'Engineer'}</td>
                       <td className="py-3.5">
-                        <select
-                          value={u.customRoleId || ''}
-                          onChange={(e) => handleUserRoleAssign(u.id, e.target.value)}
-                          className="bg-transparent border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] focus:outline-none"
-                        >
-                          <option value="">-- No custom role --</option>
-                          {roles?.map((r: any) => (
-                            <option key={r.id} value={r.id}>{r.name}</option>
-                          ))}
-                        </select>
+                        <div className="flex items-center gap-1">
+                          <select
+                            value={u.customRoleId || ''}
+                            onChange={(e) => handleUserRoleAssign(u.id, e.target.value)}
+                            className="bg-transparent border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] focus:outline-none"
+                          >
+                            <option value="">-- No custom role --</option>
+                            {roles?.map((r: any) => (
+                              <option key={r.id} value={r.id}>{r.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTempRoleTargetUser(u);
+                              setTempRoleId('');
+                              setTempRoleExpiresAt('');
+                              setTempRoleOpen(true);
+                            }}
+                            className="p-1 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                            title="Grant a role temporarily"
+                            aria-label={`Grant ${u.firstName} ${u.lastName} a temporary role`}
+                          >
+                            <Clock className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        {u.customRoleId && u.customRoleExpiresAt && (
+                          <p className="text-[9px] text-amber-500 font-semibold mt-0.5">
+                            Expires {new Date(u.customRoleExpiresAt).toLocaleDateString()}
+                          </p>
+                        )}
                       </td>
                       <td className="py-3.5">
                         <div className="flex items-center gap-1.5">
@@ -836,7 +888,11 @@ export default function AdminPage() {
                             value={u.isActive === false ? 'INACTIVE' : 'ACTIVE'}
                             onChange={(e) => handleActiveStatusChange(u, e.target.value === 'ACTIVE')}
                             disabled={u.id === user?.id}
-                            title={u.id === user?.id ? "You can't deactivate your own account." : undefined}
+                            title={
+                              u.id === user?.id
+                                ? "You can't deactivate your own account."
+                                : 'Lifecycle status — for offboarding, extended leave, etc. Blocks login but is otherwise a routine, reversible state change. For a security concern, use Suspend instead.'
+                            }
                             className={`px-2 py-1 rounded-lg text-[9px] uppercase font-extrabold border focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${
                               u.isActive === false
                                 ? 'bg-red-500/10 text-red-500 border-red-200 dark:border-red-950'
@@ -896,7 +952,13 @@ export default function AdminPage() {
                         <button
                           onClick={() => handleSuspensionToggle(u.id, u.isSuspended)}
                           disabled={u.id === user?.id}
-                          title={u.id === user?.id ? "You can't suspend your own account." : undefined}
+                          title={
+                            u.id === user?.id
+                              ? "You can't suspend your own account."
+                              : u.isSuspended
+                                ? 'Lift the security suspension and let this person sign in again (their Active/Inactive lifecycle status is unaffected either way).'
+                                : 'Security action — immediately blocks login and signs them out everywhere, independent of the Active/Inactive status above. Use this for a security concern; use Active/Inactive for routine offboarding.'
+                          }
                           className={`text-[10px] font-bold px-2.5 py-1 border rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                             u.isSuspended
                               ? 'text-green-500 border-green-200 dark:border-green-955 hover:bg-green-55/20'
@@ -923,6 +985,7 @@ export default function AdminPage() {
                             onClick={() => handleDeleteUser(u.id, u.email)}
                             className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-1.5 rounded-lg border border-transparent hover:border-red-200 dark:hover:border-red-955 inline-flex items-center justify-center align-middle"
                             title="Delete User Account"
+                            aria-label={`Delete ${u.firstName} ${u.lastName}'s account`}
                             type="button"
                             id={`delete-user-btn-${u.id}`}
                           >
@@ -960,15 +1023,28 @@ export default function AdminPage() {
               </thead>
               <tbody className="divide-y font-semibold text-slate-600 dark:text-slate-350">
                 {loadingInvitations ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-10 text-slate-400">
-                      <Loader2 className="h-4 w-4 animate-spin inline mr-2" />Loading invitations...
-                    </td>
-                  </tr>
+                  [...Array(4)].map((_, i) => (
+                    <tr key={i}>
+                      <td className="py-3.5"><div className="h-3 w-32 bg-muted animate-pulse rounded" /></td>
+                      <td className="py-3.5"><div className="h-3 w-16 bg-muted animate-pulse rounded" /></td>
+                      <td className="py-3.5"><div className="h-4 w-14 bg-muted animate-pulse rounded-lg" /></td>
+                      <td className="py-3.5"><div className="h-3 w-24 bg-muted animate-pulse rounded" /></td>
+                      <td className="py-3.5"><div className="h-3 w-20 bg-muted animate-pulse rounded" /></td>
+                      <td className="py-3.5 text-right"><div className="h-4 w-10 bg-muted animate-pulse rounded ml-auto" /></td>
+                    </tr>
+                  ))
                 ) : invitations?.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-10 text-slate-400">
-                      No invitations sent yet. Use "Invite Teammate" to bring someone onboard.
+                    <td colSpan={6} className="py-12">
+                      <div className="flex flex-col items-center text-center space-y-2 max-w-xs mx-auto">
+                        <div className="h-12 w-12 bg-primary/10 text-primary rounded-full flex items-center justify-center">
+                          <Mail className="h-6 w-6" />
+                        </div>
+                        <h3 className="font-bold text-xs text-slate-800 dark:text-slate-100">No invitations sent yet</h3>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Use "Invite Teammate" to bring someone onboard — you'll see their invite status here once it's sent.
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -1001,6 +1077,7 @@ export default function AdminPage() {
                               disabled={resendInvitationMutation.isPending}
                               className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded disabled:opacity-40"
                               title="Resend invitation"
+                              aria-label={`Resend invitation to ${inv.email}`}
                             >
                               <Send className="h-4 w-4" />
                             </button>
@@ -1008,6 +1085,7 @@ export default function AdminPage() {
                               onClick={() => handleRevokeInvitation(inv)}
                               className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded"
                               title="Revoke invitation"
+                              aria-label={`Revoke invitation to ${inv.email}`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -1025,6 +1103,59 @@ export default function AdminPage() {
         {/* Custom Role Management Workspace */}
         {activeTab === 'roles' && (
           <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-400">Custom roles and the permissions each one is compiled from, including inherited values.</p>
+              <button
+                onClick={() => setOverviewOpen((v) => !v)}
+                className="px-3 py-1.5 text-[11px] font-bold border rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5"
+              >
+                <Grid className="h-3.5 w-3.5" />
+                {overviewOpen ? 'Hide' : 'View'} effective permissions overview
+              </button>
+            </div>
+
+            {overviewOpen && (
+              <div className="border rounded-2xl overflow-x-auto bg-slate-50/50 dark:bg-slate-900/50">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold bg-slate-100 dark:bg-slate-800">
+                      <th className="p-3">Module : Action</th>
+                      {roles?.map((r: any) => (
+                        <th key={r.id} className="p-3 text-center">{r.name}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y font-semibold">
+                    {loadingOverview ? (
+                      <tr><td colSpan={(roles?.length || 0) + 1} className="text-center py-8 text-slate-400">Compiling effective permissions...</td></tr>
+                    ) : (
+                      Array.from(ENFORCED_PERMISSIONS).map((cellKey) => (
+                        <tr key={cellKey} className="hover:bg-slate-100/30 dark:hover:bg-slate-800/30">
+                          <td className="p-3 font-bold text-slate-700 dark:text-slate-200">{cellKey.replace(':', ' : ')}</td>
+                          {roles?.map((r: any) => {
+                            const [module, action] = cellKey.split(':');
+                            const granted = !!overviewData?.[r.id]?.[module]?.[action];
+                            return (
+                              <td key={r.id} className="p-3 text-center">
+                                {granted ? (
+                                  <Check className="h-4 w-4 text-emerald-500 inline" />
+                                ) : (
+                                  <span className="text-slate-300 dark:text-slate-700">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+                <p className="text-[10px] text-slate-400 p-3 border-t">
+                  Showing only the permissions currently enforced by a route (see the matrix editor below for the full grid, including cells nothing checks yet).
+                </p>
+              </div>
+            )}
+
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold">
@@ -1080,6 +1211,8 @@ export default function AdminPage() {
                             setDupRoleOpen(true);
                           }}
                           className="p-1.5 border hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg inline-flex text-slate-500"
+                          title="Duplicate role"
+                          aria-label={`Duplicate role ${r.name}`}
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </button>
@@ -1087,6 +1220,8 @@ export default function AdminPage() {
                           onClick={() => handleDeleteRole(r.id)}
                           disabled={r._count?.users > 0}
                           className="p-1.5 border border-red-200 dark:border-red-950 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 rounded-lg inline-flex disabled:opacity-30"
+                          title={r._count?.users > 0 ? 'Cannot delete a role with assigned users' : 'Delete role'}
+                          aria-label={`Delete role ${r.name}`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -1103,7 +1238,10 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-base">Permissions Matrix for: <span className="text-primary">{selectedRole.name}</span></h3>
-                    <p className="text-xs text-slate-400">Configure enabled modules and actions. Parent role fallback values are loaded automatically.</p>
+                    <p className="text-xs text-slate-400">
+                      Solid checkmarks are set directly on this role. Faint checkmarks are inherited from{' '}
+                      {selectedRole.parent?.name || 'a parent role'} — clicking one overrides it for this role only.
+                    </p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <button
@@ -1123,6 +1261,12 @@ export default function AdminPage() {
                   </div>
                 </div>
 
+                <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Explicit on this role</span>
+                  <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-primary/30" /> Inherited</span>
+                  <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm border border-dashed border-slate-300" /> Not yet enforced by any route</span>
+                </div>
+
                 <div className="overflow-x-auto border rounded-2xl bg-slate-50/50 dark:bg-slate-900/50">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
@@ -1138,15 +1282,23 @@ export default function AdminPage() {
                         <tr key={module} className="hover:bg-slate-100/30 dark:hover:bg-slate-800/30">
                           <td className="p-3 font-bold text-slate-700 dark:text-slate-200">{module}</td>
                           {ACTIONS.map((action) => {
-                            const matched = rolePermissions.find((p) => p.module === module && p.action === action);
-                            const isEnabled = matched ? matched.isEnabled : false;
+                            const cell = rolePermissions.find((p) => p.module === module && p.action === action);
+                            const isEnabled = !!cell?.isEnabled;
+                            const isExplicit = !!cell?.isExplicit;
+                            const isEnforced = ENFORCED_PERMISSIONS.has(`${module}:${action}`);
                             return (
-                              <td key={action} className="p-3 text-center">
+                              <td
+                                key={action}
+                                className={`p-3 text-center ${!isEnforced ? 'opacity-40' : ''}`}
+                                title={isEnforced ? undefined : 'No route currently enforces this permission'}
+                              >
                                 <input
                                   type="checkbox"
                                   checked={isEnabled}
                                   onChange={() => handleToggleMatrixCheckbox(module, action)}
-                                  className="rounded text-primary focus:ring-primary/20 h-4 w-4 cursor-pointer"
+                                  className={`rounded h-4 w-4 cursor-pointer focus:ring-primary/20 ${
+                                    isExplicit ? 'text-primary' : 'text-primary/40'
+                                  }`}
                                 />
                               </td>
                             );
@@ -1191,7 +1343,7 @@ export default function AdminPage() {
                     className="px-2.5 py-1.5 border rounded-lg bg-slate-50 dark:bg-slate-800 text-xs cursor-pointer max-w-[200px] truncate focus:outline-none"
                   >
                     <option value="ALL">All Actions</option>
-                    {uniqueLogActions.map((action) => (
+                    {uniqueLogActions.map((action: string) => (
                       <option key={action} value={action}>{action}</option>
                     ))}
                   </select>
@@ -1566,6 +1718,7 @@ export default function AdminPage() {
                           type="button"
                           role="switch"
                           aria-checked={isEnabled}
+                          aria-label={`${label} email notifications`}
                           onClick={() => handleToggleEmailFeature(key, isEnabled)}
                           disabled={updateEmailFeatureMutation.isPending}
                           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
@@ -1607,9 +1760,9 @@ export default function AdminPage() {
 
       {/* Create Custom Role Modal */}
       {createRoleOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Create Custom Role">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setCreateRoleOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+            <button onClick={() => setCreateRoleOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
@@ -1679,9 +1832,9 @@ export default function AdminPage() {
 
       {/* Duplicate Role Modal */}
       {dupRoleOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Duplicate Custom Role">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => { setDupRoleOpen(false); setDupTargetRole(null); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+            <button onClick={() => { setDupRoleOpen(false); setDupTargetRole(null); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
@@ -1719,14 +1872,81 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Grant Temporary Role Modal */}
+      {tempRoleOpen && tempRoleTargetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Grant Temporary Role">
+          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => { setTempRoleOpen(false); setTempRoleTargetUser(null); }}
+              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="space-y-1">
+              <h3 className="font-bold text-base">Grant Temporary Role</h3>
+              <p className="text-xs text-slate-400">
+                Give {tempRoleTargetUser.firstName} {tempRoleTargetUser.lastName} elevated access that automatically
+                reverts on its own — no need to remember to revoke it later.
+              </p>
+            </div>
+            <form
+              onSubmit={(e) => { e.preventDefault(); handleGrantTemporaryRole(); }}
+              className="space-y-4 text-xs font-semibold"
+            >
+              <div className="space-y-2">
+                <label className="text-slate-400 uppercase text-[10px]" htmlFor="temp-role-select">Role</label>
+                <select
+                  id="temp-role-select"
+                  required
+                  value={tempRoleId}
+                  onChange={(e) => setTempRoleId(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                >
+                  <option value="" disabled>Select a role...</option>
+                  {roles?.map((r: any) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-slate-400 uppercase text-[10px]" htmlFor="temp-role-expiry">Expires On</label>
+                <input
+                  id="temp-role-expiry"
+                  type="datetime-local"
+                  required
+                  min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                  value={tempRoleExpiresAt}
+                  onChange={(e) => setTempRoleExpiresAt(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-400 normal-case font-normal">
+                  Permissions revert automatically the moment this passes — no follow-up action needed.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={assignRoleMutation.isPending}
+                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+              >
+                {assignRoleMutation.isPending ? 'Granting...' : 'Grant Temporary Access'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Invite Teammate Onboarding Modal */}
       {inviteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Invite Teammate">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setInviteModalOpen(false); setGeneratedLink(''); }} 
               className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
               id="close-invite-modal-btn"
+              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1804,12 +2024,13 @@ export default function AdminPage() {
 
       {/* Edit User Details Modal */}
       {editUserOpen && selectedEditUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Edit Teammate Profile">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setEditUserOpen(false); setSelectedEditUser(null); }} 
               className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
               id="close-edit-user-modal-btn"
+              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
@@ -1967,12 +2188,13 @@ export default function AdminPage() {
 
       {/* Force Change Password Modal */}
       {changePasswordOpen && selectedPasswordUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Reset User Password">
           <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setChangePasswordOpen(false); setSelectedPasswordUser(null); }} 
               className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
               id="close-password-modal-btn"
+              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>

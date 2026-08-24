@@ -293,7 +293,13 @@ async function seedCustomRolesAndPermissions() {
     ),
     ...['Create', 'Update', 'Delete'].map(a => ({ roleId: employeeRole.id, module: 'Messages', action: a, isEnabled: true })),
     { roleId: employeeRole.id, module: 'Tasks', action: 'Update', isEnabled: true },
-    ...['Create', 'Delete'].map(a => ({ roleId: employeeRole.id, module: 'Files', action: a, isEnabled: true })),
+    // Update is included alongside Create/Delete so that basic file-explorer
+    // actions on an employee's own items (replace content, move, restore
+    // from recycle bin) keep working now that files.routes.ts enforces
+    // checkPermission('Files','Update') on those routes — previously those
+    // routes had no RBAC gate at all, so this grant preserves existing
+    // default behavior rather than changing it.
+    ...['Create', 'Update', 'Delete'].map(a => ({ roleId: employeeRole.id, module: 'Files', action: a, isEnabled: true })),
     { roleId: employeeRole.id, module: 'Groups', action: 'Create', isEnabled: true },
   ];
 

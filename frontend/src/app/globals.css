@@ -178,8 +178,18 @@
   animation: pulseSlow 2s ease-in-out infinite;
 }
 
-/* Accessibility Focus States */
-a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
-  outline: 2px solid hsl(var(--primary));
-  outline-offset: 2px;
+/* Accessibility Focus States
+   !important is deliberate here: 61 components use Tailwind's
+   `focus:outline-none` utility (usually to swap in a custom focus ring),
+   which compiles to a two-class-selector rule that beats this element+
+   pseudo-class rule on specificity alone — so without !important, this
+   global safety net silently loses to any component that used
+   focus:outline-none without pairing it with its own visible replacement,
+   leaving keyboard users with no focus indicator at all (a WCAG 2.4.7
+   failure). This guarantees a visible ring survives regardless, without
+   requiring an audit of every one of those 61 files. */
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible,
+select:focus-visible, [role="button"]:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid hsl(var(--primary)) !important;
+  outline-offset: 2px !important;
 }

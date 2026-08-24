@@ -139,6 +139,22 @@ const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+// The directory existing doesn't mean this process can write to it — most
+// commonly when it's a mounted volume owned by a different user than the
+// one this process runs as (see docker-entrypoint.sh for how the Docker
+// image itself avoids this). Checking at boot means a misconfiguration
+// shows up immediately in the startup logs, rather than as a confusing
+// EACCES the first time someone tries to upload an avatar, a file, or the
+// organization logo.
+try {
+  fs.accessSync(uploadDir, fs.constants.W_OK);
+} catch {
+  console.error(
+    `[startup] WARNING: the uploads directory (${uploadDir}) exists but is not writable by this process ` +
+    `(running as uid ${process.getuid?.()}). Every file/avatar/logo upload will fail with EACCES until this is ` +
+    `fixed. If this directory is a mounted volume, its ownership needs to match the user this process runs as.`
+  );
+}
 app.use('/uploads', express.static(uploadDir));
 
 // API Routes

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Layers, Activity, Users, MessageSquare, TrendingUp, CheckCircle, Folder } from 'lucide-react';
+import { CurvedTabs } from '../ui/CurvedTabs';
 
 export type SubTabType = 'overview' | 'productivity' | 'users' | 'chat' | 'departments' | 'tasks' | 'files';
 
@@ -15,21 +16,11 @@ const TABS: { id: SubTabType; label: string; icon: React.ReactNode }[] = [
 
 export function AnalyticsTabs({ activeTab, onChange }: { activeTab: SubTabType; onChange: (tab: SubTabType) => void }) {
   return (
-    <div className="flex border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto scrollbar-none gap-2">
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          className={`flex items-center gap-2 px-5 py-3 border-b-2 text-sm font-bold whitespace-nowrap transition-all duration-200 leading-none ${
-            activeTab === tab.id
-              ? 'border-primary text-primary'
-              : 'border-transparent text-slate-400 hover:text-slate-650 hover:border-slate-200 dark:hover:border-slate-800'
-          }`}
-        >
-          {tab.icon}
-          {tab.label}
-        </button>
-      ))}
-    </div>
+    <CurvedTabs
+      className="mb-8"
+      tabs={TABS}
+      activeId={activeTab}
+      onChange={(id) => onChange(id as SubTabType)}
+    />
   );
 }

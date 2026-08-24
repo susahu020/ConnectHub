@@ -33,3 +33,39 @@ export const isAuthorizedApprover = async (
 };
 
 export const isManagerOrAdmin = (role: string): boolean => role === 'ADMIN' || role === 'MANAGER';
+
+/**
+ * The set of user IDs a caller is allowed to see HR *records* for (leave
+ * requests, expense claims, attendance, shift swaps, payslips, etc.) — as
+ * opposed to `isAuthorizedApprover`, which governs who can actually approve
+ * a specific request. Both use the same underlying reporting-line data, but
+ * they were previously two different code paths that had drifted apart:
+ * approve/reject actions already checked `User.managerId`, while the "list
+ * everything" reads only checked `isManagerOrAdmin(role)` and returned every
+ * employee in the company regardless of who they report to.
+ *
+ * Returns:
+ *   - null       -> unrestricted (Admins see everyone)
+ *   - string[]   -> the caller may only see records belonging to these user
+ *                    IDs (their own, plus — for Managers — their direct
+ *                    reports')
+ *
+ * A Manager who has no direct reports still sees their own records; they are
+ * not treated as unrestricted just because `isManagerOrAdmin` is true.
+ */
+export const getVisibleUserIds = async (
+  requesterId: string,
+  requesterRole: string
+): Promise<string[] | null> => {
+  if (requesterRole === 'ADMIN') return null;
+
+  if (requesterRole === 'MANAGER') {
+    const directReports: { id: string }[] = await prisma.user.findMany({
+      where: { managerId: requesterId },
+      select: { id: true },
+    });
+    return [requesterId, ...directReports.map((u) => u.id)];
+  }
+
+  return [requesterId];
+};

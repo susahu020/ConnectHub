@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { AnnouncementMetricsBar } from '../../../components/announcements/AnnouncementMetricsBar';
@@ -16,6 +17,7 @@ import { CreateAnnouncementModal } from '../../../components/announcements/Creat
 
 export default function AnnouncementsPage() {
   const { user } = useAuthStore();
+  const { can } = usePermissions();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
 
@@ -194,7 +196,7 @@ export default function AnnouncementsPage() {
           <h1 className="text-3xl font-extrabold tracking-tight">Organization Bulletins</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Stay up to date with notices, department memos, and company achievements.</p>
         </div>
-        {(user?.role === 'ADMIN' || user?.role === 'MANAGER') && (
+        {can('Announcements', 'Create') && (
           <button
             onClick={() => setCreateOpen(true)}
             className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"

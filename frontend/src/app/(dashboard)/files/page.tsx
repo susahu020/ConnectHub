@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, UploadCloud, Trash2, Loader2, ArrowLeft } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { toast } from 'react-hot-toast';
 import { resolveFileUrl } from '../../../lib/utils';
 import { useConfirm } from '../../../context/ConfirmContext';
@@ -22,6 +23,7 @@ import { FilePreviewModal } from '../../../components/files/preview/FilePreviewM
 
 export default function FilesPage() {
   const { user } = useAuthStore();
+  const { can } = usePermissions();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const { settings: orgSettings } = useOrganizationSettings();
@@ -291,6 +293,59 @@ export default function FilesPage() {
   };
 
   // Soft Deletes
+  // Delete file — optimistic: removes the card from the grid immediately
+  // instead of waiting for the round-trip + refetch, matching the
+  // instant-feeling pattern used for other mutations in the app (e.g. the
+  // email feature toggles on the admin page).
+  const filesQueryKey = ['files', currentFolderId, searchQuery];
+  const deleteFileMutation = useMutation({
+    mutationFn: (id: string) => api.deleteFile(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: filesQueryKey });
+      const previous = queryClient.getQueryData(filesQueryKey);
+      queryClient.setQueryData(filesQueryKey, (old: any) =>
+        old ? { ...old, files: old.files.filter((f: any) => f.id !== id) } : old
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(filesQueryKey, context.previous);
+      }
+      toast.error('Failed to delete file.');
+    },
+    onSuccess: () => {
+      toast.success('File moved to Recycle Bin.');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+    },
+  });
+
+  const deleteFolderMutation = useMutation({
+    mutationFn: (id: string) => api.deleteFolder(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: filesQueryKey });
+      const previous = queryClient.getQueryData(filesQueryKey);
+      queryClient.setQueryData(filesQueryKey, (old: any) =>
+        old ? { ...old, folders: old.folders.filter((f: any) => f.id !== id) } : old
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(filesQueryKey, context.previous);
+      }
+      toast.error('Failed to delete folder.');
+    },
+    onSuccess: () => {
+      toast.success('Folder moved to Recycle Bin.');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+    },
+  });
+
   const handleDeleteFile = async (id: string) => {
     if (
       !(await confirm({
@@ -301,13 +356,7 @@ export default function FilesPage() {
       }))
     )
       return;
-    try {
-      await api.deleteFile(id);
-      queryClient.invalidateQueries({ queryKey: ['files'] });
-      toast.success('File moved to Recycle Bin.');
-    } catch (err) {
-      toast.error('Failed to delete file.');
-    }
+    deleteFileMutation.mutate(id);
   };
 
   const handleDeleteFolder = async (id: string) => {
@@ -320,13 +369,7 @@ export default function FilesPage() {
       }))
     )
       return;
-    try {
-      await api.deleteFolder(id);
-      queryClient.invalidateQueries({ queryKey: ['files'] });
-      toast.success('Folder moved to Recycle Bin.');
-    } catch (err) {
-      toast.error('Failed to delete folder.');
-    }
+    deleteFolderMutation.mutate(id);
   };
 
   // Recycle Bin Operations
@@ -341,6 +384,30 @@ export default function FilesPage() {
     }
   };
 
+  const permanentDeleteMutation = useMutation({
+    mutationFn: ({ id, type }: { id: string; type: 'FILE' | 'FOLDER' }) => api.deletePermanently(id, type),
+    onMutate: async ({ id, type }) => {
+      await queryClient.cancelQueries({ queryKey: ['recycle-bin'] });
+      const previous = queryClient.getQueryData(['recycle-bin']);
+      queryClient.setQueryData(['recycle-bin'], (old: any) => {
+        if (!old) return old;
+        return type === 'FOLDER'
+          ? { ...old, folders: old.folders.filter((f: any) => f.id !== id) }
+          : { ...old, files: old.files.filter((f: any) => f.id !== id) };
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['recycle-bin'], context.previous);
+      }
+      toast.error('Failed to purge item.');
+    },
+    onSuccess: () => {
+      toast.success('Item permanently deleted.');
+    },
+  });
+
   const handlePermanentDelete = async (id: string, type: 'FILE' | 'FOLDER') => {
     if (
       !(await confirm({
@@ -351,12 +418,26 @@ export default function FilesPage() {
       }))
     )
       return;
+    permanentDeleteMutation.mutate({ id, type });
+  };
+
+  const handleEmptyTrash = async () => {
+    if (
+      !(await confirm({
+        title: 'Empty Recycle Bin',
+        message: 'Permanently delete everything in your Recycle Bin? This action is IRREVERSIBLE.',
+        confirmText: 'Empty Trash',
+        type: 'danger',
+      }))
+    )
+      return;
     try {
-      await api.deletePermanently(id, type);
+      const result = await api.emptyRecycleBin();
       refetchRecycleBin();
-      toast.success('Item permanently deleted.');
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+      toast.success(result.message || 'Recycle Bin emptied.');
     } catch (err) {
-      toast.error('Failed to purge item.');
+      toast.error('Failed to empty the Recycle Bin.');
     }
   };
 
@@ -394,14 +475,16 @@ export default function FilesPage() {
           ) : (
             <>
               <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5 disabled:opacity-50"
-              >
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-                <span>Upload File</span>
-              </button>
+              {can('Files', 'Create') && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5 disabled:opacity-50"
+                >
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                  <span>Upload File</span>
+                </button>
+              )}
               <button
                 onClick={() => setCreateFolderOpen(true)}
                 className="px-4 py-2.5 border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5"
@@ -422,7 +505,7 @@ export default function FilesPage() {
       </div>
 
       {showRecycleBin ? (
-        <RecycleBinView loading={loadingRecycle} recycleBin={recycleBin} onRestore={handleRestore} onPermanentDelete={handlePermanentDelete} />
+        <RecycleBinView loading={loadingRecycle} recycleBin={recycleBin} onRestore={handleRestore} onPermanentDelete={handlePermanentDelete} onEmptyTrash={handleEmptyTrash} />
       ) : (
         <div className="space-y-6">
           <FilesMetricsBar explorer={explorer} fileTypeFilter={fileTypeFilter} />

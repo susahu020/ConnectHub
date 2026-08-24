@@ -17,6 +17,9 @@ import {
   Palette,
   HeartPulse,
   Loader2,
+  MonitorSmartphone,
+  AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { api } from '../../../../services/api';
 import { useAuthStore } from '../../../../lib/store';
@@ -77,6 +80,8 @@ export default function OrganizationSettingsPage() {
   const [orgForm, setOrgForm] = useState<Record<string, string>>({});
   const [allowedDomainsInput, setAllowedDomainsInput] = useState('');
   const [ssoGoogleEnabled, setSsoGoogleEnabled] = useState(true);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [recycleBinRetentionDays, setRecycleBinRetentionDays] = useState('');
 
   useEffect(() => {
     if (orgSettingsData) {
@@ -93,14 +98,17 @@ export default function OrganizationSettingsPage() {
         defaultTimezone: orgSettingsData.defaultTimezone || '',
         registrationMode: orgSettingsData.registrationMode || 'INVITE_ONLY',
         alertWebhookUrl: orgSettingsData.alertWebhookUrl || '',
+        duplicateLoginPolicy: orgSettingsData.duplicateLoginPolicy || 'SINGLE_SESSION',
       });
       setAllowedDomainsInput((orgSettingsData.allowedDomains || []).join(', '));
       setSsoGoogleEnabled(orgSettingsData.ssoGoogleEnabled !== false);
+      setMfaRequired(orgSettingsData.mfaRequired === true);
+      setRecycleBinRetentionDays(orgSettingsData.recycleBinRetentionDays ? String(orgSettingsData.recycleBinRetentionDays) : '');
     }
   }, [orgSettingsData]);
 
   const updateOrgSettingsMutation = useMutation({
-    mutationFn: (updates: Record<string, string | null | string[] | boolean>) => api.updateOrganizationSettings(updates),
+    mutationFn: (updates: Record<string, string | number | null | string[] | boolean>) => api.updateOrganizationSettings(updates),
     onSuccess: (data) => {
       // Keep this page's own cache entry in sync, and also update the
       // shared ['organization-settings'] key that every page in the app
@@ -119,7 +127,7 @@ export default function OrganizationSettingsPage() {
       .split(',')
       .map((d) => d.trim())
       .filter(Boolean);
-    updateOrgSettingsMutation.mutate({ ...orgForm, allowedDomains, ssoGoogleEnabled });
+    updateOrgSettingsMutation.mutate({ ...orgForm, allowedDomains, ssoGoogleEnabled, mfaRequired, recycleBinRetentionDays: recycleBinRetentionDays.trim() === '' ? null : Number(recycleBinRetentionDays) });
   };
 
   const sendTestAlertMutation = useMutation({
@@ -512,10 +520,105 @@ export default function OrganizationSettingsPage() {
                 <div className="flex items-center justify-between border-b pb-2">
                   <div className="flex items-center gap-2 font-bold text-xs text-foreground">
                     <ShieldCheck className="h-3.5 w-3.5" />
+                    <span>Require Two-Factor Authentication</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={mfaRequired}
+                    aria-label="Require two-factor authentication for all users"
+                    onClick={() => setMfaRequired(!mfaRequired)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${mfaRequired ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${mfaRequired ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 -mt-1">
+                  When on, every user must set up 2FA before they can use the rest of the app. Anyone without it
+                  enabled yet is limited to the 2FA setup screen the next time they load a page — nobody is signed
+                  out or locked out immediately when you turn this on.
+                </p>
+              </div>
+
+              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
+                  <MonitorSmartphone className="h-3.5 w-3.5" />
+                  <span>Session & Login Policy</span>
+                </div>
+                <p className="text-[10px] text-slate-400 -mt-1">
+                  Controls whether the same account can be signed in from more than one browser or device at
+                  the same time. Employees can always see and manage their own active sessions from Settings →
+                  Security.
+                </p>
+                <div className="space-y-1">
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { value: 'SINGLE_SESSION', title: 'Single Session (Recommended)', desc: 'Signing in on a new browser or device automatically signs the account out everywhere else. Prevents the same credentials from being logged in in two places at once.' },
+                      { value: 'LIMIT_3', title: 'Up to 3 Devices', desc: 'Allows up to 3 concurrent sessions per account. Signing in on a 4th device signs out the oldest one.' },
+                      { value: 'UNLIMITED', title: 'Unlimited', desc: 'No restriction — the same credentials can stay signed in on any number of browsers/devices at once. Not recommended.' },
+                    ].map((opt) => (
+                      <label
+                        key={opt.value}
+                        className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                          orgForm.duplicateLoginPolicy === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="duplicateLoginPolicy"
+                          value={opt.value}
+                          checked={orgForm.duplicateLoginPolicy === opt.value}
+                          onChange={(e) => setOrgForm({ ...orgForm, duplicateLoginPolicy: e.target.value })}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <p className="font-bold text-foreground">{opt.title}</p>
+                          <p className="text-[10px] text-slate-400 leading-normal mt-0.5">{opt.desc}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Recycle Bin Retention</span>
+                </div>
+                <p className="text-[10px] text-slate-400 -mt-1">
+                  How long a deleted file or folder sits in someone's Recycle Bin before it's automatically and
+                  permanently purged. Leave blank to keep deleted items forever until someone manually empties
+                  their own trash.
+                </p>
+                <div className="flex items-center gap-2 max-w-xs">
+                  <input
+                    type="number"
+                    min={1}
+                    max={3650}
+                    placeholder="Forever"
+                    value={recycleBinRetentionDays}
+                    onChange={(e) => setRecycleBinRetentionDays(e.target.value)}
+                    className="w-24 px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 text-xs font-bold focus:outline-none"
+                  />
+                  <span className="text-xs text-slate-400 font-semibold">days</span>
+                </div>
+              </div>
+
+              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-2 font-bold text-xs text-foreground">
+                    <ShieldCheck className="h-3.5 w-3.5" />
                     <span>Single Sign-On (Google)</span>
                   </div>
-                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${orgSettingsData?.ssoGoogleAvailable ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
-                    {orgSettingsData?.ssoGoogleAvailable ? 'Active' : 'Not Configured'}
+                  <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    orgSettingsData?.ssoGoogleUsingDemoCredentials
+                      ? 'bg-amber-500/10 text-amber-600'
+                      : orgSettingsData?.ssoGoogleAvailable
+                        ? 'bg-emerald-500/10 text-emerald-600'
+                        : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+                  }`}>
+                    {orgSettingsData?.ssoGoogleUsingDemoCredentials ? 'Demo Credentials' : orgSettingsData?.ssoGoogleAvailable ? 'Active' : 'Not Configured'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 -mt-1">
@@ -524,6 +627,17 @@ export default function OrganizationSettingsPage() {
                   that part is infra-level config, not editable here. This toggle lets you turn it off for the
                   workspace even when the server has it configured.
                 </p>
+                {orgSettingsData?.ssoGoogleUsingDemoCredentials && (
+                  <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 p-3">
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-normal">
+                      <strong>This is still using the template's shared demo Google credentials.</strong> "Continue
+                      with Google" will show up but won't actually work for your users. Create your own OAuth
+                      Client ID in Google Cloud Console and set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET on the
+                      server to fix this.
+                    </p>
+                  </div>
+                )}
                 <label className="flex items-center gap-3 cursor-pointer w-fit">
                   <button
                     type="button"

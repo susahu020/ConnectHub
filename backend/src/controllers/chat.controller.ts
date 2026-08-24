@@ -63,9 +63,15 @@ export const getDirectMessages = async (req: AuthenticatedRequest, res: Response
     const messages = await prisma.message.findMany(queryArgs);
     const sortedMessages = messages.reverse();
 
+    // messages is ordered newest-first (createdAt desc); the cursor for the
+    // *next* (older) page must be the oldest message already fetched — i.e.
+    // the last element here, not the first. Using messages[0] (the newest)
+    // would point the next request just past the newest message in this
+    // page, so "load older messages" would re-fetch almost the same page
+    // instead of paging further into the past.
     res.status(200).json({
       messages: sortedMessages,
-      nextCursor: messages.length === parsedLimit ? messages[0].id : null,
+      nextCursor: messages.length === parsedLimit ? messages[messages.length - 1].id : null,
     });
   } catch (error) {
     next(error);
@@ -271,6 +277,8 @@ export const editMessage = async (req: AuthenticatedRequest, res: Response, next
       if (existingMessage.receiverId) {
         io.to(`user:${existingMessage.receiverId}`).emit('message_edited', { messageId: id, content, isEdited: true });
         io.to(`user:${existingMessage.senderId}`).emit('message_edited', { messageId: id, content, isEdited: true });
+      } else if (existingMessage.groupId) {
+        io.to(`group:${existingMessage.groupId}`).emit('message_edited', { messageId: id, content, isEdited: true });
       }
     }
 

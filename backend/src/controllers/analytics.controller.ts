@@ -63,26 +63,53 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
     });
     const chatHistory = Object.entries(messageCountsByDay).map(([date, count]) => ({ date, count }));
 
-    // Estimate Chat Response Time (time interval between direct messages)
-    const sampleMessages = await prisma.message.findMany({
-      where: { groupId: null },
+    // Estimate Chat Response Time (time interval between direct messages).
+    // Two things were wrong with the original version of this: it sampled
+    // the OLDEST 100 direct messages ever sent (orderBy asc + take 100),
+    // so on any org with real message history this metric was frozen at
+    // day-one behavior rather than reflecting anything current — unlike
+    // the message-volume chart just above, which already uses a rolling
+    // sevenDaysAgo window. And it compared consecutive rows in one GLOBAL
+    // chronological stream across every 1:1 conversation in the company,
+    // when "is this a reply" only makes sense within a single
+    // conversation's own timeline — in an org with more than a couple of
+    // concurrent DM threads, consecutive global rows are almost always two
+    // unrelated conversations that happened to land next to each other in
+    // time, not an actual reply.
+    const recentDirectMessages = await prisma.message.findMany({
+      where: { groupId: null, createdAt: { gte: sevenDaysAgo } },
       orderBy: { createdAt: 'asc' },
-      take: 100,
+      take: 2000,
       select: { senderId: true, receiverId: true, createdAt: true }
     });
+
+    // Group into per-conversation timelines (keyed by the sorted pair of
+    // participant ids, so A->B and B->A messages land in the same bucket),
+    // then only compare consecutive messages within the same conversation.
+    const conversationThreads = new Map<string, { senderId: string; createdAt: Date }[]>();
+    recentDirectMessages.forEach(msg => {
+      if (!msg.receiverId) return;
+      const key = [msg.senderId, msg.receiverId].sort().join('::');
+      const thread = conversationThreads.get(key) || [];
+      thread.push({ senderId: msg.senderId, createdAt: msg.createdAt });
+      conversationThreads.set(key, thread);
+    });
+
     let totalResponseTimeMs = 0;
     let responseCount = 0;
-    for (let i = 1; i < sampleMessages.length; i++) {
-      const prev = sampleMessages[i - 1];
-      const curr = sampleMessages[i];
-      if (
-        (prev.senderId === curr.receiverId && prev.receiverId === curr.senderId) &&
-        (curr.createdAt.getTime() - prev.createdAt.getTime() < 4 * 60 * 60 * 1000)
-      ) {
-        totalResponseTimeMs += (curr.createdAt.getTime() - prev.createdAt.getTime());
-        responseCount++;
+    conversationThreads.forEach(thread => {
+      for (let i = 1; i < thread.length; i++) {
+        const prev = thread[i - 1];
+        const curr = thread[i];
+        if (
+          prev.senderId !== curr.senderId &&
+          (curr.createdAt.getTime() - prev.createdAt.getTime() < 4 * 60 * 60 * 1000)
+        ) {
+          totalResponseTimeMs += (curr.createdAt.getTime() - prev.createdAt.getTime());
+          responseCount++;
+        }
       }
-    }
+    });
     const avgChatResponseMinutes = responseCount > 0
       ? parseFloat((totalResponseTimeMs / (1000 * 60 * responseCount)).toFixed(1))
       : 0;

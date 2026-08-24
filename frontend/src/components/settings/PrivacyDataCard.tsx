@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, Download, Trash2, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function PrivacyDataCard({
   exportingData,
@@ -10,11 +11,12 @@ export function PrivacyDataCard({
   onExportData: () => void;
   onOpenDeleteAccount: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-white dark:bg-slate-900 border p-6 rounded-2xl shadow-sm space-y-5">
       <div className="border-b pb-3 flex items-center space-x-2">
         <ShieldCheck className="h-5 w-5 text-primary" />
-        <h3 className="font-bold text-sm">Privacy & Data</h3>
+        <h3 className="font-bold text-sm">{t('settings.privacy.title')}</h3>
       </div>
 
       <div className="flex items-start justify-between gap-4 p-4 border rounded-xl bg-slate-50/40 dark:bg-slate-800/30">

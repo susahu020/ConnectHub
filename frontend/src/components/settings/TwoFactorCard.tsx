@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function TwoFactorCard({
   enabled,
@@ -16,12 +17,13 @@ export function TwoFactorCard({
   onDisableSubmit: (e: React.FormEvent) => void;
   onInitSetup: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm space-y-4">
       <div className="border-b pb-3 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <ShieldCheck className="h-5 w-5 text-emerald-500" />
-          <h3 className="font-bold text-sm">Two-Factor Authentication (2FA)</h3>
+          <h3 className="font-bold text-sm">{t('settings.twoFactor.title')}</h3>
         </div>
         <span
           className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${

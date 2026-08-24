@@ -1,5 +1,6 @@
 import React from 'react';
 import { Award, Trash2, Heart, MessageSquare } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import CelebrationsWidget from '../../CelebrationsWidget';
 import { getBadgeIcon, getBadgeColors } from '../recognitionBadges';
 
@@ -18,16 +19,17 @@ export function RecognitionTab({
   onOpenRecognitionModal: () => void;
   onDeleteRecognition: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Peer Recognition Board</h3>
+        <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t('hr.recognition.heading')}</h3>
         <button
           onClick={onOpenRecognitionModal}
           className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-white bg-primary rounded-xl shadow-md hover:bg-primary-dark transition-all"
         >
           <Award className="h-4 w-4" />
-          Recognize Teammate
+          {t('hr.recognition.recognizeTeammate')}
         </button>
       </div>
 
@@ -36,7 +38,7 @@ export function RecognitionTab({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {recognitions.length === 0 ? (
               <div className="col-span-full text-center py-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-400">
-                Be the first to recognize a colleague for their outstanding work!
+                {t('hr.recognition.emptyBoard')}
               </div>
             ) : (
               recognitions.map((rec: any) => {
@@ -50,12 +52,12 @@ export function RecognitionTab({
                     {isAdmin && (
                       <button
                         onClick={() => {
-                          if (confirm('Are you sure you want to delete this recognition post?')) {
+                          if (confirm(t('hr.recognition.deleteConfirm'))) {
                             onDeleteRecognition(rec.id);
                           }
                         }}
                         className="absolute top-5 right-5 p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-500 transition-colors"
-                        title="Delete recognition"
+                        title={t('hr.recognition.deleteRecognition')}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -75,7 +77,7 @@ export function RecognitionTab({
                           <h4 className="text-xs font-black text-slate-800 dark:text-white leading-tight">
                             {rec.sender?.firstName} {rec.sender?.lastName}
                           </h4>
-                          <p className="text-[10px] text-slate-450 leading-none mt-0.5">{rec.sender?.designation || 'Staff member'}</p>
+                          <p className="text-[10px] text-slate-450 leading-none mt-0.5">{rec.sender?.designation || t('hr.recognition.staffMember')}</p>
                         </div>
                       </div>
 
@@ -113,11 +115,11 @@ export function RecognitionTab({
                           className={`flex items-center gap-1.5 font-bold hover:text-rose-500 transition-colors ${recLikes.liked ? 'text-rose-500' : ''}`}
                         >
                           <Heart className={`h-4 w-4 ${recLikes.liked ? 'fill-current' : ''}`} />
-                          <span>{recLikes.count} Likes</span>
+                          <span>{recLikes.count} {t('hr.recognition.likes')}</span>
                         </button>
                         <div className="flex items-center gap-1.5 font-bold">
                           <MessageSquare className="h-4 w-4" />
-                          <span>Public Recognition</span>
+                          <span>{t('hr.recognition.publicRecognition')}</span>
                         </div>
                       </div>
                     </div>

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { NotificationPreferences } from '../components/settings/NotificationPreferencesCard';
 
 interface User {
   id: string;
@@ -26,6 +27,7 @@ interface User {
     pushEnabled: boolean;
     emailEnabled: boolean;
     desktopEnabled: boolean;
+    notificationPreferences?: NotificationPreferences;
   };
 }
 

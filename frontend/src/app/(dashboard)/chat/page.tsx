@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import ImageCropperModal from '../../../components/ImageCropperModal';
 import { 
   MessageSquare, 
@@ -97,6 +98,7 @@ const renderFormattedText = (text: string) => {
 };
 
 export default function ChatPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const { socket, isConnected } = useSocket();
   const queryClient = useQueryClient();
@@ -307,7 +309,11 @@ export default function ChatPage() {
       // 1. Focus search input (Ctrl + K or Cmd + K)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        const searchInput = document.querySelector('input[placeholder="Search colleagues..."]') as HTMLInputElement;
+        // Queried by id, not by placeholder text — placeholder is
+        // translated (see chat.searchColleagues), so matching against its
+        // literal English text would silently stop working the moment a
+        // non-English language is selected.
+        const searchInput = document.getElementById('chat-colleague-search') as HTMLInputElement;
         searchInput?.focus();
       }
 
@@ -316,7 +322,7 @@ export default function ChatPage() {
         e.preventDefault();
         setShowMsgSearch(true);
         setTimeout(() => {
-          const msgSearchInput = document.querySelector('input[placeholder="Search conversation..."]') as HTMLInputElement;
+          const msgSearchInput = document.getElementById('chat-conversation-search') as HTMLInputElement;
           msgSearchInput?.focus();
         }, 100);
       }
@@ -1128,8 +1134,9 @@ export default function ChatPage() {
             </span>
           </div>
           <input
+            id="chat-colleague-search"
             type="text"
-            placeholder="Search colleagues..."
+            placeholder={t('chat.searchColleagues')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-800 text-[11px] focus:outline-none"
@@ -1140,7 +1147,7 @@ export default function ChatPage() {
           {/* Section: Recent Chats */}
           {loadingChats ? (
             <div className="space-y-3 px-3 py-2">
-              <h4 className="text-[9px] font-extrabold uppercase text-slate-450 tracking-wider">Recent Conversations</h4>
+              <h4 className="text-[9px] font-extrabold uppercase text-slate-450 tracking-wider">{t('chat.recentConversations')}</h4>
               {[1, 2, 3].map((n) => (
                 <div key={n} className="flex items-center space-x-3 p-2 rounded-xl animate-pulse-slow">
                   <div className="h-9 w-9 bg-slate-200 dark:bg-slate-800 rounded-full shrink-0" />
@@ -1153,7 +1160,7 @@ export default function ChatPage() {
             </div>
           ) : filteredRecent.length > 0 ? (
             <div className="space-y-1">
-              <h4 className="px-3 text-[9px] font-extrabold uppercase text-slate-450 tracking-wider">Recent Conversations</h4>
+              <h4 className="px-3 text-[9px] font-extrabold uppercase text-slate-450 tracking-wider">{t('chat.recentConversations')}</h4>
               {filteredRecent.map((chat: any) => {
                 const active = activeContact && activeContact.id === chat.id;
                 return (
@@ -1209,8 +1216,8 @@ export default function ChatPage() {
           ) : searchQuery.trim() === '' ? (
             <div className="text-center py-8 px-4 text-slate-400 space-y-2 animate-fade-in">
               <MessageSquare className="h-8 w-8 mx-auto text-slate-350 dark:text-slate-700 stroke-1" />
-              <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">No recent chats</p>
-              <p className="text-[9px] text-muted-foreground max-w-[160px] mx-auto leading-normal">Use the search box above to start a conversation with a colleague.</p>
+              <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{t('chat.noRecentChats')}</p>
+              <p className="text-[9px] text-muted-foreground max-w-[160px] mx-auto leading-normal">{t('chat.noRecentChatsHint')}</p>
             </div>
           ) : null}
 
@@ -1382,8 +1389,9 @@ export default function ChatPage() {
             {showMsgSearch && (
               <div className="px-6 py-2 border-b bg-slate-50/50 dark:bg-slate-900/50 flex items-center space-x-2">
                 <input
+                  id="chat-conversation-search"
                   type="text"
-                  placeholder="Search conversation..."
+                  placeholder={t('chat.searchConversation')}
                   value={msgSearchQuery}
                   onChange={(e) => setMsgSearchQuery(e.target.value)}
                   className="flex-1 px-3 py-1.5 rounded-xl border bg-white dark:bg-slate-800 text-xs focus:outline-none"
@@ -1428,10 +1436,10 @@ export default function ChatPage() {
                     <MessageSquare className="h-6 w-6" />
                   </div>
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    {msgSearchQuery ? 'No matching messages found.' : 'No messages here yet'}
+                    {msgSearchQuery ? t('chat.noMatchingMessages') : t('chat.noMessagesYet')}
                   </p>
                   <p className="text-[10px] text-muted-foreground max-w-[200px]">
-                    {msgSearchQuery ? 'Try searching for different terms or phrases.' : 'Send a message below to start your conversation!'}
+                    {msgSearchQuery ? t('chat.tryDifferentSearch') : t('chat.noMessagesHint')}
                   </p>
                 </div>
               ) : (
@@ -2131,7 +2139,7 @@ export default function ChatPage() {
                       handleToggleBlock();
                     }
                   }}
-                  placeholder={isBlocked ? "You blocked this contact. Click to unblock." : "Type a message..."}
+                  placeholder={isBlocked ? t('chat.blockedPlaceholder') : t('chat.typeMessage')}
                   value={isBlocked ? "" : inputValue}
                   onChange={handleInputChange}
                   className={`flex-1 min-w-0 px-4 py-3 rounded-xl border transition-all text-xs ${

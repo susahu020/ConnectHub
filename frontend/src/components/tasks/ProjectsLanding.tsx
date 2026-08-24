@@ -1,5 +1,6 @@
 import React from 'react';
 import { Layers, Plus, Briefcase, ArrowUpRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function ProjectsLanding({
   projects,
@@ -14,6 +15,7 @@ export function ProjectsLanding({
   onSelectProject: (proj: any) => void;
   onCreateProject: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-8 animate-fade-in text-left">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
@@ -21,11 +23,11 @@ export function ProjectsLanding({
           <div className="flex items-center space-x-2.5">
             <Layers className="h-6 w-6 text-primary" />
             <h2 className="text-xl font-black tracking-tight text-slate-850 dark:text-slate-100">
-              Projects Directory
+              {t('tasks.projectsDirectory')}
             </h2>
           </div>
           <p className="text-xs text-muted-foreground max-w-2xl leading-normal">
-            Select a workspace from the list below to access its Kanban tasks, month calendar agendas, and Gantt charts.
+            {t('tasks.projectsSubtitle')}
           </p>
         </div>
         {isWritePermitted && (
@@ -34,7 +36,7 @@ export function ProjectsLanding({
             className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5 shrink-0"
           >
             <Plus className="h-4 w-4" />
-            <span>Create Project</span>
+            <span>{t('tasks.createProject')}</span>
           </button>
         )}
       </div>
