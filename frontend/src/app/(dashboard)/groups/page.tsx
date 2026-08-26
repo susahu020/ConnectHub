@@ -234,21 +234,21 @@ export default function GroupsPage() {
     if (content.startsWith('[BREAKING]')) {
       return {
         borderClass: 'border-red-500 bg-red-50/50 dark:bg-red-950/20 text-red-950 dark:text-red-100',
-        badge: <span className="px-1.5 py-0.5 bg-red-650 text-white rounded-[4px] text-[7px] font-black uppercase tracking-wider mb-1 inline-block">Breaking News</span>,
+        badge: <span className="px-1.5 py-0.5 bg-red-650 text-foreground rounded-[4px] text-[7px] font-black uppercase tracking-wider mb-1 inline-block">Breaking News</span>,
         cleanContent: content.replace('[BREAKING]', '').trim()
       };
     }
     if (content.startsWith('[ALERT]')) {
       return {
         borderClass: 'border-amber-550 bg-amber-50/50 dark:bg-amber-950/20 text-amber-955 dark:text-amber-100',
-        badge: <span className="px-1.5 py-0.5 bg-amber-600 text-white rounded-[4px] text-[7px] font-black uppercase tracking-wider mb-1 inline-block">Alert</span>,
+        badge: <span className="px-1.5 py-0.5 bg-amber-600 text-foreground rounded-[4px] text-[7px] font-black uppercase tracking-wider mb-1 inline-block">Alert</span>,
         cleanContent: content.replace('[ALERT]', '').trim()
       };
     }
     if (content.startsWith('[ANNOUNCEMENT]')) {
       return {
         borderClass: 'border-info bg-info/5 dark:bg-info/10 text-info-dark dark:text-info',
-        badge: <span className="px-1.5 py-0.5 bg-info text-white rounded-[4px] text-[7px] font-black uppercase tracking-wider mb-1 inline-block">Announcement</span>,
+        badge: <span className="px-1.5 py-0.5 bg-info text-info-foreground rounded-[4px] text-[7px] font-black uppercase tracking-wider mb-1 inline-block">Announcement</span>,
         cleanContent: content.replace('[ANNOUNCEMENT]', '').trim()
       };
     }
@@ -923,15 +923,15 @@ export default function GroupsPage() {
   );
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex bg-white dark:bg-slate-900 border rounded-2xl overflow-hidden shadow-sm">
+    <div className="h-[calc(100vh-8rem)] flex bg-card dark:bg-card border rounded-2xl overflow-hidden shadow-sm">
       {/* Groups Sidebar */}
-      <aside className={`w-full md:w-80 border-r flex flex-col shrink-0 bg-slate-50/50 dark:bg-slate-900/50 ${activeGroup ? 'hidden md:flex' : 'flex'}`}>
+      <aside className={`w-full md:w-80 border-r flex flex-col shrink-0 bg-muted/50 dark:bg-card/50 ${activeGroup ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b flex items-center justify-between">
           <h3 className="font-bold text-base">Channel Directory</h3>
           {can('Groups', 'Create') && (
             <button
               onClick={() => setCreateModalOpen(true)}
-              className="p-1.5 bg-primary text-white rounded-lg hover:bg-primary/95 transition-all shadow-sm"
+              className="p-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 transition-all shadow-sm"
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -939,17 +939,17 @@ export default function GroupsPage() {
         </div>
 
         {/* Channels Sidebar Search Bar */}
-        <div className="p-2 border-b shrink-0 bg-slate-50/20 dark:bg-slate-900/20">
+        <div className="p-2 border-b shrink-0 bg-muted/20 dark:bg-card/20">
           <div className="relative">
             <input
               type="text"
               placeholder="Search channels..."
               value={channelSearch}
               onChange={(e) => setChannelSearch(e.target.value)}
-              className="w-full pl-8 pr-4 py-1.5 bg-white dark:bg-slate-800 border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-xs font-semibold"
+              className="w-full pl-8 pr-4 py-1.5 bg-card dark:bg-card border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-xs font-semibold"
             />
             {/* Search Magnifier SVG */}
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.603 10.603z" />
             </svg>
           </div>
@@ -957,18 +957,18 @@ export default function GroupsPage() {
 
         <div className="flex-1 overflow-y-auto p-2 space-y-4">
           {loadingGroups ? (
-            <div className="text-center text-xs text-slate-400 py-10">Loading channels...</div>
+            <div className="text-center text-xs text-muted-foreground py-10">Loading channels...</div>
           ) : (
             <>
               {/* Followed Channels Section */}
               <div className="space-y-1">
-                <div className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-3 mb-1.5 text-left">
+                <div className="text-[10px] font-black uppercase text-muted-foreground dark:text-muted-foreground tracking-wider px-3 mb-1.5 text-left">
                   Followed Channels
                 </div>
                 {followedGroups.length === 0 ? (
-                  <p className="text-[11px] text-slate-400 italic px-3 py-2 text-left">No followed channels yet. Find channels below to follow!</p>
+                  <p className="text-[11px] text-muted-foreground italic px-3 py-2 text-left">No followed channels yet. Find channels below to follow!</p>
                 ) : filteredFollowed.length === 0 ? (
-                  <p className="text-[10px] text-slate-400 italic px-3 py-2 text-left">No matching channels followed.</p>
+                  <p className="text-[10px] text-muted-foreground italic px-3 py-2 text-left">No matching channels followed.</p>
                 ) : (
                   filteredFollowed.map((group: any) => {
                     const active = activeGroup && activeGroup.id === group.id;
@@ -978,29 +978,29 @@ export default function GroupsPage() {
                         onClick={() => setActiveGroup(group)}
                         className={`flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-all ${
                           active
-                            ? 'bg-primary text-white shadow-sm'
-                            : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'hover:bg-muted dark:hover:bg-card'
                         }`}
                       >
-                        <div className="h-9 w-9 bg-slate-200 dark:bg-slate-700 rounded-lg flex items-center justify-center shrink-0 overflow-hidden border dark:border-slate-650">
+                        <div className="h-9 w-9 bg-secondary dark:bg-card rounded-lg flex items-center justify-center shrink-0 overflow-hidden border dark:border-border">
                           {group.avatarUrl ? (
                             <img src={group.avatarUrl} alt="" className="h-full w-full object-cover" />
                           ) : (
-                            <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-white font-extrabold flex items-center justify-center text-sm uppercase">
+                            <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-primary-foreground font-extrabold flex items-center justify-center text-sm uppercase">
                               {group.name ? group.name[0] : '#'}
                             </div>
                           )}
                         </div>
                         <div className="flex-1 min-w-0 text-left">
-                          <p className={`text-xs font-bold truncate flex items-center ${active ? 'text-white' : 'text-foreground'}`}>
+                          <p className={`text-xs font-bold truncate flex items-center ${active ? 'text-primary-foreground' : 'text-foreground'}`}>
                             {group.name}
-                            <span className="inline-flex items-center justify-center bg-green-500 text-white rounded-full p-0.5 ml-1 shrink-0 h-3 w-3"><Check className="h-2 w-2 stroke-[3]" /></span>
+                            <span className="inline-flex items-center justify-center bg-green-500 text-foreground rounded-full p-0.5 ml-1 shrink-0 h-3 w-3"><Check className="h-2 w-2 stroke-[3]" /></span>
                           </p>
                           <div className="flex items-center space-x-1.5 mt-0.5 min-w-0">
                             {group.isBroadcast && (
                               <span className="px-1 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold uppercase rounded text-[7px] tracking-wide shrink-0">Broadcast</span>
                             )}
-                            <p className={`text-[10px] truncate ${active ? 'text-white/80' : 'text-muted-foreground'}`}>
+                            <p className={`text-[10px] truncate ${active ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
                               {group.members?.length || 0} followers
                             </p>
                           </div>
@@ -1013,8 +1013,8 @@ export default function GroupsPage() {
 
               {/* Find Channels to Follow Section */}
               {suggestedGroups.length > 0 && (
-                <div className="space-y-2 pt-2 border-t dark:border-slate-800">
-                  <div className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider px-3 mb-1 text-left">
+                <div className="space-y-2 pt-2 border-t dark:border-border">
+                  <div className="text-[10px] font-black uppercase text-muted-foreground dark:text-muted-foreground tracking-wider px-3 mb-1 text-left">
                     Find Channels to Follow
                   </div>
                   
@@ -1028,8 +1028,8 @@ export default function GroupsPage() {
                           onClick={() => setSelectedCategory(cat)}
                           className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold border transition-all shrink-0 select-none ${
                             selected
-                              ? 'bg-green-600 text-white border-green-600 shadow-sm'
-                              : 'bg-white dark:bg-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-850'
+                              ? 'bg-green-600 text-foreground border-green-600 shadow-sm'
+                              : 'bg-card dark:bg-card hover:bg-muted dark:hover:bg-card text-muted-foreground border-border dark:border-border'
                           }`}
                         >
                           {cat}
@@ -1039,7 +1039,7 @@ export default function GroupsPage() {
                   </div>
 
                   {filteredSuggested.length === 0 ? (
-                    <p className="text-[10px] text-slate-400 italic px-3 py-4 text-left font-semibold">No channels match search in this category.</p>
+                    <p className="text-[10px] text-muted-foreground italic px-3 py-4 text-left font-semibold">No channels match search in this category.</p>
                   ) : (
                     filteredSuggested.map((group: any) => {
                       const active = activeGroup && activeGroup.id === group.id;
@@ -1049,28 +1049,28 @@ export default function GroupsPage() {
                           onClick={() => setActiveGroup(group)}
                           className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
                             active
-                              ? 'bg-primary text-white shadow-sm'
-                              : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                              ? 'bg-primary text-primary-foreground shadow-sm'
+                              : 'hover:bg-muted dark:hover:bg-card'
                           }`}
                         >
                           <div className="flex items-center space-x-3 min-w-0">
-                            <div className="h-9 w-9 bg-slate-200 dark:bg-slate-700 rounded-lg flex items-center justify-center shrink-0 overflow-hidden border dark:border-slate-650">
+                            <div className="h-9 w-9 bg-secondary dark:bg-card rounded-lg flex items-center justify-center shrink-0 overflow-hidden border dark:border-border">
                               {group.avatarUrl ? (
                                 <img src={group.avatarUrl} alt="" className="h-full w-full object-cover" />
                               ) : (
-                                <div className="h-full w-full bg-gradient-to-br from-green-600/80 to-teal-650/80 text-white font-extrabold flex items-center justify-center text-sm uppercase">
+                                <div className="h-full w-full bg-gradient-to-br from-green-600/80 to-teal-650/80 text-foreground font-extrabold flex items-center justify-center text-sm uppercase">
                                   {group.name ? group.name[0] : '#'}
                                 </div>
                               )}
                             </div>
                             <div className="text-left min-w-0">
-                              <p className={`text-xs font-bold truncate flex items-center ${active ? 'text-white' : 'text-foreground'}`}>
+                              <p className={`text-xs font-bold truncate flex items-center ${active ? 'text-primary-foreground' : 'text-foreground'}`}>
                                 {group.name}
-                                <span className="inline-flex items-center justify-center bg-green-500 text-white rounded-full p-0.5 ml-1 shrink-0 h-3 w-3"><Check className="h-2 w-2 stroke-[3]" /></span>
+                                <span className="inline-flex items-center justify-center bg-green-500 text-foreground rounded-full p-0.5 ml-1 shrink-0 h-3 w-3"><Check className="h-2 w-2 stroke-[3]" /></span>
                               </p>
                               <div className="flex items-center space-x-1.5 mt-0.5 min-w-0">
-                                <span className="px-1 py-0.5 bg-slate-200/60 dark:bg-slate-750 text-slate-600 dark:text-slate-400 font-bold uppercase rounded text-[7px] shrink-0 tracking-wide">{getGroupCategory(group.name)}</span>
-                                <p className={`text-[10px] truncate ${active ? 'text-white/80' : 'text-muted-foreground'}`}>
+                                <span className="px-1 py-0.5 bg-secondary/60 dark:bg-card text-muted-foreground dark:text-muted-foreground font-bold uppercase rounded text-[7px] shrink-0 tracking-wide">{getGroupCategory(group.name)}</span>
+                                <p className={`text-[10px] truncate ${active ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
                                   {group.members?.length || 0} followers
                                 </p>
                               </div>
@@ -1081,7 +1081,7 @@ export default function GroupsPage() {
                               e.stopPropagation();
                               addMemberMutation.mutate({ groupId: group.id, userId: user?.id || '' });
                             }}
-                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold rounded-full transition-all shrink-0 ml-2"
+                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-foreground text-[10px] font-bold rounded-full transition-all shrink-0 ml-2"
                           >
                             Follow
                           </button>
@@ -1097,7 +1097,7 @@ export default function GroupsPage() {
       </aside>
 
       {/* Main Messaging Area */}
-      <section className={`flex-1 flex flex-col min-w-0 bg-white dark:bg-slate-950 ${activeGroup ? 'flex' : 'hidden md:flex'}`}>
+      <section className={`flex-1 flex flex-col min-w-0 bg-card dark:bg-card ${activeGroup ? 'flex' : 'hidden md:flex'}`}>
         {activeGroup ? (
           <>
             {/* Header */}
@@ -1105,16 +1105,16 @@ export default function GroupsPage() {
               <div className="flex items-center space-x-3 min-w-0">
                 <button
                   onClick={() => setActiveGroup(null)}
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 md:hidden mr-1 shrink-0"
+                  className="p-1 hover:bg-muted dark:hover:bg-card rounded-lg text-muted-foreground md:hidden mr-1 shrink-0"
                   aria-label="Back to channels list"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
-                <div className="h-10 w-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center shrink-0 overflow-hidden border dark:border-slate-705">
+                <div className="h-10 w-10 bg-muted dark:bg-card rounded-lg flex items-center justify-center shrink-0 overflow-hidden border dark:border-border">
                   {activeGroup.avatarUrl ? (
                     <img src={activeGroup.avatarUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-white font-extrabold flex items-center justify-center text-sm uppercase">
+                    <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-primary-foreground font-extrabold flex items-center justify-center text-sm uppercase">
                       {activeGroup.name ? activeGroup.name[0] : '#'}
                     </div>
                   )}
@@ -1122,7 +1122,7 @@ export default function GroupsPage() {
                 <div className="text-left min-w-0">
                   <h4 className="font-bold text-sm leading-none mb-1 flex items-center">
                     {activeGroup.name}
-                    <span className="inline-flex items-center justify-center bg-green-500 text-white rounded-full p-0.5 ml-1 shrink-0 h-3 w-3"><Check className="h-2 w-2 stroke-[3]" /></span>
+                    <span className="inline-flex items-center justify-center bg-green-500 text-foreground rounded-full p-0.5 ml-1 shrink-0 h-3 w-3"><Check className="h-2 w-2 stroke-[3]" /></span>
                   </h4>
                   <p className="text-[10px] text-muted-foreground leading-none">
                     {activeGroup.members?.length || 0} followers
@@ -1136,7 +1136,7 @@ export default function GroupsPage() {
                     toast.success(!isMuted ? 'Notifications muted.' : 'Notifications unmuted.');
                   }}
                   className={`p-1.5 rounded-lg border transition-all shrink-0 ${
-                    isMuted ? 'bg-amber-500/10 text-amber-550 border-amber-500/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+                    isMuted ? 'bg-amber-500/10 text-amber-550 border-amber-500/20' : 'hover:bg-muted dark:hover:bg-card text-muted-foreground'
                   }`}
                   title={isMuted ? "Unmute Notifications" : "Mute Notifications"}
                 >
@@ -1145,7 +1145,7 @@ export default function GroupsPage() {
                 <button
                   onClick={() => setShowMsgSearch(!showMsgSearch)}
                   className={`p-1.5 rounded-lg border transition-all shrink-0 ${
-                    showMsgSearch ? 'bg-primary/10 text-primary border-primary/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+                    showMsgSearch ? 'bg-primary/10 text-primary border-primary/20' : 'hover:bg-muted dark:hover:bg-card text-muted-foreground'
                   }`}
                   title="Search Messages"
                 >
@@ -1154,7 +1154,7 @@ export default function GroupsPage() {
                 {isMember && (
                   <button
                     onClick={() => setPollModalOpen(true)}
-                    className="p-1.5 rounded-lg border text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0"
+                    className="p-1.5 rounded-lg border text-muted-foreground hover:bg-muted dark:hover:bg-card transition-all shrink-0"
                     title="Create Poll"
                   >
                     <BarChart3 className="h-4 w-4" />
@@ -1163,7 +1163,7 @@ export default function GroupsPage() {
                 <button
                   onClick={() => setShowInfoPanel(!showInfoPanel)}
                   className={`p-1.5 rounded-lg border transition-all shrink-0 ${
-                    showInfoPanel ? 'bg-primary/10 text-primary border-primary/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'
+                    showInfoPanel ? 'bg-primary/10 text-primary border-primary/20' : 'hover:bg-muted dark:hover:bg-card text-muted-foreground'
                   }`}
                   title="Channel Info"
                 >
@@ -1172,7 +1172,7 @@ export default function GroupsPage() {
                 {isMember && (
                   <button
                     onClick={handleClearChatHistory}
-                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-150 dark:hover:bg-slate-800 text-slate-500 transition-all shrink-0"
+                    className="p-1.5 rounded-lg border border-border dark:border-border hover:bg-secondary dark:hover:bg-card text-muted-foreground transition-all shrink-0"
                     title="Clear Chat History"
                     aria-label="Clear chat history"
                   >
@@ -1181,23 +1181,23 @@ export default function GroupsPage() {
                 )}
                 <div className="relative group/more shrink-0">
                   <button
-                    className="p-1.5 border hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 transition-all shrink-0 font-medium"
+                    className="p-1.5 border hover:bg-muted dark:hover:bg-card rounded-lg text-muted-foreground transition-all shrink-0 font-medium"
                     title="More Options"
                   >
                     <MoreVertical className="h-4 w-4" />
                   </button>
-                  <div className="absolute top-8 right-0 bg-white dark:bg-slate-800 border rounded-lg shadow-xl hidden group-hover/more:block py-1 text-[11px] w-36 z-30 font-semibold text-slate-700 dark:text-slate-200">
+                  <div className="absolute top-8 right-0 bg-card dark:bg-card border rounded-lg shadow-xl hidden group-hover/more:block py-1 text-[11px] w-36 z-30 font-semibold text-foreground dark:text-foreground">
                     <button
                       onClick={() => setShowInfoPanel(true)}
-                      className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center space-x-1.5"
+                      className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card flex items-center space-x-1.5"
                     >
-                      <Info className="h-3.5 w-3.5 text-slate-400" />
+                      <Info className="h-3.5 w-3.5 text-muted-foreground" />
                       <span>Channel info</span>
                     </button>
                     {isMember && (
                       <button
                         onClick={() => setAddMemberOpen(true)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center space-x-1.5"
+                        className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card flex items-center space-x-1.5"
                       >
                         <UserPlus className="h-3.5 w-3.5 text-primary" />
                         <span>Add Member</span>
@@ -1206,7 +1206,7 @@ export default function GroupsPage() {
                     {isMember && (
                       <button
                         onClick={handleLeaveGroup}
-                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-red-500 flex items-center space-x-1.5"
+                        className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card text-red-500 flex items-center space-x-1.5"
                       >
                         <LogOut className="h-3.5 w-3.5 text-red-550" />
                         <span>Unfollow</span>
@@ -1223,7 +1223,7 @@ export default function GroupsPage() {
                           setEditCoverUrl(meta.coverUrl || '');
                           setEditModalOpen(true);
                         }}
-                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center space-x-1.5 font-bold"
+                        className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card text-foreground dark:text-foreground flex items-center space-x-1.5 font-bold"
                       >
                         <Edit3 className="h-3.5 w-3.5 text-info" />
                         <span>Edit Channel</span>
@@ -1232,7 +1232,7 @@ export default function GroupsPage() {
                     {activeGroup.createdById === user?.id && (
                       <button
                         onClick={handleDeleteGroup}
-                        className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-red-650 flex items-center space-x-1.5 font-bold"
+                        className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card text-red-650 flex items-center space-x-1.5 font-bold"
                       >
                         <Trash2 className="h-3.5 w-3.5 text-red-600" />
                         <span>Delete Channel</span>
@@ -1240,9 +1240,9 @@ export default function GroupsPage() {
                     )}
                     <button
                       onClick={() => toast.success('Thank you. Channel report submitted.')}
-                      className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-red-500 flex items-center space-x-1.5 font-bold"
+                      className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card text-red-500 flex items-center space-x-1.5 font-bold"
                     >
-                      <Trash2 className="h-3.5 w-3.5 text-slate-400" />
+                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                       <span>Report</span>
                     </button>
                   </div>
@@ -1252,15 +1252,15 @@ export default function GroupsPage() {
 
             {/* Inline message search bar */}
             {showMsgSearch && (
-              <div className="px-6 py-2 border-b bg-slate-50/50 dark:bg-slate-900/50 flex items-center space-x-2">
+              <div className="px-6 py-2 border-b bg-muted/50 dark:bg-card/50 flex items-center space-x-2">
                 <input
                   type="text"
                   placeholder="Search channel..."
                   value={msgSearchQuery}
                   onChange={(e) => setMsgSearchQuery(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-xl border bg-white dark:bg-slate-800 text-xs focus:outline-none"
+                  className="flex-1 px-3 py-1.5 rounded-xl border bg-card dark:bg-card text-xs focus:outline-none"
                 />
-                <button onClick={() => { setMsgSearchQuery(''); setShowMsgSearch(false); }} className="text-slate-400 hover:text-foreground">
+                <button onClick={() => { setMsgSearchQuery(''); setShowMsgSearch(false); }} className="text-muted-foreground hover:text-foreground">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -1272,21 +1272,21 @@ export default function GroupsPage() {
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {displayedMessages.length === 0 ? (
                 msgSearchQuery ? (
-                  <div className="text-center text-xs text-slate-400 py-20">No matching messages found.</div>
+                  <div className="text-center text-xs text-muted-foreground py-20">No matching messages found.</div>
                 ) : (
-                  <div className="max-w-md mx-auto my-10 bg-slate-50 dark:bg-slate-900 border dark:border-slate-800 rounded-3xl p-6 text-center space-y-4 shadow-sm animate-in fade-in zoom-in-95 duration-300">
-                    <div className="h-16 w-16 bg-white dark:bg-slate-800 rounded-full mx-auto flex items-center justify-center shadow-md overflow-hidden border dark:border-slate-700">
+                  <div className="max-w-md mx-auto my-10 bg-muted dark:bg-card border dark:border-border rounded-3xl p-6 text-center space-y-4 shadow-sm animate-in fade-in zoom-in-95 duration-300">
+                    <div className="h-16 w-16 bg-card dark:bg-card rounded-full mx-auto flex items-center justify-center shadow-md overflow-hidden border dark:border-border">
                       {activeGroup.avatarUrl ? (
                         <img src={activeGroup.avatarUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-white font-extrabold flex items-center justify-center text-lg uppercase">
+                        <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-primary-foreground font-extrabold flex items-center justify-center text-lg uppercase">
                           {activeGroup.name ? activeGroup.name[0] : '#'}
                         </div>
                       )}
                     </div>
                     <div className="space-y-1.5">
                       <h4 className="font-extrabold text-sm text-foreground">Start growing "{activeGroup.name}"</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
+                      <p className="text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
                         Get started by adding an icon, description, and your first update. Invite people by sharing your link.
                       </p>
                     </div>
@@ -1295,7 +1295,7 @@ export default function GroupsPage() {
                         navigator.clipboard.writeText(window.location.origin + `/groups?join=${activeGroup.id}`);
                         toast.success('Channel join link copied to clipboard!');
                       }}
-                      className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-full font-bold text-xs shadow-md transition-all active:scale-[0.98]"
+                      className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-foreground rounded-full font-bold text-xs shadow-md transition-all active:scale-[0.98]"
                     >
                       Share channel link
                     </button>
@@ -1318,13 +1318,13 @@ export default function GroupsPage() {
 
                       {/* Forwarded Header */}
                       {msg.forwardedFromId && (
-                        <div className="flex items-center space-x-1.5 text-[9px] text-slate-400 font-extrabold uppercase tracking-wide mb-0.5">
+                        <div className="flex items-center space-x-1.5 text-[9px] text-muted-foreground font-extrabold uppercase tracking-wide mb-0.5">
                           <CornerUpRight className="h-3 w-3 shrink-0" />
                           <span>Forwarded</span>
                         </div>
                       )}
 
-                      <span className="text-[10px] text-slate-400 font-bold mb-0.5">
+                      <span className="text-[10px] text-muted-foreground font-bold mb-0.5">
                         {msg.sender.firstName} {msg.sender.lastName}
                       </span>
 
@@ -1332,33 +1332,33 @@ export default function GroupsPage() {
                         {/* Hover Quick Actions */}
                         {!msg.isDeleted && (
                           <div className={`opacity-0 group-hover:opacity-100 transition-all flex items-center space-x-1 shrink-0 self-center ${self ? 'order-first' : 'order-last'}`}>
-                            <button onClick={() => setReplyingMessage(msg)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400" title="Reply">
+                            <button onClick={() => setReplyingMessage(msg)} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground" title="Reply">
                               <CornerUpLeft className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => setForwardingMessage(msg)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400" title="Forward">
+                            <button onClick={() => setForwardingMessage(msg)} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground" title="Forward">
                               <CornerUpRight className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => handleTogglePin(msg.id)} className={`p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded ${msg.isPinned ? 'text-primary' : 'text-slate-400'}`} title="Pin message">
+                            <button onClick={() => handleTogglePin(msg.id)} className={`p-1 hover:bg-muted dark:hover:bg-card rounded ${msg.isPinned ? 'text-primary' : 'text-muted-foreground'}`} title="Pin message">
                               <Pin className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => handleToggleBookmark(msg.id)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400" title="Bookmark">
+                            <button onClick={() => handleToggleBookmark(msg.id)} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground" title="Bookmark">
                               <Bookmark className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => handleCopyText(msg.content)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400" title="Copy Text">
+                            <button onClick={() => handleCopyText(msg.content)} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground" title="Copy Text">
                               <Copy className="h-3.5 w-3.5" />
                             </button>
                             {self && (
                               <>
-                                <button onClick={() => { setEditingMessage(msg); setEditValue(msg.content); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-400">
+                                <button onClick={() => { setEditingMessage(msg); setEditValue(msg.content); }} className="p-1 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground">
                                   <Edit3 className="h-3.5 w-3.5" />
                                 </button>
                                 <div className="relative group/del">
                                   <button className="p-1 hover:bg-red-50 dark:hover:bg-red-950/20 rounded text-red-500">
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
-                                  <div className="absolute top-6 right-0 bg-white dark:bg-slate-800 border rounded-lg shadow-xl hidden group-hover/del:block py-1 text-[10px] w-28 z-30">
-                                    <button onClick={() => handleDeleteMessage(msg.id, 'FOR_ME')} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700">Delete for me</button>
-                                    <button onClick={() => handleDeleteMessage(msg.id, 'FOR_EVERYONE')} className="w-full text-left px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-red-500 font-bold">Delete for all</button>
+                                  <div className="absolute top-6 right-0 bg-card dark:bg-card border rounded-lg shadow-xl hidden group-hover/del:block py-1 text-[10px] w-28 z-30">
+                                    <button onClick={() => handleDeleteMessage(msg.id, 'FOR_ME')} className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card">Delete for me</button>
+                                    <button onClick={() => handleDeleteMessage(msg.id, 'FOR_EVERYONE')} className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card text-red-500 font-bold">Delete for all</button>
                                   </div>
                                 </div>
                               </>
@@ -1368,22 +1368,22 @@ export default function GroupsPage() {
 
                         {(() => {
                           const isDeled = msg.isDeleted || msg.content === 'This message was deleted.';
-                          const updateStyle = isDeled ? { borderClass: 'border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 text-slate-400 dark:text-slate-500', badge: null, cleanContent: 'This message was deleted.' } : getUpdateStyle(msg.content);
+                          const updateStyle = isDeled ? { borderClass: 'border-border dark:border-border bg-muted/40 dark:bg-card/40 text-muted-foreground dark:text-muted-foreground', badge: null, cleanContent: 'This message was deleted.' } : getUpdateStyle(msg.content);
                           return (
                             <div className={`p-3.5 rounded-2xl text-xs leading-relaxed border transition-all ${
                               updateStyle.borderClass || (self
-                                ? 'bg-primary text-white border-primary shadow-sm rounded-tr-none'
-                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-tl-none')
+                                ? 'bg-primary text-primary-foreground border-primary shadow-sm rounded-tr-none'
+                                : 'bg-muted dark:bg-card border-border dark:border-border rounded-tl-none')
                             }`}>
                               {updateStyle.badge}
-                              <p className={isDeled ? 'italic text-slate-400 dark:text-slate-500 font-semibold' : ''}>{updateStyle.cleanContent}</p>
+                              <p className={isDeled ? 'italic text-muted-foreground dark:text-muted-foreground font-semibold' : ''}>{updateStyle.cleanContent}</p>
 
                               {/* Poll Component */}
                               {msg.poll && !isDeled && (
-                                <div className="mt-3 p-3 bg-white dark:bg-slate-900 border rounded-xl space-y-2 text-foreground shadow-sm max-w-[280px]">
+                                <div className="mt-3 p-3 bg-card dark:bg-card border rounded-xl space-y-2 text-foreground shadow-sm max-w-[280px]">
                                   <div className="flex justify-between items-center border-b pb-1.5 min-w-0">
                                     <p className="font-bold text-xs truncate mr-1.5">{msg.poll.question}</p>
-                                    <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[7px] font-black uppercase tracking-wide shrink-0">Single Choice</span>
+                                    <span className="px-1.5 py-0.5 bg-muted dark:bg-card text-muted-foreground rounded text-[7px] font-black uppercase tracking-wide shrink-0">Single Choice</span>
                                   </div>
                                   <div className="space-y-2 pt-1 text-[10px]">
                                     {msg.poll.options?.map((opt: any) => {
@@ -1410,7 +1410,7 @@ export default function GroupsPage() {
                                                 setSelectedVotersList(opt.votes || []);
                                                 setVotersModalOpen(true);
                                               }}
-                                              className="text-slate-400 hover:text-primary transition-all font-bold px-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-[9px]"
+                                              className="text-muted-foreground hover:text-primary transition-all font-bold px-1.5 hover:bg-muted dark:hover:bg-card rounded text-[9px]"
                                               title="View Voters"
                                             >
                                               {votesCount} ({percentage}%)
@@ -1420,7 +1420,7 @@ export default function GroupsPage() {
                                       );
                                     })}
                                   </div>
-                                  <div className="text-[7px] text-slate-400 font-extrabold uppercase tracking-wider text-left pt-1 leading-none">
+                                  <div className="text-[7px] text-muted-foreground font-extrabold uppercase tracking-wider text-left pt-1 leading-none">
                                     Anonymous Voting Active
                                   </div>
                                 </div>
@@ -1435,7 +1435,7 @@ export default function GroupsPage() {
 
                               {/* Attachments */}
                               {msg.attachments?.length > 0 && !isDeled && (
-                                <div className="mt-2 pt-2 border-t border-white/20 space-y-2">
+                                <div className="mt-2 pt-2 border-t border-card/20 space-y-2">
                                   {msg.attachments.map((att: any) => (
                                     <a
                                       key={att.id}
@@ -1443,7 +1443,7 @@ export default function GroupsPage() {
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className={`flex items-center space-x-2 p-2 rounded-lg border text-[11px] ${
-                                        self ? 'bg-white/10 hover:bg-white/20' : 'bg-slate-100 hover:bg-slate-150'
+                                        self ? 'bg-card/10 hover:bg-card/20' : 'bg-muted hover:bg-secondary'
                                       }`}
                                     >
                                       {att.file?.fileType === 'PNG' || att.file?.fileType === 'JPEG' ? (
@@ -1462,14 +1462,14 @@ export default function GroupsPage() {
                       </div>
 
                       {/* Info timestamps & reach statistics dashboard preview values */}
-                      <div className="flex items-center space-x-2 text-[9px] text-slate-400 font-semibold px-1">
+                      <div className="flex items-center space-x-2 text-[9px] text-muted-foreground font-semibold px-1">
                         {msg.isPinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
                         <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         {!msg.isDeleted && (
                           <>
                             <span>•</span>
                             <span className="flex items-center space-x-0.5">
-                              <Eye className="h-3 w-3 inline text-slate-400" />
+                              <Eye className="h-3 w-3 inline text-muted-foreground" />
                               <span>{(msg.content.length % 40) + 12} views</span>
                             </span>
                             <span>•</span>
@@ -1482,8 +1482,8 @@ export default function GroupsPage() {
                 })
               )}
               {typingStatus && (
-                <div className="text-[10px] text-slate-400 italic font-semibold flex items-center space-x-1">
-                  <span className="h-1.5 w-1.5 bg-slate-400 rounded-full animate-bounce" />
+                <div className="text-[10px] text-muted-foreground italic font-semibold flex items-center space-x-1">
+                  <span className="h-1.5 w-1.5 bg-secondary rounded-full animate-bounce" />
                   <span>{typingStatus}</span>
                 </div>
               )}
@@ -1493,7 +1493,7 @@ export default function GroupsPage() {
             {/* Edit Message Modal */}
             {editingMessage && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs p-4">
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border w-full max-w-md space-y-4">
+                <div className="bg-card dark:bg-card p-6 rounded-2xl border w-full max-w-md space-y-4">
                   <div className="flex items-center justify-between border-b pb-2">
                     <h4 className="font-bold text-sm">Edit Message</h4>
                     <button onClick={() => setEditingMessage(null)}>
@@ -1505,9 +1505,9 @@ export default function GroupsPage() {
                       type="text"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                      className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                     />
-                    <button type="submit" className="w-full py-2 bg-primary text-white rounded-xl text-xs font-bold">
+                    <button type="submit" className="w-full py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold">
                       Save Changes
                     </button>
                   </form>
@@ -1518,22 +1518,22 @@ export default function GroupsPage() {
             {/* Forward Message Modal */}
             {forwardingMessage && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs p-4">
-                <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
-                  <button onClick={() => setForwardingMessage(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+                <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
+                  <button onClick={() => setForwardingMessage(null)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
                     <X className="h-5 w-5" />
                   </button>
                   <div className="space-y-1">
                     <h3 className="font-bold text-sm">Forward Message</h3>
-                    <p className="text-xs text-slate-400">Select a colleague to forward this message to.</p>
+                    <p className="text-xs text-muted-foreground">Select a colleague to forward this message to.</p>
                   </div>
                   <form onSubmit={handleForwardSubmit} className="space-y-4 text-xs font-semibold">
                     <div className="space-y-2">
-                      <label className="text-slate-400 uppercase text-[10px]">Select Teammate</label>
+                      <label className="text-muted-foreground uppercase text-[10px]">Select Teammate</label>
                       <select
                         required
                         value={forwardingTargetUser}
                         onChange={(e) => setForwardingTargetUser(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                        className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                       >
                         <option value="">-- Choose recipient --</option>
                         {dirUsers?.users?.filter((u: any) => u.id !== user?.id).map((u: any) => (
@@ -1542,7 +1542,7 @@ export default function GroupsPage() {
                       </select>
                     </div>
 
-                    <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
+                    <button type="submit" className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md">
                       Forward Message
                     </button>
                   </form>
@@ -1553,29 +1553,29 @@ export default function GroupsPage() {
             {/* Poll Launch Modal */}
             {pollModalOpen && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs p-4">
-                <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-                  <button onClick={() => setPollModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+                <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+                  <button onClick={() => setPollModalOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
                     <X className="h-5 w-5" />
                   </button>
                   <div className="space-y-1">
                     <h3 className="font-bold text-sm">Launch Option Poll</h3>
-                    <p className="text-xs text-slate-400">Launch a vote in this channel.</p>
+                    <p className="text-xs text-muted-foreground">Launch a vote in this channel.</p>
                   </div>
                   <form onSubmit={handlePollSubmit} className="space-y-4 text-xs font-semibold">
                     <div className="space-y-2">
-                      <label className="text-slate-400 uppercase text-[10px]">Question</label>
+                      <label className="text-muted-foreground uppercase text-[10px]">Question</label>
                       <input
                         type="text"
                         required
                         placeholder="e.g. Which date works best for launch?"
                         value={pollQuestion}
                         onChange={(e) => setPollQuestion(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                        className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-slate-400 uppercase text-[10px]">Options</label>
+                      <label className="text-muted-foreground uppercase text-[10px]">Options</label>
                       <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
                         {pollOptions.map((opt, idx) => (
                           <input
@@ -1585,7 +1585,7 @@ export default function GroupsPage() {
                             placeholder={`Option ${idx + 1}`}
                             value={opt}
                             onChange={(e) => handlePollOptionChange(idx, e.target.value)}
-                            className="w-full px-4 py-2 rounded-lg border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                            className="w-full px-4 py-2 rounded-lg border bg-muted dark:bg-card focus:outline-none"
                           />
                         ))}
                       </div>
@@ -1599,7 +1599,7 @@ export default function GroupsPage() {
                       </button>
                     </div>
 
-                    <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
+                    <button type="submit" className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md">
                       Launch Poll
                     </button>
                   </form>
@@ -1608,15 +1608,15 @@ export default function GroupsPage() {
             )}
 
             {/* Input Footer */}
-            <div className="p-4 border-t bg-slate-50/50 dark:bg-slate-900/50 shrink-0 space-y-3 relative">
+            <div className="p-4 border-t bg-muted/50 dark:bg-card/50 shrink-0 space-y-3 relative">
               {mentionOpen && filteredMentionUsers.length > 0 && (
-                <div className="absolute bottom-full mb-2 left-4 right-4 bg-white dark:bg-slate-800 border dark:border-slate-750 rounded-2xl shadow-2xl z-50 max-h-48 overflow-y-auto p-1.5 space-y-0.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <p className="text-[9px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-wider px-2.5 py-1">Mention Member</p>
+                <div className="absolute bottom-full mb-2 left-4 right-4 bg-card dark:bg-card border dark:border-border rounded-2xl shadow-2xl z-50 max-h-48 overflow-y-auto p-1.5 space-y-0.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <p className="text-[9px] uppercase font-black text-muted-foreground dark:text-muted-foreground tracking-wider px-2.5 py-1">Mention Member</p>
                   {filteredMentionUsers.map((u: any) => (
                     <div
                       key={u.id}
                       onClick={() => handleSelectMention(u)}
-                      className="flex items-center space-x-2.5 p-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-xl cursor-pointer transition-all"
+                      className="flex items-center space-x-2.5 p-2 hover:bg-muted dark:hover:bg-card/50 rounded-xl cursor-pointer transition-all"
                     >
                       <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px] uppercase overflow-hidden shrink-0">
                         {u.avatarUrl ? (
@@ -1626,8 +1626,8 @@ export default function GroupsPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-none">{u.firstName} {u.lastName}</p>
-                        <p className="text-[9px] text-slate-400 truncate leading-none mt-1">{u.designation || u.email}</p>
+                        <p className="text-xs font-bold text-foreground dark:text-foreground leading-none">{u.firstName} {u.lastName}</p>
+                        <p className="text-[9px] text-muted-foreground truncate leading-none mt-1">{u.designation || u.email}</p>
                       </div>
                     </div>
                   ))}
@@ -1635,13 +1635,13 @@ export default function GroupsPage() {
               )}
               {/* Reply Preview Bar */}
               {replyingMessage && (
-                <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-800 border rounded-xl text-xs font-semibold">
+                <div className="flex items-center justify-between px-3 py-2 bg-muted dark:bg-card border rounded-xl text-xs font-semibold">
                   <div className="flex items-center space-x-1.5 min-w-0">
                     <CornerUpLeft className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="text-slate-400">Replying to {replyingMessage.sender?.firstName}:</span>
-                    <span className="truncate text-slate-600 dark:text-slate-350">"{replyingMessage.content}"</span>
+                    <span className="text-muted-foreground">Replying to {replyingMessage.sender?.firstName}:</span>
+                    <span className="truncate text-muted-foreground dark:text-foreground">"{replyingMessage.content}"</span>
                   </div>
-                  <button onClick={() => setReplyingMessage(null)} className="text-slate-400 hover:text-foreground">
+                  <button onClick={() => setReplyingMessage(null)} className="text-muted-foreground hover:text-foreground">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1661,7 +1661,7 @@ export default function GroupsPage() {
               )}
 
               {activeGroup.isBroadcast && !isGroupAdmin ? (
-                <div className="flex items-center justify-center p-4 bg-slate-100/50 dark:bg-slate-900/50 border rounded-xl text-xs font-semibold text-slate-400">
+                <div className="flex items-center justify-center p-4 bg-muted/50 dark:bg-card/50 border rounded-xl text-xs font-semibold text-muted-foreground">
                   <span>Only administrators can send messages in this channel.</span>
                 </div>
               ) : (
@@ -1678,7 +1678,7 @@ export default function GroupsPage() {
                       disabled={uploading}
                       onClick={() => setPlusMenuOpen(!plusMenuOpen)}
                       className={`p-2.5 rounded-full border transition-all shrink-0 flex items-center justify-center ${
-                        plusMenuOpen ? 'bg-slate-150 dark:bg-slate-855 text-primary border-primary/20' : 'hover:bg-slate-150 dark:hover:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-800'
+                        plusMenuOpen ? 'bg-secondary dark:bg-card text-primary border-primary/20' : 'hover:bg-secondary dark:hover:bg-card text-muted-foreground border-border dark:border-border'
                       }`}
                       title="Attach options"
                     >
@@ -1687,7 +1687,7 @@ export default function GroupsPage() {
                     {plusMenuOpen && (
                       <>
                         <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setPlusMenuOpen(false)} />
-                        <div className="absolute bottom-full mb-3 left-0 bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-3xl shadow-2xl p-2 w-48 space-y-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-left font-bold text-[10px] text-slate-700 dark:text-slate-200">
+                        <div className="absolute bottom-full mb-3 left-0 bg-card dark:bg-card border dark:border-border rounded-3xl shadow-2xl p-2 w-48 space-y-1 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 text-left font-bold text-[10px] text-foreground dark:text-foreground">
                         {/* Photos & videos */}
                         <button
                           type="button"
@@ -1695,9 +1695,9 @@ export default function GroupsPage() {
                             fileInputRef.current?.click();
                             setPlusMenuOpen(false);
                           }}
-                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all"
+                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-muted dark:hover:bg-card rounded-2xl transition-all"
                         >
-                          <div className="h-7 w-7 bg-info text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                          <div className="h-7 w-7 bg-info text-info-foreground rounded-full flex items-center justify-center shrink-0 shadow-sm">
                             <FileImage className="h-3.5 w-3.5" />
                           </div>
                           <span className="font-extrabold">Photos & videos</span>
@@ -1710,9 +1710,9 @@ export default function GroupsPage() {
                             setCameraModalOpen(true);
                             setPlusMenuOpen(false);
                           }}
-                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all"
+                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-muted dark:hover:bg-card rounded-2xl transition-all"
                         >
-                          <div className="h-7 w-7 bg-pink-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                          <div className="h-7 w-7 bg-pink-500 text-foreground rounded-full flex items-center justify-center shrink-0 shadow-sm">
                             <Camera className="h-3.5 w-3.5" />
                           </div>
                           <span className="font-extrabold">Camera</span>
@@ -1725,9 +1725,9 @@ export default function GroupsPage() {
                             setInputValue('[ANNOUNCEMENT] Question: ');
                             setPlusMenuOpen(false);
                           }}
-                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all"
+                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-muted dark:hover:bg-card rounded-2xl transition-all"
                         >
-                          <div className="h-7 w-7 bg-teal-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                          <div className="h-7 w-7 bg-teal-500 text-foreground rounded-full flex items-center justify-center shrink-0 shadow-sm">
                             <Info className="h-3.5 w-3.5" />
                           </div>
                           <span className="font-extrabold">Question</span>
@@ -1740,9 +1740,9 @@ export default function GroupsPage() {
                             setPollModalOpen(true);
                             setPlusMenuOpen(false);
                           }}
-                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all"
+                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-muted dark:hover:bg-card rounded-2xl transition-all"
                         >
-                          <div className="h-7 w-7 bg-amber-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                          <div className="h-7 w-7 bg-amber-500 text-foreground rounded-full flex items-center justify-center shrink-0 shadow-sm">
                             <BarChart3 className="h-3.5 w-3.5" />
                           </div>
                           <span className="font-extrabold">Poll</span>
@@ -1755,9 +1755,9 @@ export default function GroupsPage() {
                             setQuizModalOpen(true);
                             setPlusMenuOpen(false);
                           }}
-                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all"
+                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-muted dark:hover:bg-card rounded-2xl transition-all"
                         >
-                          <div className="h-7 w-7 bg-purple-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                          <div className="h-7 w-7 bg-purple-500 text-foreground rounded-full flex items-center justify-center shrink-0 shadow-sm">
                             <Bookmark className="h-3.5 w-3.5" />
                           </div>
                           <span className="font-extrabold">Quiz</span>
@@ -1770,9 +1770,9 @@ export default function GroupsPage() {
                             setStickerOpen(true);
                             setPlusMenuOpen(false);
                           }}
-                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all"
+                          className="w-full flex items-center space-x-2.5 p-2 hover:bg-muted dark:hover:bg-card rounded-2xl transition-all"
                         >
-                          <div className="h-7 w-7 bg-green-500 text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                          <div className="h-7 w-7 bg-green-500 text-foreground rounded-full flex items-center justify-center shrink-0 shadow-sm">
                             <Megaphone className="h-3.5 w-3.5" />
                           </div>
                           <span className="font-extrabold">New sticker</span>
@@ -1787,7 +1787,7 @@ export default function GroupsPage() {
                     <button
                       type="button"
                       onClick={stopRecording}
-                      className="p-2.5 bg-red-500 text-white rounded-xl transition-all shrink-0 animate-pulse"
+                      className="p-2.5 bg-red-500 text-foreground rounded-xl transition-all shrink-0 animate-pulse"
                       title="Stop Recording"
                     >
                       <MicOff className="h-5 w-5" />
@@ -1796,7 +1796,7 @@ export default function GroupsPage() {
                     <button
                       type="button"
                       onClick={startRecording}
-                      className="p-2.5 hover:bg-slate-150 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-all shrink-0"
+                      className="p-2.5 hover:bg-secondary dark:hover:bg-card rounded-xl text-muted-foreground transition-all shrink-0"
                       title="Record Voice Note"
                     >
                       <Mic className="h-5 w-5" />
@@ -1808,13 +1808,13 @@ export default function GroupsPage() {
                     placeholder={`Message #${activeGroup.name}...`}
                     value={inputValue}
                     onChange={handleInputChange}
-                    className="flex-1 px-4 py-3 rounded-xl border bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all text-xs"
+                    className="flex-1 px-4 py-3 rounded-xl border bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary transition-all text-xs"
                   />
 
                   <button
                     type="submit"
                     disabled={!inputValue.trim() && attachedFiles.length === 0}
-                    className="p-3 bg-primary text-white rounded-xl hover:bg-primary/95 transition-all shadow-md shrink-0"
+                    className="p-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary/95 transition-all shadow-md shrink-0"
                     title="Send Message"
                   >
                     <Send className="h-4 w-4" />
@@ -1824,7 +1824,7 @@ export default function GroupsPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/30 p-8 space-y-6 text-center select-none">
+          <div className="flex-1 flex flex-col items-center justify-center bg-muted dark:bg-card/30 p-8 space-y-6 text-center select-none">
             <div className="p-4 bg-primary/10 rounded-full text-primary">
               {activeGroup.isBroadcast ? (
                 <Megaphone className="h-12 w-12" />
@@ -1833,15 +1833,15 @@ export default function GroupsPage() {
               )}
             </div>
             <div className="space-y-2 max-w-sm">
-              <h3 className="font-extrabold text-xl text-slate-800 dark:text-slate-100">Join #{activeGroup.name}</h3>
-              <p className="text-xs text-slate-400 leading-normal font-semibold">
+              <h3 className="font-extrabold text-xl text-foreground dark:text-foreground">Join #{activeGroup.name}</h3>
+              <p className="text-xs text-muted-foreground leading-normal font-semibold">
                 {activeGroup.description || 'Welcome to this workspace channel. Join to start conversing with your team.'}
               </p>
             </div>
             <button
               onClick={() => addMemberMutation.mutate({ groupId: activeGroup.id, userId: user?.id || '' })}
               disabled={addMemberMutation.isPending}
-              className="px-6 py-2.5 bg-primary text-white text-xs font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all flex items-center space-x-1.5 disabled:opacity-50"
+              className="px-6 py-2.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all flex items-center space-x-1.5 disabled:opacity-50"
               title="Join Channel"
             >
               <UserPlus className="h-4 w-4" />
@@ -1851,7 +1851,7 @@ export default function GroupsPage() {
         )}
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4 text-center text-slate-400">
+          <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-4 text-center text-muted-foreground">
             <Users className="h-16 w-16 stroke-1" />
             <div>
               <h3 className="font-bold text-base text-foreground">No Channel Selected</h3>
@@ -1865,10 +1865,10 @@ export default function GroupsPage() {
 
       {/* Right Conversation Info sidebar panel */}
       {showInfoPanel && activeGroup && (
-        <aside className="fixed md:relative inset-y-0 right-0 w-full md:w-80 border-l flex flex-col shrink-0 bg-white dark:bg-slate-900 p-4 space-y-6 overflow-y-auto animate-in slide-in-from-right-5 duration-200 text-xs z-50 md:z-20 shadow-2xl md:shadow-none">
+        <aside className="fixed md:relative inset-y-0 right-0 w-full md:w-80 border-l flex flex-col shrink-0 bg-card dark:bg-card p-4 space-y-6 overflow-y-auto animate-in slide-in-from-right-5 duration-200 text-xs z-50 md:z-20 shadow-2xl md:shadow-none">
           {/* Title bar */}
-          <div className="flex items-center space-x-3 pb-3 border-b dark:border-slate-800 shrink-0">
-            <button onClick={() => setShowInfoPanel(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500" title="Close info">
+          <div className="flex items-center space-x-3 pb-3 border-b dark:border-border shrink-0">
+            <button onClick={() => setShowInfoPanel(false)} className="p-1 hover:bg-muted dark:hover:bg-card rounded-lg text-muted-foreground" title="Close info">
               <X className="h-4 w-4" />
             </button>
             <span className="font-bold text-sm text-foreground">Channel info</span>
@@ -1889,7 +1889,7 @@ export default function GroupsPage() {
                   {/* Change Cover button overlay */}
                   <button
                     onClick={() => rightCoverInputRef.current?.click()}
-                    className="absolute top-2 right-2 px-2.5 py-1 bg-black/60 hover:bg-black/85 text-white rounded-lg text-[9px] font-bold flex items-center space-x-1.5 transition-all shadow-md active:scale-95 z-20"
+                    className="absolute top-2 right-2 px-2.5 py-1 bg-black/60 hover:bg-black/85 text-foreground rounded-lg text-[9px] font-bold flex items-center space-x-1.5 transition-all shadow-md active:scale-95 z-20"
                     title="Change Cover Banner"
                     type="button"
                   >
@@ -1905,20 +1905,20 @@ export default function GroupsPage() {
                   />
                 </div>
 
-                <div className="text-center py-4 space-y-3 border-b dark:border-slate-800 flex flex-col items-center shrink-0 w-full relative -mt-8">
+                <div className="text-center py-4 space-y-3 border-b dark:border-border flex flex-col items-center shrink-0 w-full relative -mt-8">
                   <div 
                     onClick={() => rightAvatarInputRef.current?.click()}
-                    className="h-16 w-16 bg-white dark:bg-slate-900 border dark:border-slate-850 rounded-full flex items-center justify-center text-primary font-bold text-2xl uppercase shadow-md relative z-10 overflow-hidden cursor-pointer hover:brightness-95 group/avatar"
+                    className="h-16 w-16 bg-card dark:bg-card border dark:border-border rounded-full flex items-center justify-center text-primary font-bold text-2xl uppercase shadow-md relative z-10 overflow-hidden cursor-pointer hover:brightness-95 group/avatar"
                   >
                     {activeGroup.avatarUrl ? (
                       <img src={activeGroup.avatarUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-white font-extrabold flex items-center justify-center text-lg uppercase">
+                      <div className="h-full w-full bg-gradient-to-br from-primary/80 to-primary-dark/80 text-primary-foreground font-extrabold flex items-center justify-center text-lg uppercase">
                         {activeGroup.name ? activeGroup.name[0] : '#'}
                       </div>
                     )}
                     {/* Upload Overlay Arrow Icon */}
-                    <div className="absolute inset-0 bg-black/45 text-white flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-all z-20">
+                    <div className="absolute inset-0 bg-black/45 text-foreground flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-all z-20">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 stroke-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                       </svg>
@@ -1934,9 +1934,9 @@ export default function GroupsPage() {
                   <div className="space-y-1">
                     <h3 className="font-extrabold text-base flex items-center justify-center">
                       {activeGroup.name}
-                      <span className="inline-flex items-center justify-center bg-green-500 text-white rounded-full p-0.5 ml-1 shrink-0 h-3.5 w-3.5"><Check className="h-2 w-2 stroke-[3]" /></span>
+                      <span className="inline-flex items-center justify-center bg-green-500 text-foreground rounded-full p-0.5 ml-1 shrink-0 h-3.5 w-3.5"><Check className="h-2 w-2 stroke-[3]" /></span>
                     </h3>
-                    <p className="text-xs text-slate-400 font-semibold">
+                    <p className="text-xs text-muted-foreground font-semibold">
                       Channel • {activeGroup.members?.length || 0} followers
                     </p>
                     <div className="pt-1.5 flex items-center justify-center space-x-1.5">
@@ -1958,7 +1958,7 @@ export default function GroupsPage() {
                           setEditCoverUrl(meta.coverUrl || '');
                           setEditModalOpen(true);
                         }}
-                        className="mt-3 px-3 py-1.5 border dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-[10px] font-extrabold text-slate-700 dark:text-slate-200 transition-all flex items-center justify-center space-x-1 mx-auto shadow-xs"
+                        className="mt-3 px-3 py-1.5 border dark:border-border bg-card dark:bg-card rounded-xl hover:bg-muted dark:hover:bg-card text-[10px] font-extrabold text-foreground dark:text-foreground transition-all flex items-center justify-center space-x-1 mx-auto shadow-xs"
                         type="button"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
@@ -1981,20 +1981,20 @@ export default function GroupsPage() {
                       }}
                       className="flex flex-col items-center space-y-1.5 focus:outline-none"
                     >
-                      <div className="h-10 w-10 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-355 transition-all border dark:border-slate-700">
+                      <div className="h-10 w-10 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card rounded-full flex items-center justify-center text-muted-foreground dark:text-muted-foreground transition-all border dark:border-border">
                         {isMember ? <Check className="h-5 w-5 text-green-600 dark:text-green-400 animate-in zoom-in-50 duration-200" /> : <Plus className="h-5 w-5" />}
                       </div>
-                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-355">{isMember ? 'Following' : 'Follow'}</span>
+                      <span className="text-[10px] font-bold text-muted-foreground dark:text-muted-foreground">{isMember ? 'Following' : 'Follow'}</span>
                     </button>
 
                     <button 
                       onClick={() => setForwardingMessage({ id: 'dummy', content: `Check out the channel #${activeGroup.name}!` })}
                       className="flex flex-col items-center space-y-1.5 focus:outline-none"
                     >
-                      <div className="h-10 w-10 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-355 transition-all border dark:border-slate-700">
+                      <div className="h-10 w-10 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card rounded-full flex items-center justify-center text-muted-foreground dark:text-muted-foreground transition-all border dark:border-border">
                         <CornerUpRight className="h-5 w-5" />
                       </div>
-                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-355">Forward</span>
+                      <span className="text-[10px] font-bold text-muted-foreground dark:text-muted-foreground">Forward</span>
                     </button>
 
                     <button 
@@ -2005,28 +2005,28 @@ export default function GroupsPage() {
                       }}
                       className="flex flex-col items-center space-y-1.5 focus:outline-none"
                     >
-                      <div className="h-10 w-10 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-355 transition-all border dark:border-slate-700">
+                      <div className="h-10 w-10 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card rounded-full flex items-center justify-center text-muted-foreground dark:text-muted-foreground transition-all border dark:border-border">
                         <Copy className="h-5 w-5" />
                       </div>
-                      <span className="text-[10px] font-bold text-slate-600 dark:text-slate-355">Copy link</span>
+                      <span className="text-[10px] font-bold text-muted-foreground dark:text-muted-foreground">Copy link</span>
                     </button>
                   </div>
                 </div>
 
                 {/* Description & Created details */}
-                <div className="space-y-3 border-b dark:border-slate-800 pb-4 text-left shrink-0">
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
+                <div className="space-y-3 border-b dark:border-border pb-4 text-left shrink-0">
+                  <p className="text-xs text-muted-foreground dark:text-foreground leading-relaxed font-semibold">
                     {channelMeta.description || 'Welcome to this workspace channel. Stay updated with project progress, announcements, and team discussions.'}
                   </p>
                   {channelMeta.website && (
                     <div className="pt-1.5">
-                      <span className="text-[9px] text-slate-400 block font-black uppercase tracking-wider leading-none mb-1">Website Link</span>
+                      <span className="text-[9px] text-muted-foreground block font-black uppercase tracking-wider leading-none mb-1">Website Link</span>
                       <a href={channelMeta.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-bold break-all">
                         {channelMeta.website}
                       </a>
                     </div>
                   )}
-                  <p className="text-[10px] text-slate-400 font-semibold pt-1">
+                  <p className="text-[10px] text-muted-foreground font-semibold pt-1">
                     Created {new Date(activeGroup.createdAt).toLocaleDateString()} at {new Date(activeGroup.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
 
@@ -2039,15 +2039,15 @@ export default function GroupsPage() {
                     if (channelMeta.website) strength += 25;
 
                     return (
-                      <div className="bg-slate-50 dark:bg-slate-900/50 border dark:border-slate-800 rounded-2xl p-3 text-left space-y-2 shrink-0 mt-2">
-                        <div className="flex justify-between items-center text-[9px] font-black uppercase text-slate-400">
+                      <div className="bg-muted dark:bg-card/50 border dark:border-border rounded-2xl p-3 text-left space-y-2 shrink-0 mt-2">
+                        <div className="flex justify-between items-center text-[9px] font-black uppercase text-muted-foreground">
                           <span>Profile Strength</span>
                           <span className="text-primary font-black text-[9px]">{strength}% Complete</span>
                         </div>
-                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="w-full h-1.5 bg-secondary dark:bg-card rounded-full overflow-hidden">
                           <div className="h-full bg-primary transition-all duration-300" style={{ width: `${strength}%` }} />
                         </div>
-                        <p className="text-[9px] text-slate-400 font-semibold leading-normal">
+                        <p className="text-[9px] text-muted-foreground font-semibold leading-normal">
                           Tip: Add a custom avatar icon, cover banner, description, and website to build trust and grow followers.
                         </p>
                       </div>
@@ -2059,14 +2059,14 @@ export default function GroupsPage() {
           })()}
 
           {/* Muted toggle settings card */}
-          <div className="flex items-center justify-between border-b dark:border-slate-800 pb-4 shrink-0">
+          <div className="flex items-center justify-between border-b dark:border-border pb-4 shrink-0">
             <div className="flex items-center space-x-3 text-left">
-              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500">
+              <div className="p-2 bg-muted dark:bg-card rounded-lg text-muted-foreground">
                 {isMuted ? <BellOff className="h-4 w-4 text-amber-500" /> : <Bell className="h-4 w-4" />}
               </div>
               <div>
-                <h5 className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-none mb-1">Muted</h5>
-                <p className="text-[10px] text-slate-400 leading-none font-semibold">Mute updates notifications</p>
+                <h5 className="text-xs font-bold text-foreground dark:text-foreground leading-none mb-1">Muted</h5>
+                <p className="text-[10px] text-muted-foreground leading-none font-semibold">Mute updates notifications</p>
               </div>
             </div>
             <input 
@@ -2076,31 +2076,31 @@ export default function GroupsPage() {
                 setIsMuted(e.target.checked);
                 toast.success(e.target.checked ? 'Notifications muted.' : 'Notifications unmuted.');
               }}
-              className="h-4 w-4 text-primary border-slate-300 rounded cursor-pointer"
+              className="h-4 w-4 text-primary border-border rounded cursor-pointer"
             />
           </div>
 
           {/* Public channel & Profile privacy info lists */}
-          <div className="space-y-4 border-b dark:border-slate-800 pb-4 text-left shrink-0">
+          <div className="space-y-4 border-b dark:border-border pb-4 text-left shrink-0">
             <div className="flex items-start space-x-3">
-              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 mt-0.5 shrink-0">
+              <div className="p-2 bg-muted dark:bg-card rounded-lg text-muted-foreground mt-0.5 shrink-0">
                 <Users className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <h5 className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-none mb-1">Public channel</h5>
-                <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
+                <h5 className="text-xs font-bold text-foreground dark:text-foreground leading-none mb-1">Public channel</h5>
+                <p className="text-[10px] text-muted-foreground leading-relaxed font-semibold">
                   Anyone can find this channel and see what's been shared.
                 </p>
               </div>
             </div>
 
             <div className="flex items-start space-x-3">
-              <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 mt-0.5 shrink-0">
+              <div className="p-2 bg-muted dark:bg-card rounded-lg text-muted-foreground mt-0.5 shrink-0">
                 <Info className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <h5 className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-none mb-1">Profile privacy</h5>
-                <p className="text-[10px] text-slate-400 leading-relaxed font-semibold">
+                <h5 className="text-xs font-bold text-foreground dark:text-foreground leading-none mb-1">Profile privacy</h5>
+                <p className="text-[10px] text-muted-foreground leading-relaxed font-semibold">
                   This channel has added privacy for your profile and phone number. Click to learn more.
                 </p>
               </div>
@@ -2108,11 +2108,11 @@ export default function GroupsPage() {
           </div>
 
           {/* Actions List */}
-          <div className="space-y-1.5 border-b dark:border-slate-800 pb-4 text-left shrink-0">
+          <div className="space-y-1.5 border-b dark:border-border pb-4 text-left shrink-0">
             {isMember && (
               <button 
                 onClick={() => setAnalyticsModalOpen(true)}
-                className="w-full flex items-center space-x-3 px-3 py-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition-all rounded-xl border dark:border-slate-800"
+                className="w-full flex items-center space-x-3 px-3 py-2 text-foreground dark:text-foreground hover:bg-muted dark:hover:bg-card text-xs font-bold transition-all rounded-xl border dark:border-border"
               >
                 <BarChart3 className="h-4 w-4 shrink-0 text-primary" />
                 <span>View Channel Analytics</span>
@@ -2138,23 +2138,23 @@ export default function GroupsPage() {
 
           {/* Group Pinned Messages */}
           <div className="space-y-2 text-left shrink-0">
-            <h4 className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center space-x-1">
+            <h4 className="text-[10px] font-extrabold uppercase text-muted-foreground tracking-wider flex items-center space-x-1">
               <Pin className="h-3 w-3 text-primary" />
               <span>Pinned Messages ({messages.filter((m) => m.isPinned).length})</span>
             </h4>
             <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
               {messages.filter((m) => m.isPinned).length === 0 ? (
-                <p className="text-[10px] text-slate-400 italic">No pinned messages.</p>
+                <p className="text-[10px] text-muted-foreground italic">No pinned messages.</p>
               ) : (
                 messages
                   .filter((m) => m.isPinned)
                   .map((m) => (
-                    <div key={m.id} className="p-2.5 border bg-white dark:bg-slate-900 rounded-xl space-y-1 relative text-[10px]">
-                      <div className="flex justify-between text-[8px] text-slate-400 font-bold border-b pb-1">
+                    <div key={m.id} className="p-2.5 border bg-card dark:bg-card rounded-xl space-y-1 relative text-[10px]">
+                      <div className="flex justify-between text-[8px] text-muted-foreground font-bold border-b pb-1">
                         <span>{m.sender?.firstName || 'Colleague'}</span>
                         <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
-                      <p className="text-slate-600 dark:text-slate-355 pt-1 line-clamp-2">{m.content}</p>
+                      <p className="text-muted-foreground dark:text-muted-foreground pt-1 line-clamp-2">{m.content}</p>
                     </div>
                   ))
               )}
@@ -2162,24 +2162,24 @@ export default function GroupsPage() {
           </div>
 
           {/* Bookmarks */}
-          <div className="space-y-2 border-t dark:border-slate-800 pt-4 text-left shrink-0">
-            <h4 className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider flex items-center space-x-1">
+          <div className="space-y-2 border-t dark:border-border pt-4 text-left shrink-0">
+            <h4 className="text-[10px] font-extrabold uppercase text-muted-foreground tracking-wider flex items-center space-x-1">
               <Bookmark className="h-3 w-3 text-primary" />
               <span>Starred Messages ({bookmarkedList?.length || 0})</span>
             </h4>
             <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
               {!bookmarkedList || bookmarkedList.length === 0 ? (
-                <p className="text-[10px] text-slate-400 italic">No starred messages.</p>
+                <p className="text-[10px] text-muted-foreground italic">No starred messages.</p>
               ) : (
                 bookmarkedList
                   .filter((bm: any) => bm.message?.groupId === activeGroup.id)
                   .map((bm: any) => (
-                    <div key={bm.id} className="p-2.5 border bg-white dark:bg-slate-900 rounded-xl space-y-1 text-[10px]">
-                      <div className="flex justify-between text-[8px] text-slate-400 font-bold border-b pb-1">
+                    <div key={bm.id} className="p-2.5 border bg-card dark:bg-card rounded-xl space-y-1 text-[10px]">
+                      <div className="flex justify-between text-[8px] text-muted-foreground font-bold border-b pb-1">
                         <span>{bm.message?.sender?.firstName || 'Colleague'}</span>
                         <span>{new Date(bm.message?.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
-                      <p className="text-slate-600 dark:text-slate-355 pt-1 line-clamp-2">{bm.message?.content}</p>
+                      <p className="text-muted-foreground dark:text-muted-foreground pt-1 line-clamp-2">{bm.message?.content}</p>
                     </div>
                   ))
               )}
@@ -2191,43 +2191,43 @@ export default function GroupsPage() {
       {/* Group Create Modal */}
       {createModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => { setCreateModalOpen(false); setCreateSearchQuery(''); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => { setCreateModalOpen(false); setCreateSearchQuery(''); }} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-sm">Create Workspace Channel</h3>
-              <p className="text-xs text-slate-400">Establish a private space for team communication.</p>
+              <p className="text-xs text-muted-foreground">Establish a private space for team communication.</p>
             </div>
             <form onSubmit={handleCreateGroup} className="space-y-3.5 text-xs font-semibold max-h-[68vh] overflow-y-auto pr-1">
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[9px]">Channel Name</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Channel Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. project-apollo-launch"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col items-center space-y-2 pb-2">
                 <button 
                   onClick={() => newGroupAvatarRef.current?.click()}
-                  className="h-16 w-16 rounded-full border dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden group shadow-sm text-left"
+                  className="h-16 w-16 rounded-full border dark:border-border bg-muted dark:bg-card hover:bg-muted dark:hover:bg-card transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden group shadow-sm text-left"
                   type="button"
                 >
                   {newGroupAvatar ? (
                     <img src={newGroupAvatar} alt="Preview" className="h-full w-full object-cover" />
                   ) : (
-                    <Camera className="h-6 w-6 text-slate-400 group-hover:scale-105 transition-all" />
+                    <Camera className="h-6 w-6 text-muted-foreground group-hover:scale-105 transition-all" />
                   )}
-                  <div className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-[8px] font-black uppercase">
+                  <div className="absolute inset-0 bg-black/40 text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-[8px] font-black uppercase">
                     Upload
                   </div>
                 </button>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Channel Profile Avatar</span>
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Channel Profile Avatar</span>
                 <input
                   type="file"
                   ref={newGroupAvatarRef}
@@ -2249,22 +2249,22 @@ export default function GroupsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[9px]">Description</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Description</label>
                 <textarea
                   placeholder="What is this channel about?"
                   value={newGroupDesc}
                   onChange={(e) => setNewGroupDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none resize-none h-16"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none resize-none h-16"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[9px]">Type</label>
+                  <label className="text-muted-foreground uppercase text-[9px]">Type</label>
                   <select
                     value={newGroupType}
                     onChange={(e: any) => setNewGroupType(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-[10px]"
+                    className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none text-[10px]"
                   >
                     <option value="CUSTOM">Custom Group</option>
                     <option value="PROJECT">Project Channel</option>
@@ -2273,11 +2273,11 @@ export default function GroupsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[9px]">Category</label>
+                  <label className="text-muted-foreground uppercase text-[9px]">Category</label>
                   <select
                     value={selectedCategory}
                     onChange={(e: any) => setSelectedCategory(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-[10px]"
+                    className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none text-[10px]"
                   >
                     <option value="News">News</option>
                     <option value="Tech">Tech</option>
@@ -2288,27 +2288,27 @@ export default function GroupsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[9px]">Website Link (Optional)</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Website Link (Optional)</label>
                 <input
                   type="url"
                   placeholder="e.g. https://connecthub.com/engineering"
                   value={newWebsiteUrl}
                   onChange={(e) => setNewWebsiteUrl(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-slate-400 uppercase text-[9px]">Cover Banner Image (Optional)</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Cover Banner Image (Optional)</label>
                 <div className="flex items-center space-x-2">
                   <button
                     type="button"
                     onClick={() => newCoverRef.current?.click()}
-                    className="px-4 py-2 border rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-[11px] font-extrabold text-slate-600 dark:text-slate-350 transition-all shrink-0"
+                    className="px-4 py-2 border rounded-xl hover:bg-muted dark:hover:bg-card text-[11px] font-extrabold text-muted-foreground dark:text-foreground transition-all shrink-0"
                   >
                     Select Banner File
                   </button>
-                  <span className="text-[10px] text-slate-400 truncate max-w-[200px]">
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">
                     {newCoverUrl ? "File uploaded and ready" : "No file selected"}
                   </span>
                   <input
@@ -2338,24 +2338,24 @@ export default function GroupsPage() {
               </div>
 
               {/* Followers Permissions */}
-              <div className="space-y-2 border-t dark:border-slate-800 pt-2 text-left">
-                <label className="text-slate-400 uppercase text-[9px] font-black">Follower Rights Settings</label>
+              <div className="space-y-2 border-t dark:border-border pt-2 text-left">
+                <label className="text-muted-foreground uppercase text-[9px] font-black">Follower Rights Settings</label>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Allow Emoji Reactions</span>
+                  <span className="text-[10px] text-muted-foreground dark:text-muted-foreground font-bold">Allow Emoji Reactions</span>
                   <input
                     type="checkbox"
                     checked={allowReactions}
                     onChange={(e) => setAllowReactions(e.target.checked)}
-                    className="h-3.5 w-3.5 text-primary border-slate-300 rounded focus:ring-primary cursor-pointer"
+                    className="h-3.5 w-3.5 text-primary border-border rounded focus:ring-primary cursor-pointer"
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">Allow Poll Voting</span>
+                  <span className="text-[10px] text-muted-foreground dark:text-muted-foreground font-bold">Allow Poll Voting</span>
                   <input
                     type="checkbox"
                     checked={allowPollVoting}
                     onChange={(e) => setAllowPollVoting(e.target.checked)}
-                    className="h-3.5 w-3.5 text-primary border-slate-300 rounded focus:ring-primary cursor-pointer"
+                    className="h-3.5 w-3.5 text-primary border-border rounded focus:ring-primary cursor-pointer"
                   />
                 </div>
               </div>
@@ -2366,24 +2366,24 @@ export default function GroupsPage() {
                   id="create-broadcast"
                   checked={newGroupBroadcast}
                   onChange={(e) => setNewGroupBroadcast(e.target.checked)}
-                  className="h-4 w-4 text-primary border-slate-300 rounded focus:ring-primary cursor-pointer"
+                  className="h-4 w-4 text-primary border-border rounded focus:ring-primary cursor-pointer"
                 />
                 <div className="text-left select-none">
-                  <label htmlFor="create-broadcast" className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer block leading-none">Broadcast Channel</label>
-                  <span className="text-[10px] text-slate-400 block pt-1">Only administrators/creators can send messages (like WhatsApp/Telegram)</span>
+                  <label htmlFor="create-broadcast" className="text-xs font-bold text-foreground dark:text-foreground cursor-pointer block leading-none">Broadcast Channel</label>
+                  <span className="text-[10px] text-muted-foreground block pt-1">Only administrators/creators can send messages (like WhatsApp/Telegram)</span>
                 </div>
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-slate-400 uppercase text-[9px]">Add Co-workers</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Add Co-workers</label>
                 <input
                   type="text"
                   placeholder="Search teammates..."
                   value={createSearchQuery}
                   onChange={(e) => setCreateSearchQuery(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-lg border bg-white dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none mb-1.5"
+                  className="w-full px-3 py-1.5 rounded-lg border bg-card dark:bg-card text-[11px] font-semibold text-foreground dark:text-foreground focus:outline-none mb-1.5"
                 />
-                <div className="max-h-[100px] overflow-y-auto border p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 space-y-1">
+                <div className="max-h-[100px] overflow-y-auto border p-2.5 rounded-xl bg-muted dark:bg-card space-y-1">
                   {dirUsers?.users
                     ?.filter((u: any) => u.id !== user?.id)
                     .filter((u: any) => {
@@ -2403,9 +2403,9 @@ export default function GroupsPage() {
                                 selected ? prev.filter((id) => id !== u.id) : [...prev, u.id]
                               );
                             }}
-                            className="h-3.5 w-3.5 text-primary border-slate-300 rounded focus:ring-primary cursor-pointer"
+                            className="h-3.5 w-3.5 text-primary border-border rounded focus:ring-primary cursor-pointer"
                           />
-                          <label htmlFor={`create-sel-${u.id}`} className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">{u.firstName} {u.lastName}</label>
+                          <label htmlFor={`create-sel-${u.id}`} className="text-xs font-bold text-foreground dark:text-foreground cursor-pointer">{u.firstName} {u.lastName}</label>
                         </div>
                       );
                     })}
@@ -2415,7 +2415,7 @@ export default function GroupsPage() {
               <button
                 type="submit"
                 disabled={createGroupMutation.isPending}
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md disabled:opacity-50"
               >
                 Create Channel
               </button>
@@ -2427,43 +2427,43 @@ export default function GroupsPage() {
       {/* Edit Channel Modal */}
       {editModalOpen && activeGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setEditModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => setEditModalOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-sm text-foreground text-left">Edit Channel Profile</h3>
-              <p className="text-xs text-slate-400 text-left">Modify channel logo, cover banner, description, and website.</p>
+              <p className="text-xs text-muted-foreground text-left">Modify channel logo, cover banner, description, and website.</p>
             </div>
             <form onSubmit={handleUpdateGroup} className="space-y-3.5 text-xs font-semibold max-h-[68vh] overflow-y-auto pr-1">
               <div className="space-y-1.5 text-left">
-                <label className="text-slate-400 uppercase text-[9px]">Channel Name</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Channel Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. project-apollo-launch"
                   value={editGroupName}
                   onChange={(e) => setEditGroupName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card text-foreground dark:text-foreground focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col items-center space-y-2 pb-2">
                 <button 
                   onClick={() => editGroupAvatarRef.current?.click()}
-                  className="h-16 w-16 rounded-full border dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden group shadow-sm text-left"
+                  className="h-16 w-16 rounded-full border dark:border-border bg-muted dark:bg-card hover:bg-muted dark:hover:bg-card transition-all cursor-pointer flex flex-col items-center justify-center relative overflow-hidden group shadow-sm text-left"
                   type="button"
                 >
                   {editGroupAvatar ? (
                     <img src={editGroupAvatar} alt="Preview" className="h-full w-full object-cover" />
                   ) : (
-                    <Camera className="h-6 w-6 text-slate-400 group-hover:scale-105 transition-all" />
+                    <Camera className="h-6 w-6 text-muted-foreground group-hover:scale-105 transition-all" />
                   )}
-                  <div className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-[8px] font-black uppercase">
+                  <div className="absolute inset-0 bg-black/40 text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-[8px] font-black uppercase">
                     Upload
                   </div>
                 </button>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Update Channel Avatar</span>
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Update Channel Avatar</span>
                 <input
                   type="file"
                   ref={editGroupAvatarRef}
@@ -2485,37 +2485,37 @@ export default function GroupsPage() {
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-slate-400 uppercase text-[9px]">Description</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Description</label>
                 <textarea
                   placeholder="What is this channel about?"
                   value={editGroupDesc}
                   onChange={(e) => setEditGroupDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none resize-none h-16"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card text-foreground dark:text-foreground focus:outline-none resize-none h-16"
                 />
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-slate-400 uppercase text-[9px]">Website Link</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Website Link</label>
                 <input
                   type="url"
                   placeholder="e.g. https://connecthub.app"
                   value={editWebsiteUrl}
                   onChange={(e) => setEditWebsiteUrl(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card text-foreground dark:text-foreground focus:outline-none"
                 />
               </div>
 
               <div className="space-y-1.5 text-left">
-                <label className="text-slate-400 uppercase text-[9px]">Cover Banner Image</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Cover Banner Image</label>
                 <div className="flex items-center space-x-2">
                   <button
                     type="button"
                     onClick={() => editCoverRef.current?.click()}
-                    className="px-4 py-2 border rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-[11px] font-extrabold text-slate-600 dark:text-slate-350 transition-all shrink-0"
+                    className="px-4 py-2 border rounded-xl hover:bg-muted dark:hover:bg-card text-[11px] font-extrabold text-muted-foreground dark:text-foreground transition-all shrink-0"
                   >
                     Select Banner File
                   </button>
-                  <span className="text-[10px] text-slate-400 truncate max-w-[200px]">
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">
                     {editCoverUrl ? "File uploaded and ready" : "No file selected"}
                   </span>
                   <input
@@ -2547,7 +2547,7 @@ export default function GroupsPage() {
               <button
                 type="submit"
                 disabled={updateGroupMutation.isPending}
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md disabled:opacity-50"
               >
                 {updateGroupMutation.isPending ? 'Saving...' : 'Save Profile Changes'}
               </button>
@@ -2559,24 +2559,24 @@ export default function GroupsPage() {
       {/* Add Member Modal */}
       {addMemberOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => { setAddMemberOpen(false); setMemberSearchQuery(''); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => { setAddMemberOpen(false); setMemberSearchQuery(''); }} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-sm">Add Team Member</h3>
-              <p className="text-xs text-slate-400">Invite or add colleagues to join #{activeGroup?.name}.</p>
+              <p className="text-xs text-muted-foreground">Invite or add colleagues to join #{activeGroup?.name}.</p>
             </div>
 
             {/* Search Input */}
             <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search colleagues..."
                 value={memberSearchQuery}
                 onChange={(e) => setMemberSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none font-semibold text-slate-700 dark:text-slate-200"
+                className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border bg-muted dark:bg-card focus:outline-none font-semibold text-foreground dark:text-foreground"
               />
             </div>
 
@@ -2589,7 +2589,7 @@ export default function GroupsPage() {
                   return fullName.includes(memberSearchQuery.toLowerCase()) || u.email.toLowerCase().includes(memberSearchQuery.toLowerCase());
                 })
                 .length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-4">No colleagues found.</p>
+                <p className="text-xs text-muted-foreground text-center py-4">No colleagues found.</p>
               ) : (
                 (dirUsers?.users || [])
                   .filter((u: any) => u.id !== user?.id)
@@ -2600,7 +2600,7 @@ export default function GroupsPage() {
                   .map((u: any) => {
                     const isAdded = activeGroup?.members?.some((m: any) => m.userId === u.id);
                     return (
-                      <div key={u.id} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 transition-all">
+                      <div key={u.id} className="flex items-center justify-between p-2 hover:bg-muted dark:hover:bg-card/40 rounded-xl border border-transparent hover:border-border dark:hover:border-border transition-all">
                         <div className="flex items-center space-x-2.5">
                           <div className="h-8 w-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center text-xs uppercase shrink-0">
                             {u.avatarUrl ? (
@@ -2610,8 +2610,8 @@ export default function GroupsPage() {
                             )}
                           </div>
                           <div className="text-left">
-                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-none mb-1">{u.firstName} {u.lastName}</p>
-                            <p className="text-[9px] text-slate-400 leading-none">{u.designation || 'Teammate'}</p>
+                            <p className="text-xs font-bold text-foreground dark:text-foreground leading-none mb-1">{u.firstName} {u.lastName}</p>
+                            <p className="text-[9px] text-muted-foreground leading-none">{u.designation || 'Teammate'}</p>
                           </div>
                         </div>
                         <div>
@@ -2624,7 +2624,7 @@ export default function GroupsPage() {
                             <button
                               onClick={() => addMemberMutation.mutate({ groupId: activeGroup.id, userId: u.id })}
                               disabled={addMemberMutation.isPending}
-                              className="flex items-center space-x-1 px-3 py-1 bg-primary text-white text-[10px] font-bold rounded-lg hover:bg-primary/95 transition-all shadow-xs disabled:opacity-50"
+                              className="flex items-center space-x-1 px-3 py-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-lg hover:bg-primary/95 transition-all shadow-xs disabled:opacity-50"
                             >
                               <UserPlus className="h-3 w-3" />
                               <span>Add Member</span>
@@ -2643,23 +2643,23 @@ export default function GroupsPage() {
       {/* Camera Capture Modal */}
       {cameraModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200 p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-xs">
-            <button onClick={() => setCameraModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-xs">
+            <button onClick={() => setCameraModalOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-sm text-foreground text-left">Camera Capture</h3>
-              <p className="text-xs text-slate-400 text-left">Take a quick picture or snapshot to send.</p>
+              <p className="text-xs text-muted-foreground text-left">Take a quick picture or snapshot to send.</p>
             </div>
-            <div className="h-44 bg-slate-955 rounded-2xl flex items-center justify-center relative overflow-hidden border dark:border-slate-800 shadow-inner">
+            <div className="h-44 bg-card rounded-2xl flex items-center justify-center relative overflow-hidden border dark:border-border shadow-inner">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(236,72,153,0.1),transparent_70%)] animate-pulse" />
               <Camera className="h-10 w-10 text-pink-500 animate-bounce" />
-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[9px] font-bold text-slate-400 tracking-wider uppercase">Live Preview Mock</span>
+              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[9px] font-bold text-muted-foreground tracking-wider uppercase">Live Preview Mock</span>
             </div>
             <button
               type="button"
               onClick={handleCapturePhoto}
-              className="w-full py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-[0.98]"
+              className="w-full py-2.5 bg-pink-600 hover:bg-pink-700 text-foreground font-bold rounded-xl shadow-md transition-all active:scale-[0.98]"
             >
               Take Photo
             </button>
@@ -2670,28 +2670,28 @@ export default function GroupsPage() {
       {/* Quiz Modal */}
       {quizModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200 p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-xs">
-            <button onClick={() => setQuizModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-xs">
+            <button onClick={() => setQuizModalOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-sm text-foreground text-left">Create Channel Quiz</h3>
-              <p className="text-xs text-slate-400 text-left">Launch an interactive trivia challenge for followers.</p>
+              <p className="text-xs text-muted-foreground text-left">Launch an interactive trivia challenge for followers.</p>
             </div>
             <form onSubmit={handleQuizSubmit} className="space-y-3.5">
               <div className="space-y-1.5 text-left">
-                <label className="text-slate-400 uppercase text-[9px]">Quiz Question</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Quiz Question</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Which team built ConnectHub?"
                   value={quizQuestion}
                   onChange={(e) => setQuizQuestion(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl border bg-muted dark:bg-card text-foreground dark:text-foreground focus:outline-none"
                 />
               </div>
               <div className="space-y-2 text-left">
-                <label className="text-slate-400 uppercase text-[9px]">Answers & Correct Check</label>
+                <label className="text-muted-foreground uppercase text-[9px]">Answers & Correct Check</label>
                 {quizOptions.map((opt, idx) => (
                   <div key={idx} className="flex items-center space-x-2">
                     <input
@@ -2703,14 +2703,14 @@ export default function GroupsPage() {
                         const val = e.target.value;
                         setQuizOptions((prev) => prev.map((o, i) => (i === idx ? val : o)));
                       }}
-                      className="flex-1 px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 focus:outline-none"
+                      className="flex-1 px-3 py-1.5 rounded-lg border bg-muted dark:bg-card text-foreground dark:text-foreground focus:outline-none"
                     />
                     <input
                       type="radio"
                       name="correct-quiz-option"
                       checked={quizCorrectIdx === idx}
                       onChange={() => setQuizCorrectIdx(idx)}
-                      className="h-4 w-4 text-primary border-slate-350 cursor-pointer"
+                      className="h-4 w-4 text-primary border-border cursor-pointer"
                       title="Mark as correct answer"
                     />
                   </div>
@@ -2725,7 +2725,7 @@ export default function GroupsPage() {
               </div>
               <button
                 type="submit"
-                className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-[0.98]"
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-foreground font-bold rounded-xl shadow-md transition-all active:scale-[0.98]"
               >
                 Launch Quiz
               </button>
@@ -2737,13 +2737,13 @@ export default function GroupsPage() {
       {/* Sticker Picker popover Modal */}
       {stickerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs animate-in fade-in duration-200 p-4">
-          <div className="bg-white dark:bg-slate-900 border p-5 rounded-3xl w-full max-w-xs space-y-4 shadow-2xl relative text-xs">
-            <button onClick={() => setStickerOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
+          <div className="bg-card dark:bg-card border p-5 rounded-3xl w-full max-w-xs space-y-4 shadow-2xl relative text-xs">
+            <button onClick={() => setStickerOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-sm text-foreground text-left">Stickers Library</h3>
-              <p className="text-xs text-slate-400 text-left">Click a sticker to send it instantly.</p>
+              <p className="text-xs text-muted-foreground text-left">Click a sticker to send it instantly.</p>
             </div>
             <div className="grid grid-cols-4 gap-3.5 p-1 max-h-[180px] overflow-y-auto">
               {['🚀', '🎉', '🔥', '👏', '🎯', '💡', '🏆', '📈', '🤝', '🙌', '✨', '⭐'].map((emoji) => (
@@ -2758,7 +2758,7 @@ export default function GroupsPage() {
                       toast.error('Failed to send sticker.');
                     }
                   }}
-                  className="h-12 bg-slate-50 dark:bg-slate-800 rounded-xl hover:scale-105 active:scale-95 transition-all text-2xl flex items-center justify-center shadow-xs border dark:border-slate-800 text-slate-850 dark:text-slate-150"
+                  className="h-12 bg-muted dark:bg-card rounded-xl hover:scale-105 active:scale-95 transition-all text-2xl flex items-center justify-center shadow-xs border dark:border-border text-foreground dark:text-foreground"
                 >
                   {emoji}
                 </button>
@@ -2771,30 +2771,30 @@ export default function GroupsPage() {
       {/* Voters List Modal */}
       {votersModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-xs">
-            <button onClick={() => { setVotersModalOpen(false); setSelectedVotersList([]); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-xs">
+            <button onClick={() => { setVotersModalOpen(false); setSelectedVotersList([]); }} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-sm">Voters List</h3>
-              <p className="text-xs text-slate-400 leading-normal">
-                Colleagues who voted for <span className="font-black text-slate-700 dark:text-slate-200">"{selectedOptionText}"</span>:
+              <p className="text-xs text-muted-foreground leading-normal">
+                Colleagues who voted for <span className="font-black text-foreground dark:text-foreground">"{selectedOptionText}"</span>:
               </p>
             </div>
-            <div className="max-h-[200px] overflow-y-auto border p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 space-y-2">
+            <div className="max-h-[200px] overflow-y-auto border p-2.5 rounded-xl bg-muted dark:bg-card space-y-2">
               {selectedVotersList.length === 0 ? (
-                <p className="text-xs text-slate-400 italic py-4 text-center">No votes recorded yet for this option.</p>
+                <p className="text-xs text-muted-foreground italic py-4 text-center">No votes recorded yet for this option.</p>
               ) : (
                 selectedVotersList.map((vote: any) => {
                   const voter = dirUsers?.users?.find((u: any) => u.id === vote.userId);
                   return (
-                    <div key={vote.id || vote.userId} className="flex items-center space-x-2.5 p-2 bg-white dark:bg-slate-900 rounded-lg border text-left">
+                    <div key={vote.id || vote.userId} className="flex items-center space-x-2.5 p-2 bg-card dark:bg-card rounded-lg border text-left">
                       <div className="h-7 w-7 bg-primary/10 text-primary rounded-full flex items-center justify-center font-bold text-xs uppercase">
                         {voter ? voter.firstName[0] : 'U'}
                       </div>
                       <div>
-                        <p className="font-bold text-xs text-slate-800 dark:text-slate-200">{voter ? `${voter.firstName} ${voter.lastName}` : 'Anonymous Staff'}</p>
-                        <p className="text-[9px] text-slate-400 font-semibold">{voter?.email || 'connecthub colleague'}</p>
+                        <p className="font-bold text-xs text-foreground dark:text-foreground">{voter ? `${voter.firstName} ${voter.lastName}` : 'Anonymous Staff'}</p>
+                        <p className="text-[9px] text-muted-foreground font-semibold">{voter?.email || 'connecthub colleague'}</p>
                       </div>
                     </div>
                   );
@@ -2808,33 +2808,33 @@ export default function GroupsPage() {
       {/* Channel Analytics Modal */}
       {analyticsModalOpen && activeGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 backdrop-blur-xs animate-in fade-in duration-200 p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-lg space-y-4 shadow-2xl relative text-xs text-left">
-            <button onClick={() => setAnalyticsModalOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" title="Close">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-lg space-y-4 shadow-2xl relative text-xs text-left">
+            <button onClick={() => setAnalyticsModalOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" title="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
-              <h3 className="font-bold text-sm flex items-center space-x-1.5 text-slate-800 dark:text-slate-100">
+              <h3 className="font-bold text-sm flex items-center space-x-1.5 text-foreground dark:text-foreground">
                 <BarChart3 className="h-4 w-4 text-primary" />
                 <span>#{activeGroup.name} - Channel Analytics</span>
               </h3>
-              <p className="text-xs text-slate-400 font-semibold">Real-time follower demographics and reach analytics dashboard.</p>
+              <p className="text-xs text-muted-foreground font-semibold">Real-time follower demographics and reach analytics dashboard.</p>
             </div>
 
             {/* Quick KPI stats grid */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 border rounded-2xl bg-slate-50 dark:bg-slate-800/40 text-center">
-                <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Followers</p>
-                <p className="text-lg font-black text-slate-800 dark:text-slate-100 mt-0.5">{activeGroup.members?.length || 0}</p>
+              <div className="p-3 border rounded-2xl bg-muted dark:bg-card/40 text-center">
+                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-wider">Followers</p>
+                <p className="text-lg font-black text-foreground dark:text-foreground mt-0.5">{activeGroup.members?.length || 0}</p>
                 <p className="text-[8px] text-green-500 font-extrabold mt-0.5">▲ +12% this week</p>
               </div>
-              <div className="p-3 border rounded-2xl bg-slate-50 dark:bg-slate-800/40 text-center">
-                <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Reach Rate</p>
-                <p className="text-lg font-black text-slate-800 dark:text-slate-100 mt-0.5">92.4%</p>
+              <div className="p-3 border rounded-2xl bg-muted dark:bg-card/40 text-center">
+                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-wider">Reach Rate</p>
+                <p className="text-lg font-black text-foreground dark:text-foreground mt-0.5">92.4%</p>
                 <p className="text-[8px] text-primary font-extrabold mt-0.5">High Engagement</p>
               </div>
-              <div className="p-3 border rounded-2xl bg-slate-50 dark:bg-slate-800/40 text-center">
-                <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Avg Reactions</p>
-                <p className="text-lg font-black text-slate-800 dark:text-slate-100 mt-0.5">
+              <div className="p-3 border rounded-2xl bg-muted dark:bg-card/40 text-center">
+                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-wider">Avg Reactions</p>
+                <p className="text-lg font-black text-foreground dark:text-foreground mt-0.5">
                   {Math.round(((activeGroup.name.length % 8) + 4) * 1.5)}
                 </p>
                 <p className="text-[8px] text-green-500 font-extrabold mt-0.5">▲ +4.2%</p>
@@ -2845,72 +2845,72 @@ export default function GroupsPage() {
             <div className="space-y-4 pt-2">
               {/* Followers Growth Timeline Chart */}
               <div className="space-y-2">
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Weekly Follower Growth</h4>
-                <div className="h-28 flex items-end justify-between gap-2.5 px-3 pt-4 border-b border-l dark:border-slate-800">
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Weekly Follower Growth</h4>
+                <div className="h-28 flex items-end justify-between gap-2.5 px-3 pt-4 border-b border-l dark:border-border">
                   {/* Mon */}
                   <div className="flex-1 flex flex-col items-center group cursor-pointer">
-                    <span className="text-[8px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">24</span>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 hover:bg-primary/40 rounded-t-sm h-8 transition-all" />
-                    <span className="text-[8px] text-slate-400 font-semibold pt-1">Mon</span>
+                    <span className="text-[8px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">24</span>
+                    <div className="w-full bg-secondary dark:bg-card hover:bg-primary/40 rounded-t-sm h-8 transition-all" />
+                    <span className="text-[8px] text-muted-foreground font-semibold pt-1">Mon</span>
                   </div>
                   {/* Tue */}
                   <div className="flex-1 flex flex-col items-center group cursor-pointer">
-                    <span className="text-[8px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">38</span>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 hover:bg-primary/40 rounded-t-sm h-12 transition-all" />
-                    <span className="text-[8px] text-slate-400 font-semibold pt-1">Tue</span>
+                    <span className="text-[8px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">38</span>
+                    <div className="w-full bg-secondary dark:bg-card hover:bg-primary/40 rounded-t-sm h-12 transition-all" />
+                    <span className="text-[8px] text-muted-foreground font-semibold pt-1">Tue</span>
                   </div>
                   {/* Wed */}
                   <div className="flex-1 flex flex-col items-center group cursor-pointer">
-                    <span className="text-[8px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">45</span>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 hover:bg-primary/40 rounded-t-sm h-16 transition-all" />
-                    <span className="text-[8px] text-slate-400 font-semibold pt-1">Wed</span>
+                    <span className="text-[8px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">45</span>
+                    <div className="w-full bg-secondary dark:bg-card hover:bg-primary/40 rounded-t-sm h-16 transition-all" />
+                    <span className="text-[8px] text-muted-foreground font-semibold pt-1">Wed</span>
                   </div>
                   {/* Thu */}
                   <div className="flex-1 flex flex-col items-center group cursor-pointer">
-                    <span className="text-[8px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">62</span>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 hover:bg-primary/40 rounded-t-sm h-20 transition-all" />
-                    <span className="text-[8px] text-slate-400 font-semibold pt-1">Thu</span>
+                    <span className="text-[8px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">62</span>
+                    <div className="w-full bg-secondary dark:bg-card hover:bg-primary/40 rounded-t-sm h-20 transition-all" />
+                    <span className="text-[8px] text-muted-foreground font-semibold pt-1">Thu</span>
                   </div>
                   {/* Fri */}
                   <div className="flex-1 flex flex-col items-center group cursor-pointer">
-                    <span className="text-[8px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">85</span>
+                    <span className="text-[8px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity font-bold mb-0.5">85</span>
                     <div className="w-full bg-primary rounded-t-sm h-24 hover:bg-primary/90 transition-all" />
-                    <span className="text-[8px] text-slate-400 font-semibold pt-1">Fri</span>
+                    <span className="text-[8px] text-muted-foreground font-semibold pt-1">Fri</span>
                   </div>
                 </div>
               </div>
 
               {/* Department breakdown horizontal bar chart */}
               <div className="space-y-2">
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Department Breakdown</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Department Breakdown</h4>
                 <div className="space-y-2 pt-1">
                   {/* Engineering */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[9px] font-bold text-slate-600 dark:text-slate-300">
+                    <div className="flex justify-between text-[9px] font-bold text-muted-foreground dark:text-foreground">
                       <span>Engineering / Tech</span>
                       <span>42%</span>
                     </div>
-                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-muted dark:bg-card rounded-full overflow-hidden">
                       <div className="h-full bg-primary rounded-full" style={{ width: '42%' }} />
                     </div>
                   </div>
                   {/* Marketing */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[9px] font-bold text-slate-600 dark:text-slate-300">
+                    <div className="flex justify-between text-[9px] font-bold text-muted-foreground dark:text-foreground">
                       <span>Marketing & Sales</span>
                       <span>28%</span>
                     </div>
-                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-muted dark:bg-card rounded-full overflow-hidden">
                       <div className="h-full bg-amber-500 rounded-full" style={{ width: '28%' }} />
                     </div>
                   </div>
                   {/* HR */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[9px] font-bold text-slate-600 dark:text-slate-300">
+                    <div className="flex justify-between text-[9px] font-bold text-muted-foreground dark:text-foreground">
                       <span>Operations / HR</span>
                       <span>18%</span>
                     </div>
-                    <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-muted dark:bg-card rounded-full overflow-hidden">
                       <div className="h-full bg-green-500 rounded-full" style={{ width: '18%' }} />
                     </div>
                   </div>

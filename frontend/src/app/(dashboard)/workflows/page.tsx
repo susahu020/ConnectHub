@@ -40,7 +40,7 @@ function LastRunBadge({ workflowId }: { workflowId: string }) {
   }
 
   if (runs.length === 0) {
-    return <span className="text-[8px] text-slate-400 font-semibold">Never run yet</span>;
+    return <span className="text-[8px] text-muted-foreground font-semibold">Never run yet</span>;
   }
 
   const lastRun = runs[0];
@@ -188,12 +188,12 @@ export default function WorkflowsPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Workflow Automation</h1>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">Workflow Automation</h1>
           <p className="text-xs text-muted-foreground font-semibold">Build rules to automatically run tasks and notify teams when platform events occur.</p>
         </div>
         <button
           onClick={() => setCreateModalOpen(true)}
-          className="px-4 py-2.5 bg-primary text-white text-xs font-bold rounded-xl shadow-md flex items-center space-x-2 shrink-0 md:self-end hover:bg-primary/95 transition-all"
+          className="px-4 py-2.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl shadow-md flex items-center space-x-2 shrink-0 md:self-end hover:bg-primary/95 transition-all"
         >
           <Plus className="h-4 w-4" />
           <span>Create Automation</span>
@@ -204,7 +204,7 @@ export default function WorkflowsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading ? (
           [...Array(3)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-slate-900 border rounded-3xl p-5 space-y-4">
+            <div key={i} className="bg-card dark:bg-card border rounded-3xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="h-2.5 w-14 bg-muted animate-pulse rounded" />
                 <div className="h-4 w-8 bg-muted animate-pulse rounded-full" />
@@ -215,10 +215,10 @@ export default function WorkflowsPage() {
             </div>
           ))
         ) : workflows.length === 0 ? (
-          <div className="col-span-full bg-white dark:bg-slate-900 border rounded-3xl p-12 text-center space-y-3">
+          <div className="col-span-full bg-card dark:bg-card border rounded-3xl p-12 text-center space-y-3">
             <Sparkles className="h-8 w-8 text-primary mx-auto animate-pulse" />
-            <h3 className="font-bold text-sm text-slate-800 dark:text-slate-100">No active automations</h3>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+            <h3 className="font-bold text-sm text-foreground dark:text-foreground">No active automations</h3>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
               Define recipes to connect events in ConnectHub. For example: When a task is marked completed, notify the direct report's manager automatically.
             </p>
           </div>
@@ -226,14 +226,14 @@ export default function WorkflowsPage() {
           workflows.map((flow: any) => (
             <div 
               key={flow.id}
-              className={`bg-white dark:bg-slate-900 border rounded-3xl p-5 shadow-sm space-y-4 transition-all hover:shadow-md relative overflow-hidden flex flex-col justify-between ${
-                flow.isActive ? 'border-slate-200 dark:border-slate-800' : 'border-slate-205 dark:border-slate-800/40 opacity-70'
+              className={`bg-card dark:bg-card border rounded-3xl p-5 shadow-sm space-y-4 transition-all hover:shadow-md relative overflow-hidden flex flex-col justify-between ${
+                flow.isActive ? 'border-border dark:border-border' : 'border-border dark:border-border/40 opacity-70'
               }`}
             >
               {/* Card Top: Header & Toggle switch */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
                     Recipe
                   </span>
                   <label className="relative inline-flex items-center cursor-pointer select-none">
@@ -243,10 +243,10 @@ export default function WorkflowsPage() {
                       onChange={(e) => toggleMutation.mutate({ id: flow.id, isActive: e.target.checked })}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-slate-200 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    <div className="w-9 h-5 bg-secondary dark:bg-card peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-card after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-card after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
                   </label>
                 </div>
-                <h3 className="font-extrabold text-xs text-slate-850 dark:text-slate-100 truncate pr-6" title={flow.name}>
+                <h3 className="font-extrabold text-xs text-foreground dark:text-foreground truncate pr-6" title={flow.name}>
                   {flow.name}
                 </h3>
                 {flow.conditions?.departmentId && (
@@ -255,35 +255,35 @@ export default function WorkflowsPage() {
               </div>
 
               {/* Recipe Flow UI */}
-              <div className="bg-slate-50/50 dark:bg-slate-800/10 border border-slate-100 dark:border-slate-800/60 p-3 rounded-2xl space-y-2 text-left">
+              <div className="bg-muted/50 dark:bg-card/10 border border-border dark:border-border/60 p-3 rounded-2xl space-y-2 text-left">
                 {/* Trigger */}
                 <div className="flex items-start space-x-2.5">
-                  <div className="mt-0.5 p-1 bg-white dark:bg-slate-800 rounded-lg shadow-sm border shrink-0">
+                  <div className="mt-0.5 p-1 bg-card dark:bg-card rounded-lg shadow-sm border shrink-0">
                     {getTriggerIcon(flow.trigger)}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider">When</p>
-                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-350 truncate">{getTriggerLabel(flow.trigger)}</p>
+                    <p className="text-[8px] text-muted-foreground font-black uppercase tracking-wider">When</p>
+                    <p className="text-[10px] font-bold text-foreground dark:text-foreground truncate">{getTriggerLabel(flow.trigger)}</p>
                   </div>
                 </div>
 
                 {/* Arrow Connector */}
-                <div className="pl-4 border-l border-dashed border-slate-300 dark:border-slate-700 h-4 my-0.5" />
+                <div className="pl-4 border-l border-dashed border-border dark:border-border h-4 my-0.5" />
 
                 {/* Action */}
                 <div className="flex items-start space-x-2.5">
-                  <div className="mt-0.5 p-1 bg-primary text-white rounded-lg shadow-sm shrink-0">
+                  <div className="mt-0.5 p-1 bg-primary text-primary-foreground rounded-lg shadow-sm shrink-0">
                     <Play className="h-3 w-3 fill-white" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[8px] text-slate-400 font-black uppercase tracking-wider">Do</p>
-                    <p className="text-[10px] font-bold text-slate-700 dark:text-slate-350 truncate">{getActionLabel(flow.action)}</p>
+                    <p className="text-[8px] text-muted-foreground font-black uppercase tracking-wider">Do</p>
+                    <p className="text-[10px] font-bold text-foreground dark:text-foreground truncate">{getActionLabel(flow.action)}</p>
                   </div>
                 </div>
               </div>
 
               {/* Card Footer Delete Button */}
-              <div className="flex items-center justify-between border-t dark:border-slate-800 pt-3">
+              <div className="flex items-center justify-between border-t dark:border-border pt-3">
                 <LastRunBadge workflowId={flow.id} />
                 <button
                   onClick={() => {
@@ -304,38 +304,38 @@ export default function WorkflowsPage() {
       {/* CREATE WORKFLOW MODAL */}
       {createModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-5 shadow-2xl relative text-left">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-5 shadow-2xl relative text-left">
             <button 
               onClick={() => setCreateModalOpen(false)}
-              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-105 p-1 rounded-lg"
+              className="absolute right-4 top-4 text-muted-foreground hover:bg-secondary p-1 rounded-lg"
             >
               <X className="h-5 w-5" />
             </button>
 
             <div className="space-y-1">
-              <h3 className="font-bold text-base text-slate-850 dark:text-slate-200">Configure Automation Rule</h3>
-              <p className="text-[10px] text-slate-400">Specify trigger actions to automate your ConnectHub workspace operations.</p>
+              <h3 className="font-bold text-base text-foreground dark:text-foreground">Configure Automation Rule</h3>
+              <p className="text-[10px] text-muted-foreground">Specify trigger actions to automate your ConnectHub workspace operations.</p>
             </div>
 
             <form onSubmit={handleCreateSubmit} className="space-y-4 text-xs font-semibold">
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[9px] tracking-wider">Workflow Label/Name</label>
+                <label className="text-muted-foreground uppercase text-[9px] tracking-wider">Workflow Label/Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Notify manager on tasks complete"
                   value={flowName}
                   onChange={(e) => setFlowName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[9px] tracking-wider">When (Event Trigger)</label>
+                <label className="text-muted-foreground uppercase text-[9px] tracking-wider">When (Event Trigger)</label>
                 <select
                   value={flowTrigger}
                   onChange={(e) => { setFlowTrigger(e.target.value); setFlowDepartmentId(''); }}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs font-bold"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs font-bold"
                 >
                   <option value="TASK_COMPLETED">When Task status becomes COMPLETED</option>
                   <option value="EMPLOYEE_JOINED">When New Employee completes Onboarding</option>
@@ -345,11 +345,11 @@ export default function WorkflowsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[9px] tracking-wider">Do (Automated Action)</label>
+                <label className="text-muted-foreground uppercase text-[9px] tracking-wider">Do (Automated Action)</label>
                 <select
                   value={flowAction}
                   onChange={(e) => setFlowAction(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs font-bold"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs font-bold"
                 >
                   <option value="NOTIFY_MANAGER">Notify employee's manager</option>
                   <option value="ASSIGN_ONBOARDING_TASKS">Auto-assign onboarding tasks checklist</option>
@@ -360,25 +360,25 @@ export default function WorkflowsPage() {
 
               {supportsDepartmentCondition && (
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[9px] tracking-wider">Limit to Department (optional)</label>
+                  <label className="text-muted-foreground uppercase text-[9px] tracking-wider">Limit to Department (optional)</label>
                   <select
                     value={flowDepartmentId}
                     onChange={(e) => setFlowDepartmentId(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs font-bold"
+                    className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs font-bold"
                   >
                     <option value="">All departments</option>
                     {departments.map((dept: any) => (
                       <option key={dept.id} value={dept.id}>{dept.name}</option>
                     ))}
                   </select>
-                  <p className="text-[9px] text-slate-400 leading-relaxed">Only run this automation for uploads from members of the selected department.</p>
+                  <p className="text-[9px] text-muted-foreground leading-relaxed">Only run this automation for uploads from members of the selected department.</p>
                 </div>
               )}
 
 
               <button
                 type="submit"
-                className="w-full py-3 bg-primary text-white hover:bg-primary/95 rounded-xl font-bold shadow-md transition-all text-center flex items-center justify-center space-x-1.5"
+                className="w-full py-3 bg-primary text-primary-foreground hover:bg-primary/95 rounded-xl font-bold shadow-md transition-all text-center flex items-center justify-center space-x-1.5"
               >
                 <Sparkles className="h-4 w-4" />
                 <span>Activate Workflow Automation</span>

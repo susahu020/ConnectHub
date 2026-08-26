@@ -85,35 +85,35 @@ export default function DepartmentsPage() {
         </div>
         <button
           onClick={() => setCreateDeptOpen(true)}
-          className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
+          className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
         >
           <Plus className="h-4 w-4" />
           <span>Create Department</span>
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
+      <div className="bg-card dark:bg-card border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold">
+            <tr className="border-b text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
               <th className="pb-3">Department Name</th>
               <th className="pb-3">Manager</th>
               <th className="pb-3">Description</th>
               <th className="pb-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y font-semibold text-slate-600 dark:text-slate-350">
+          <tbody className="divide-y font-semibold text-muted-foreground dark:text-foreground">
             {loadingDepts ? (
               <tr>
-                <td colSpan={4} className="text-center py-10 text-slate-400">Loading department structures...</td>
+                <td colSpan={4} className="text-center py-10 text-muted-foreground">Loading department structures...</td>
               </tr>
             ) : depts?.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-10 text-slate-400">No departments yet. Create one to get started.</td>
+                <td colSpan={4} className="text-center py-10 text-muted-foreground">No departments yet. Create one to get started.</td>
               </tr>
             ) : (
               depts?.map((d: any) => (
-                <tr key={d.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                <tr key={d.id} className="hover:bg-muted/50 dark:hover:bg-card/20">
                   <td className="py-3.5 font-bold text-primary flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5" />
                     <span>{d.name}</span>
@@ -121,7 +121,7 @@ export default function DepartmentsPage() {
                   <td className="py-3.5">
                     {d.manager ? `${d.manager.firstName} ${d.manager.lastName}` : 'No manager assigned'}
                   </td>
-                  <td className="py-3.5 text-slate-400">{d.description || 'No description provided.'}</td>
+                  <td className="py-3.5 text-muted-foreground">{d.description || 'No description provided.'}</td>
                   <td className="py-3.5 text-right">
                     <button
                       onClick={() => handleDeleteDept(d.id)}
@@ -139,41 +139,41 @@ export default function DepartmentsPage() {
 
       {createDeptOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setCreateDeptOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => setCreateDeptOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base">Establish New Department</h3>
-              <p className="text-xs text-slate-400">Organize and segment user pools into functional divisions.</p>
+              <p className="text-xs text-muted-foreground">Organize and segment user pools into functional divisions.</p>
             </div>
             <form onSubmit={handleCreateDeptSubmit} className="space-y-4 text-xs font-semibold">
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Department Name</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Department Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Finance Division"
                   value={deptName}
                   onChange={(e) => setDeptName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Description</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Description</label>
                 <textarea
                   placeholder="Functional division details..."
                   value={deptDesc}
                   onChange={(e) => setDeptDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-20 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={createDeptMutation.isPending}
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md disabled:opacity-50"
               >
                 {createDeptMutation.isPending ? 'Creating...' : 'Establish division'}
               </button>

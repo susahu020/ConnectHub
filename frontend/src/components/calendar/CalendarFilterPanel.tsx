@@ -17,30 +17,30 @@ export function CalendarFilterPanel({
   onChange: (filters: CalendarFilters) => void;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-6">
+    <div className="bg-card dark:bg-card border border-border dark:border-border rounded-3xl p-5 shadow-sm space-y-6">
       <div className="space-y-1">
-        <h3 className="font-bold text-sm text-slate-850 dark:text-slate-200">Calendar Filters</h3>
-        <p className="text-[10px] text-slate-400">Toggle feeds displayed on your calendar matrix grid.</p>
+        <h3 className="font-bold text-sm text-foreground dark:text-foreground">Calendar Filters</h3>
+        <p className="text-[10px] text-muted-foreground">Toggle feeds displayed on your calendar matrix grid.</p>
       </div>
 
       <div className="space-y-3">
         {FILTER_ITEMS.map((item) => (
           <label
             key={item.key}
-            className="flex items-start space-x-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 p-2 rounded-xl transition-all"
+            className="flex items-start space-x-3 cursor-pointer hover:bg-muted dark:hover:bg-card/40 p-2 rounded-xl transition-all"
           >
             <input
               type="checkbox"
               checked={filters[item.key]}
               onChange={(e) => onChange({ ...filters, [item.key]: e.target.checked })}
-              className="mt-1 rounded border-slate-350 text-primary focus:ring-primary h-4 w-4 shrink-0"
+              className="mt-1 rounded border-border text-primary focus:ring-primary h-4 w-4 shrink-0"
             />
             <div className="space-y-0.5">
               <div className="flex items-center space-x-2">
                 <span className={`h-2 w-2 rounded-full ${item.color}`} />
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{item.label}</span>
+                <span className="text-xs font-bold text-foreground dark:text-foreground">{item.label}</span>
               </div>
-              <p className="text-[10px] text-slate-400 leading-tight">{item.desc}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">{item.desc}</p>
             </div>
           </label>
         ))}

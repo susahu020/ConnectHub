@@ -42,10 +42,10 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       {children}
       {isOpen && options && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative animate-scale-up">
+          <div className="bg-card dark:bg-card border border-border dark:border-border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative animate-scale-up">
             <button 
               onClick={() => handleClose(false)} 
-              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg transition-all"
+              className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg transition-all"
             >
               <X className="h-4 w-4" />
             </button>
@@ -61,10 +61,10 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 <AlertCircle className="h-5 w-5" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                <h3 className="font-bold text-sm text-foreground dark:text-foreground">
                   {options.title || 'Are you sure?'}
                 </h3>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 leading-relaxed pr-2">
+                <p className="text-xs font-semibold text-muted-foreground dark:text-muted-foreground leading-relaxed pr-2">
                   {options.message}
                 </p>
               </div>
@@ -74,14 +74,14 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={() => handleClose(false)}
-                className="px-4 py-2 text-xs font-bold rounded-xl border hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-slate-650 dark:text-slate-350"
+                className="px-4 py-2 text-xs font-bold rounded-xl border hover:bg-muted dark:hover:bg-card transition-all text-muted-foreground dark:text-foreground"
               >
                 {options.cancelText || 'Cancel'}
               </button>
               <button
                 type="button"
                 onClick={() => handleClose(true)}
-                className={`px-4 py-2 text-xs font-bold rounded-xl text-white shadow-md transition-all ${
+                className={`px-4 py-2 text-xs font-bold rounded-xl text-foreground shadow-md transition-all ${
                   options.type === 'danger'
                     ? 'bg-red-500 hover:bg-red-600 shadow-red-500/10'
                     : options.type === 'warning'

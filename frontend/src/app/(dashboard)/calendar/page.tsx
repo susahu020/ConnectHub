@@ -62,7 +62,7 @@ export default function CalendarPage() {
     <div className="space-y-6 text-left p-1">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Organizational Calendar</h1>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">Organizational Calendar</h1>
           <p className="text-xs text-muted-foreground font-semibold">
             Coordinate deadlines, scheduled leaves, meetings, and team schedules in a unified view.
           </p>

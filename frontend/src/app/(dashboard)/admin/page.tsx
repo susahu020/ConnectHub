@@ -80,20 +80,20 @@ const EMAIL_FEATURES: { key: string; testKey: string; label: string; description
 function PaginationBar({ page, totalPages, total, onPageChange }: { page: number; totalPages: number; total: number; onPageChange: (p: number) => void }) {
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-between pt-3 text-[10px] font-bold text-slate-400">
+    <div className="flex items-center justify-between pt-3 text-[10px] font-bold text-muted-foreground">
       <span>{total} total record{total === 1 ? '' : 's'} · Page {page} of {totalPages}</span>
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => onPageChange(Math.max(1, page - 1))}
           disabled={page <= 1}
-          className="px-2.5 py-1 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-2.5 py-1 border rounded-lg hover:bg-muted dark:hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Prev
         </button>
         <button
           onClick={() => onPageChange(Math.min(totalPages, page + 1))}
           disabled={page >= totalPages}
-          className="px-2.5 py-1 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-2.5 py-1 border rounded-lg hover:bg-muted dark:hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Next
         </button>
@@ -750,7 +750,7 @@ export default function AdminPage() {
         {activeTab === 'roles' && (
           <button
             onClick={() => setCreateRoleOpen(true)}
-            className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
+            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
           >
             <Plus className="h-4 w-4" />
             <span>Create Custom Role</span>
@@ -764,7 +764,7 @@ export default function AdminPage() {
               setInviteEmail('');
               setInviteModalOpen(true);
             }}
-            className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
+            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
           >
             <UserPlus className="h-4 w-4" />
             <span>Invite Teammate</span>
@@ -799,7 +799,7 @@ export default function AdminPage() {
       />
 
       {/* Tab Workspaces */}
-      <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
+      <div className="bg-card dark:bg-card border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
         {/* User Management Workspace */}
         {activeTab === 'users' && (
           <div className="space-y-4">
@@ -810,17 +810,17 @@ export default function AdminPage() {
                 placeholder="Search employees by name, email, or designation..."
                 value={userSearch}
                 onChange={(e) => { setUserSearch(e.target.value); setUsersPage(1); }}
-                className="w-full pl-8 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-xs font-semibold"
+                className="w-full pl-8 pr-4 py-2 bg-muted dark:bg-card border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-xs font-semibold"
               />
               {/* Search Magnifier SVG */}
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-muted-foreground absolute left-2.5 top-2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.603 10.603z" />
               </svg>
             </div>
 
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold">
+                <tr className="border-b text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
                   <th className="pb-3">Employee</th>
                   <th className="pb-3">Email</th>
                   <th className="pb-3">Designation</th>
@@ -829,20 +829,20 @@ export default function AdminPage() {
                   <th className="pb-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y font-semibold text-slate-650 dark:text-slate-350">
+              <tbody className="divide-y font-semibold text-muted-foreground dark:text-foreground">
                 {loadingPaginatedUsers || loadingRoles ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-10 text-slate-400">Loading user database...</td>
+                    <td colSpan={6} className="text-center py-10 text-muted-foreground">Loading user database...</td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-10 text-slate-400 italic">No matching users found in the database.</td>
+                    <td colSpan={6} className="text-center py-10 text-muted-foreground italic">No matching users found in the database.</td>
                   </tr>
                 ) : (
                   filteredUsers.map((u: any) => (
-                    <tr key={u.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                    <tr key={u.id} className="hover:bg-muted/50 dark:hover:bg-card/20">
                       <td className="py-3.5 flex items-center space-x-2">
-                        <div className="h-7 w-7 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center font-bold text-[10px] text-slate-500 uppercase">
+                        <div className="h-7 w-7 bg-secondary dark:bg-card rounded-full flex items-center justify-center font-bold text-[10px] text-muted-foreground uppercase">
                           {u.firstName[0]}{u.lastName[0]}
                         </div>
                         <span>{u.firstName} {u.lastName}</span>
@@ -854,7 +854,7 @@ export default function AdminPage() {
                           <select
                             value={u.customRoleId || ''}
                             onChange={(e) => handleUserRoleAssign(u.id, e.target.value)}
-                            className="bg-transparent border border-slate-200 dark:border-slate-800 rounded px-2 py-1 text-[11px] focus:outline-none"
+                            className="bg-transparent border border-border dark:border-border rounded px-2 py-1 text-[11px] focus:outline-none"
                           >
                             <option value="">-- No custom role --</option>
                             {roles?.map((r: any) => (
@@ -869,7 +869,7 @@ export default function AdminPage() {
                               setTempRoleExpiresAt('');
                               setTempRoleOpen(true);
                             }}
-                            className="p-1 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                            className="p-1 text-muted-foreground hover:text-primary hover:bg-muted dark:hover:bg-card rounded"
                             title="Grant a role temporarily"
                             aria-label={`Grant ${u.firstName} ${u.lastName} a temporary role`}
                           >
@@ -929,7 +929,7 @@ export default function AdminPage() {
                             setEditJoiningDate(u.joiningDate ? String(u.joiningDate).split('T')[0] : '');
                             setEditUserOpen(true);
                           }}
-                          className="text-[10px] font-bold px-2.5 py-1 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-650 dark:text-slate-300"
+                          className="text-[10px] font-bold px-2.5 py-1 border border-border dark:border-border rounded-lg hover:bg-muted dark:hover:bg-card transition-all text-muted-foreground dark:text-foreground"
                           id={`edit-user-btn-${u.id}`}
                         >
                           Edit
@@ -942,7 +942,7 @@ export default function AdminPage() {
                             setAdminNewPassword('');
                             setChangePasswordOpen(true);
                           }}
-                          className="text-[10px] font-bold px-2.5 py-1 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-650 dark:text-slate-300"
+                          className="text-[10px] font-bold px-2.5 py-1 border border-border dark:border-border rounded-lg hover:bg-muted dark:hover:bg-card transition-all text-muted-foreground dark:text-foreground"
                           id={`password-user-btn-${u.id}`}
                         >
                           Password
@@ -972,7 +972,7 @@ export default function AdminPage() {
                         {/* Force Logout Button */}
                         <button
                           onClick={() => handleForceLogoutUser(u)}
-                          className="text-[10px] font-bold px-2.5 py-1 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-650 dark:text-slate-300"
+                          className="text-[10px] font-bold px-2.5 py-1 border border-border dark:border-border rounded-lg hover:bg-muted dark:hover:bg-card transition-all text-muted-foreground dark:text-foreground"
                           id={`force-logout-btn-${u.id}`}
                           title="Terminate all active sessions for this user"
                         >
@@ -1012,7 +1012,7 @@ export default function AdminPage() {
           <div className="text-xs">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold">
+                <tr className="border-b text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
                   <th className="pb-3">Email</th>
                   <th className="pb-3">Role</th>
                   <th className="pb-3">Status</th>
@@ -1021,7 +1021,7 @@ export default function AdminPage() {
                   <th className="pb-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y font-semibold text-slate-600 dark:text-slate-350">
+              <tbody className="divide-y font-semibold text-muted-foreground dark:text-foreground">
                 {loadingInvitations ? (
                   [...Array(4)].map((_, i) => (
                     <tr key={i}>
@@ -1040,8 +1040,8 @@ export default function AdminPage() {
                         <div className="h-12 w-12 bg-primary/10 text-primary rounded-full flex items-center justify-center">
                           <Mail className="h-6 w-6" />
                         </div>
-                        <h3 className="font-bold text-xs text-slate-800 dark:text-slate-100">No invitations sent yet</h3>
-                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                        <h3 className="font-bold text-xs text-foreground dark:text-foreground">No invitations sent yet</h3>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
                           Use "Invite Teammate" to bring someone onboard — you'll see their invite status here once it's sent.
                         </p>
                       </div>
@@ -1049,7 +1049,7 @@ export default function AdminPage() {
                   </tr>
                 ) : (
                   invitations?.map((inv: any) => (
-                    <tr key={inv.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                    <tr key={inv.id} className="hover:bg-muted/50 dark:hover:bg-card/20">
                       <td className="py-3.5 font-bold text-primary">{inv.email}</td>
                       <td className="py-3.5">{inv.role}</td>
                       <td className="py-3.5">
@@ -1058,15 +1058,15 @@ export default function AdminPage() {
                             ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                             : inv.status === 'ACCEPTED'
                             ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                            : 'bg-slate-400/10 text-slate-400 border-slate-400/20'
+                            : 'bg-secondary/10 text-muted-foreground border-border/20'
                         }`}>
                           {inv.status}
                         </span>
                       </td>
-                      <td className="py-3.5 text-slate-400">
+                      <td className="py-3.5 text-muted-foreground">
                         {inv.invitedBy ? `${inv.invitedBy.firstName} ${inv.invitedBy.lastName}` : 'Unknown'}
                       </td>
-                      <td className="py-3.5 text-slate-400">
+                      <td className="py-3.5 text-muted-foreground">
                         {new Date(inv.expiresAt).toLocaleDateString()}
                       </td>
                       <td className="py-3.5 text-right space-x-1">
@@ -1075,7 +1075,7 @@ export default function AdminPage() {
                             <button
                               onClick={() => resendInvitationMutation.mutate(inv.id)}
                               disabled={resendInvitationMutation.isPending}
-                              className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded disabled:opacity-40"
+                              className="p-1 hover:bg-muted dark:hover:bg-card text-muted-foreground rounded disabled:opacity-40"
                               title="Resend invitation"
                               aria-label={`Resend invitation to ${inv.email}`}
                             >
@@ -1104,10 +1104,10 @@ export default function AdminPage() {
         {activeTab === 'roles' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-400">Custom roles and the permissions each one is compiled from, including inherited values.</p>
+              <p className="text-xs text-muted-foreground">Custom roles and the permissions each one is compiled from, including inherited values.</p>
               <button
                 onClick={() => setOverviewOpen((v) => !v)}
-                className="px-3 py-1.5 text-[11px] font-bold border rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5"
+                className="px-3 py-1.5 text-[11px] font-bold border rounded-lg text-muted-foreground hover:bg-muted dark:hover:bg-card transition-all flex items-center gap-1.5"
               >
                 <Grid className="h-3.5 w-3.5" />
                 {overviewOpen ? 'Hide' : 'View'} effective permissions overview
@@ -1115,10 +1115,10 @@ export default function AdminPage() {
             </div>
 
             {overviewOpen && (
-              <div className="border rounded-2xl overflow-x-auto bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="border rounded-2xl overflow-x-auto bg-muted/50 dark:bg-card/50">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold bg-slate-100 dark:bg-slate-800">
+                    <tr className="border-b text-muted-foreground uppercase text-[9px] tracking-wider font-bold bg-muted dark:bg-card">
                       <th className="p-3">Module : Action</th>
                       {roles?.map((r: any) => (
                         <th key={r.id} className="p-3 text-center">{r.name}</th>
@@ -1127,11 +1127,11 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="divide-y font-semibold">
                     {loadingOverview ? (
-                      <tr><td colSpan={(roles?.length || 0) + 1} className="text-center py-8 text-slate-400">Compiling effective permissions...</td></tr>
+                      <tr><td colSpan={(roles?.length || 0) + 1} className="text-center py-8 text-muted-foreground">Compiling effective permissions...</td></tr>
                     ) : (
                       Array.from(ENFORCED_PERMISSIONS).map((cellKey) => (
-                        <tr key={cellKey} className="hover:bg-slate-100/30 dark:hover:bg-slate-800/30">
-                          <td className="p-3 font-bold text-slate-700 dark:text-slate-200">{cellKey.replace(':', ' : ')}</td>
+                        <tr key={cellKey} className="hover:bg-muted/30 dark:hover:bg-card/30">
+                          <td className="p-3 font-bold text-foreground dark:text-foreground">{cellKey.replace(':', ' : ')}</td>
                           {roles?.map((r: any) => {
                             const [module, action] = cellKey.split(':');
                             const granted = !!overviewData?.[r.id]?.[module]?.[action];
@@ -1140,7 +1140,7 @@ export default function AdminPage() {
                                 {granted ? (
                                   <Check className="h-4 w-4 text-emerald-500 inline" />
                                 ) : (
-                                  <span className="text-slate-300 dark:text-slate-700">—</span>
+                                  <span className="text-foreground dark:text-foreground">—</span>
                                 )}
                               </td>
                             );
@@ -1150,7 +1150,7 @@ export default function AdminPage() {
                     )}
                   </tbody>
                 </table>
-                <p className="text-[10px] text-slate-400 p-3 border-t">
+                <p className="text-[10px] text-muted-foreground p-3 border-t">
                   Showing only the permissions currently enforced by a route (see the matrix editor below for the full grid, including cells nothing checks yet).
                 </p>
               </div>
@@ -1158,7 +1158,7 @@ export default function AdminPage() {
 
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold">
+                <tr className="border-b text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
                   <th className="pb-3">Role Name</th>
                   <th className="pb-3">Inherits From</th>
                   <th className="pb-3">Description</th>
@@ -1166,32 +1166,32 @@ export default function AdminPage() {
                   <th className="pb-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y font-semibold text-slate-600 dark:text-slate-350">
+              <tbody className="divide-y font-semibold text-muted-foreground dark:text-foreground">
                 {loadingRoles ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-10 text-slate-400">Loading custom roles matrix...</td>
+                    <td colSpan={5} className="text-center py-10 text-muted-foreground">Loading custom roles matrix...</td>
                   </tr>
                 ) : roles?.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-10 text-slate-400">No custom roles created.</td>
+                    <td colSpan={5} className="text-center py-10 text-muted-foreground">No custom roles created.</td>
                   </tr>
                 ) : (
                   roles?.map((r: any) => (
-                    <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                    <tr key={r.id} className="hover:bg-muted/50 dark:hover:bg-card/20">
                       <td className="py-3.5 font-bold text-primary flex items-center space-x-1.5">
                         <ShieldCheck className="h-4 w-4 text-primary" />
                         <span>{r.name}</span>
                       </td>
                       <td className="py-3.5">
                         {r.parent ? (
-                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full text-[10px] text-slate-400">
+                          <span className="px-2 py-0.5 bg-muted dark:bg-card rounded-full text-[10px] text-muted-foreground">
                             {r.parent.name}
                           </span>
                         ) : (
-                          <span className="text-slate-400 italic">None</span>
+                          <span className="text-muted-foreground italic">None</span>
                         )}
                       </td>
-                      <td className="py-3.5 text-slate-400">{r.description || 'No description provided.'}</td>
+                      <td className="py-3.5 text-muted-foreground">{r.description || 'No description provided.'}</td>
                       <td className="py-3.5">
                         <span className="px-2 py-0.5 rounded-full bg-primary/5 text-primary text-[10px]">
                           {r._count?.users || 0} user(s)
@@ -1210,7 +1210,7 @@ export default function AdminPage() {
                             setDupNewName(`${r.name} Copy`);
                             setDupRoleOpen(true);
                           }}
-                          className="p-1.5 border hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg inline-flex text-slate-500"
+                          className="p-1.5 border hover:bg-muted dark:hover:bg-card rounded-lg inline-flex text-muted-foreground"
                           title="Duplicate role"
                           aria-label={`Duplicate role ${r.name}`}
                         >
@@ -1238,7 +1238,7 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-base">Permissions Matrix for: <span className="text-primary">{selectedRole.name}</span></h3>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                       Solid checkmarks are set directly on this role. Faint checkmarks are inherited from{' '}
                       {selectedRole.parent?.name || 'a parent role'} — clicking one overrides it for this role only.
                     </p>
@@ -1246,14 +1246,14 @@ export default function AdminPage() {
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setSelectedRole(null)}
-                      className="px-3.5 py-2 border rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                      className="px-3.5 py-2 border rounded-xl text-xs font-bold text-muted-foreground hover:bg-muted dark:hover:bg-card transition-all"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleSavePermissions}
                       disabled={savePermissionsMutation.isPending}
-                      className="px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5 disabled:opacity-50"
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5 disabled:opacity-50"
                     >
                       <Save className="h-4 w-4" />
                       <span>Save Matrix</span>
@@ -1261,16 +1261,16 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
+                <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Explicit on this role</span>
                   <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-primary/30" /> Inherited</span>
-                  <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm border border-dashed border-slate-300" /> Not yet enforced by any route</span>
+                  <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm border border-dashed border-border" /> Not yet enforced by any route</span>
                 </div>
 
-                <div className="overflow-x-auto border rounded-2xl bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="overflow-x-auto border rounded-2xl bg-muted/50 dark:bg-card/50">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold bg-slate-100 dark:bg-slate-800">
+                      <tr className="border-b text-muted-foreground uppercase text-[9px] tracking-wider font-bold bg-muted dark:bg-card">
                         <th className="p-3">Module</th>
                         {ACTIONS.map((action) => (
                           <th key={action} className="p-3 text-center">{action}</th>
@@ -1279,8 +1279,8 @@ export default function AdminPage() {
                     </thead>
                     <tbody className="divide-y font-semibold">
                       {MODULES.map((module) => (
-                        <tr key={module} className="hover:bg-slate-100/30 dark:hover:bg-slate-800/30">
-                          <td className="p-3 font-bold text-slate-700 dark:text-slate-200">{module}</td>
+                        <tr key={module} className="hover:bg-muted/30 dark:hover:bg-card/30">
+                          <td className="p-3 font-bold text-foreground dark:text-foreground">{module}</td>
                           {ACTIONS.map((action) => {
                             const cell = rolePermissions.find((p) => p.module === module && p.action === action);
                             const isEnabled = !!cell?.isEnabled;
@@ -1317,7 +1317,7 @@ export default function AdminPage() {
         {activeTab === 'logs' && (
           <div className="space-y-4">
             {/* Audit Logs Toolbar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-50/50 dark:bg-slate-800/10 border rounded-2xl text-xs font-bold text-slate-500">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-muted/50 dark:bg-card/10 border rounded-2xl text-xs font-bold text-muted-foreground">
               <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-1 flex-wrap">
                 {/* Search input */}
                 <div className="relative flex-1 max-w-sm">
@@ -1326,21 +1326,21 @@ export default function AdminPage() {
                     placeholder="Search logs by user email or description..."
                     value={logSearch}
                     onChange={(e) => { setLogSearch(e.target.value); setLogsPage(1); }}
-                    className="w-full pl-8 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-xs font-semibold"
+                    className="w-full pl-8 pr-4 py-2 bg-muted dark:bg-card border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-xs font-semibold"
                   />
                   {/* Search Magnifier SVG */}
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-muted-foreground absolute left-2.5 top-2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.603 10.603z" />
                   </svg>
                 </div>
 
                 {/* Action filter dropdown */}
                 <div className="flex items-center space-x-1.5">
-                  <span className="text-[10px] text-slate-400 uppercase">Action Filter:</span>
+                  <span className="text-[10px] text-muted-foreground uppercase">Action Filter:</span>
                   <select
                     value={logActionFilter}
                     onChange={(e) => { setLogActionFilter(e.target.value); setLogsPage(1); }}
-                    className="px-2.5 py-1.5 border rounded-lg bg-slate-50 dark:bg-slate-800 text-xs cursor-pointer max-w-[200px] truncate focus:outline-none"
+                    className="px-2.5 py-1.5 border rounded-lg bg-muted dark:bg-card text-xs cursor-pointer max-w-[200px] truncate focus:outline-none"
                   >
                     <option value="ALL">All Actions</option>
                     {uniqueLogActions.map((action: string) => (
@@ -1351,19 +1351,19 @@ export default function AdminPage() {
 
                 {/* Date range filter */}
                 <div className="flex items-center space-x-1.5">
-                  <span className="text-[10px] text-slate-400 uppercase">From:</span>
+                  <span className="text-[10px] text-muted-foreground uppercase">From:</span>
                   <input
                     type="date"
                     value={logStartDate}
                     onChange={(e) => { setLogStartDate(e.target.value); setLogsPage(1); }}
-                    className="px-2.5 py-1.5 border rounded-lg bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none"
+                    className="px-2.5 py-1.5 border rounded-lg bg-muted dark:bg-card text-xs focus:outline-none"
                   />
-                  <span className="text-[10px] text-slate-400 uppercase">To:</span>
+                  <span className="text-[10px] text-muted-foreground uppercase">To:</span>
                   <input
                     type="date"
                     value={logEndDate}
                     onChange={(e) => { setLogEndDate(e.target.value); setLogsPage(1); }}
-                    className="px-2.5 py-1.5 border rounded-lg bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none"
+                    className="px-2.5 py-1.5 border rounded-lg bg-muted dark:bg-card text-xs focus:outline-none"
                   />
                 </div>
               </div>
@@ -1379,7 +1379,7 @@ export default function AdminPage() {
                       setLogEndDate('');
                       setLogsPage(1);
                     }}
-                    className="px-3 py-1.5 text-slate-550 hover:text-slate-800 text-xs transition-all font-semibold"
+                    className="px-3 py-1.5 text-muted-foreground hover:text-foreground text-xs transition-all font-semibold"
                   >
                     Clear Filters
                   </button>
@@ -1387,7 +1387,7 @@ export default function AdminPage() {
                 <button
                   onClick={handleExportLogs}
                   disabled={exportingLogs}
-                  className="px-3.5 py-1.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-3.5 py-1.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50"
                   title="Export the currently filtered logs to CSV (up to 20,000 rows)"
                 >
                   <Send className="h-3.5 w-3.5" />
@@ -1398,29 +1398,29 @@ export default function AdminPage() {
 
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold">
+                <tr className="border-b text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
                   <th className="pb-3">Action Date</th>
                   <th className="pb-3">User Profile</th>
                   <th className="pb-3">Action Taken</th>
                   <th className="pb-3">Audit Details</th>
                 </tr>
               </thead>
-              <tbody className="divide-y font-semibold text-slate-650 dark:text-slate-350">
+              <tbody className="divide-y font-semibold text-muted-foreground dark:text-foreground">
                 {loadingLogs ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-10 text-slate-400">Loading security audit trail...</td>
+                    <td colSpan={4} className="text-center py-10 text-muted-foreground">Loading security audit trail...</td>
                   </tr>
                 ) : filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-10 text-slate-400 italic">No matching audit logs found.</td>
+                    <td colSpan={4} className="text-center py-10 text-muted-foreground italic">No matching audit logs found.</td>
                   </tr>
                 ) : (
                   filteredLogs.map((log: any) => (
-                    <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 text-[11px]">
-                      <td className="py-3 text-slate-450">{new Date(log.createdAt).toLocaleString()}</td>
+                    <tr key={log.id} className="hover:bg-muted/50 dark:hover:bg-card/20 text-[11px]">
+                      <td className="py-3 text-muted-foreground">{new Date(log.createdAt).toLocaleString()}</td>
                       <td className="py-3">{log.user?.email || 'SYSTEM'}</td>
                       <td className="py-3 font-bold text-primary">{log.action}</td>
-                      <td className="py-3 text-slate-500 leading-normal text-left">{log.details}</td>
+                      <td className="py-3 text-muted-foreground leading-normal text-left">{log.details}</td>
                     </tr>
                   ))
                 )}
@@ -1441,14 +1441,14 @@ export default function AdminPage() {
             <div className="flex items-center justify-between border-b pb-3">
               <div>
                 <h3 className="font-bold text-sm text-foreground">System Health</h3>
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   {healthUpdatedAt ? `Last checked ${new Date(healthUpdatedAt).toLocaleTimeString()} · auto-refreshes every 15s.` : 'Checking...'}
                 </p>
               </div>
               <button
                 onClick={() => refetchHealth()}
                 disabled={fetchingHealth}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-50 border rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-muted border rounded-xl hover:bg-muted dark:hover:bg-card text-[10px] font-bold text-muted-foreground dark:text-foreground disabled:opacity-50"
               >
                 <RefreshCw className={`h-3 w-3 ${fetchingHealth ? 'animate-spin' : ''}`} />
                 Refresh Now
@@ -1456,7 +1456,7 @@ export default function AdminPage() {
             </div>
 
             {!health ? (
-              <div className="flex items-center justify-center py-20 text-slate-450">
+              <div className="flex items-center justify-center py-20 text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
                 <span>Running health checks...</span>
               </div>
@@ -1496,9 +1496,9 @@ export default function AdminPage() {
                     { label: 'Pending Leave', value: health.quickStats?.pendingLeaveRequests },
                     { label: 'Pending Expenses', value: health.quickStats?.pendingExpenseClaims },
                   ].map((stat) => (
-                    <div key={stat.label} className="border rounded-2xl p-3.5 bg-slate-50/40 dark:bg-slate-800/30 text-center">
+                    <div key={stat.label} className="border rounded-2xl p-3.5 bg-muted/40 dark:bg-card/30 text-center">
                       <p className="text-lg font-black text-foreground">{stat.value ?? '—'}</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">{stat.label}</p>
+                      <p className="text-[9px] text-muted-foreground font-bold uppercase mt-0.5">{stat.label}</p>
                     </div>
                   ))}
                 </div>
@@ -1518,10 +1518,10 @@ export default function AdminPage() {
                     const dotColor = check.status === 'healthy' ? 'bg-emerald-500' : check.status === 'degraded' ? 'bg-amber-500' : 'bg-red-500';
                     const textColor = check.status === 'healthy' ? 'text-emerald-600' : check.status === 'degraded' ? 'text-amber-600' : 'text-red-600';
                     return (
-                      <div key={key} className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-2">
+                      <div key={key} className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <Icon className="h-3.5 w-3.5 text-slate-400" />
+                            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="font-bold text-xs">{label}</span>
                           </div>
                           <span className={`flex items-center gap-1 text-[9px] font-black uppercase ${textColor}`}>
@@ -1529,24 +1529,24 @@ export default function AdminPage() {
                             {check.status}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 leading-normal">{check.message}</p>
+                        <p className="text-[10px] text-muted-foreground leading-normal">{check.message}</p>
                         {typeof check.latencyMs === 'number' && (
-                          <p className="text-[9px] text-slate-400 font-bold">Latency: {check.latencyMs}ms</p>
+                          <p className="text-[9px] text-muted-foreground font-bold">Latency: {check.latencyMs}ms</p>
                         )}
                         {key === 'memory' && (
-                          <p className="text-[9px] text-slate-400 font-bold">
+                          <p className="text-[9px] text-muted-foreground font-bold">
                             Heap: {check.heapUsedMB}/{check.heapTotalMB}MB · System: {check.systemUsedPercent}% used
                             {typeof check.cpuUsageSeconds === 'number' && <> · CPU time: {check.cpuUsageSeconds}s</>}
                           </p>
                         )}
                         {key === 'database' && typeof check.activeConnections === 'number' && (
-                          <p className="text-[9px] text-slate-400 font-bold">{check.activeConnections} active connection(s)</p>
+                          <p className="text-[9px] text-muted-foreground font-bold">{check.activeConnections} active connection(s)</p>
                         )}
                         {key === 'redis' && typeof check.keysCount === 'number' && (
-                          <p className="text-[9px] text-slate-400 font-bold">{check.keysCount} cached key(s)</p>
+                          <p className="text-[9px] text-muted-foreground font-bold">{check.keysCount} cached key(s)</p>
                         )}
                         {key === 'realtime' && typeof check.connectedClients === 'number' && (
-                          <p className="text-[9px] text-slate-400 font-bold">{check.connectedClients} client(s) connected</p>
+                          <p className="text-[9px] text-muted-foreground font-bold">{check.connectedClients} client(s) connected</p>
                         )}
                       </div>
                     );
@@ -1555,12 +1555,12 @@ export default function AdminPage() {
 
                 {/* Background jobs */}
                 <div className="border rounded-2xl overflow-hidden">
-                  <div className="px-4 py-3 border-b bg-slate-50/60 dark:bg-slate-800/40 flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-slate-400" />
+                  <div className="px-4 py-3 border-b bg-muted/60 dark:bg-card/40 flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="font-bold text-xs">Background Jobs</span>
                   </div>
                   <table className="w-full text-[10px]">
-                    <thead className="bg-slate-50/40 dark:bg-slate-800/20 text-slate-400 uppercase text-[9px]">
+                    <thead className="bg-muted/40 dark:bg-card/20 text-muted-foreground uppercase text-[9px]">
                       <tr>
                         <th className="text-left px-4 py-2 font-bold">Job</th>
                         <th className="text-left px-4 py-2 font-bold">Last Run</th>
@@ -1572,17 +1572,17 @@ export default function AdminPage() {
                       {(health.checks?.backgroundJobs?.jobs || []).map((job: any) => (
                         <tr key={job.name}>
                           <td className="px-4 py-2 font-bold">{job.name}</td>
-                          <td className="px-4 py-2 text-slate-400">{job.lastRunAt ? new Date(job.lastRunAt).toLocaleTimeString() : 'Never run yet'}</td>
+                          <td className="px-4 py-2 text-muted-foreground">{job.lastRunAt ? new Date(job.lastRunAt).toLocaleTimeString() : 'Never run yet'}</td>
                           <td className="px-4 py-2">
                             {job.lastSuccess === null ? (
-                              <span className="text-slate-400">—</span>
+                              <span className="text-muted-foreground">—</span>
                             ) : job.lastSuccess ? (
                               <span className="text-emerald-600 font-bold flex items-center gap-1"><CheckCircle className="h-3 w-3" /> {job.lastResultSummary || 'OK'}</span>
                             ) : (
                               <span className="text-red-600 font-bold flex items-center gap-1"><XCircle className="h-3 w-3" /> {job.lastError || 'Failed'}</span>
                             )}
                           </td>
-                          <td className="px-4 py-2 text-slate-400">{job.lastDurationMs != null ? `${job.lastDurationMs}ms` : '—'}</td>
+                          <td className="px-4 py-2 text-muted-foreground">{job.lastDurationMs != null ? `${job.lastDurationMs}ms` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1591,17 +1591,17 @@ export default function AdminPage() {
 
                 {/* Recent errors */}
                 <div className="border rounded-2xl overflow-hidden">
-                  <div className="px-4 py-3 border-b bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between">
+                  <div className="px-4 py-3 border-b bg-muted/60 dark:bg-card/40 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-3.5 w-3.5 text-slate-400" />
+                      <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="font-bold text-xs">Recent Errors</span>
                     </div>
-                    <span className="text-[9px] text-slate-400 font-bold">
+                    <span className="text-[9px] text-muted-foreground font-bold">
                       {health.checks?.errors?.errorsLast5Min ?? 0} in last 5 min · {health.checks?.errors?.totalErrors ?? 0} total this session
                     </span>
                   </div>
                   {(health.checks?.errors?.recentErrors || []).length === 0 ? (
-                    <p className="px-4 py-8 text-center text-slate-400">No recent errors. 🎉</p>
+                    <p className="px-4 py-8 text-center text-muted-foreground">No recent errors. 🎉</p>
                   ) : (
                     <div className="divide-y max-h-64 overflow-y-auto">
                       {health.checks.errors.recentErrors.map((err: any, i: number) => (
@@ -1609,9 +1609,9 @@ export default function AdminPage() {
                           <span className="text-[9px] font-black text-red-500 shrink-0 mt-0.5">{err.statusCode}</span>
                           <div className="min-w-0">
                             <p className="font-bold text-foreground truncate">{err.method} {err.path}</p>
-                            <p className="text-slate-400 truncate">{err.message}</p>
+                            <p className="text-muted-foreground truncate">{err.message}</p>
                           </div>
-                          <span className="text-[9px] text-slate-400 shrink-0 ml-auto">{new Date(err.timestamp).toLocaleTimeString()}</span>
+                          <span className="text-[9px] text-muted-foreground shrink-0 ml-auto">{new Date(err.timestamp).toLocaleTimeString()}</span>
                         </div>
                       ))}
                     </div>
@@ -1627,19 +1627,19 @@ export default function AdminPage() {
           <div className="space-y-6 animate-in fade-in duration-200 text-xs">
             <div className="border-b pb-3">
               <h3 className="font-bold text-sm text-foreground">Email Notification Features</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">
+              <p className="text-[10px] text-muted-foreground mt-0.5">
                 Control which events trigger outbound emails, platform-wide. When a feature is off here, no email is sent
                 for it regardless of any individual user's personal notification preferences.
               </p>
             </div>
 
             {/* Send Test Email */}
-            <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-3">
+            <div className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-3">
               <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
                 <Mail className="h-3.5 w-3.5" />
                 <span>Send Test Email</span>
               </div>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-[10px] text-muted-foreground">
                 Send a real email right now through the current SMTP configuration to verify delivery is working —
                 no need to wait for a real notification to trigger.
               </p>
@@ -1649,12 +1649,12 @@ export default function AdminPage() {
                   value={testEmailTarget}
                   onChange={(e) => setTestEmailTarget(e.target.value)}
                   placeholder={user?.email || 'you@example.com'}
-                  className="flex-1 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                  className="flex-1 px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                 />
                 <button
                   onClick={handleSendTestEmail}
                   disabled={sendTestEmailMutation.isPending}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:opacity-90 transition-all disabled:opacity-50 shrink-0"
+                  className="flex items-center justify-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:opacity-90 transition-all disabled:opacity-50 shrink-0"
                 >
                   {sendTestEmailMutation.isPending ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1664,7 +1664,7 @@ export default function AdminPage() {
                   <span>Send Test Email</span>
                 </button>
               </div>
-              <p className="text-[9px] text-slate-400">Leave blank to send to your own account email ({user?.email}).</p>
+              <p className="text-[9px] text-muted-foreground">Leave blank to send to your own account email ({user?.email}).</p>
 
               {testEmailResult && (
                 <div
@@ -1689,7 +1689,7 @@ export default function AdminPage() {
             </div>
 
             {loadingEmailSettings ? (
-              <div className="flex items-center justify-center py-20 text-slate-450">
+              <div className="flex items-center justify-center py-20 text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
                 <span>Loading email feature settings...</span>
               </div>
@@ -1702,7 +1702,7 @@ export default function AdminPage() {
                   return (
                     <div
                       key={key}
-                      className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-2.5"
+                      className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-2.5"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3">
@@ -1711,7 +1711,7 @@ export default function AdminPage() {
                           </div>
                           <div>
                             <p className="font-bold text-xs text-foreground">{label}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5 leading-normal">{description}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">{description}</p>
                           </div>
                         </div>
                         <button
@@ -1722,11 +1722,11 @@ export default function AdminPage() {
                           onClick={() => handleToggleEmailFeature(key, isEnabled)}
                           disabled={updateEmailFeatureMutation.isPending}
                           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
-                            isEnabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'
+                            isEnabled ? 'bg-primary' : 'bg-secondary dark:bg-card'
                           }`}
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${
                               isEnabled ? 'translate-x-6' : 'translate-x-1'
                             }`}
                           />
@@ -1761,44 +1761,44 @@ export default function AdminPage() {
       {/* Create Custom Role Modal */}
       {createRoleOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Create Custom Role">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setCreateRoleOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" aria-label="Close">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => setCreateRoleOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base">Create Custom Role</h3>
-              <p className="text-xs text-slate-400">Establish dynamic permission profiles with inheritance support.</p>
+              <p className="text-xs text-muted-foreground">Establish dynamic permission profiles with inheritance support.</p>
             </div>
             <form onSubmit={handleCreateRoleSubmit} className="space-y-4 text-xs font-semibold">
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Role Name</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Role Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. HR Administrator"
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Description</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Description</label>
                 <textarea
                   placeholder="Permissions and target scope details..."
                   value={newRoleDesc}
                   onChange={(e) => setNewRoleDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-20 resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-slate-400 uppercase text-[10px]">Inherit Permissions From</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">Inherit Permissions From</label>
                   <select
                     value={newRoleParent}
                     onChange={(e) => setNewRoleParent(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                   >
                     <option value="">-- None --</option>
                     {roles?.map((r: any) => (
@@ -1808,11 +1808,11 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-slate-400 uppercase text-[10px]">Duplicate Matrix From</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">Duplicate Matrix From</label>
                   <select
                     value={newRoleDuplicate}
                     onChange={(e) => setNewRoleDuplicate(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                   >
                     <option value="">-- None --</option>
                     {roles?.map((r: any) => (
@@ -1822,7 +1822,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
+              <button type="submit" className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md">
                 Create Role
               </button>
             </form>
@@ -1833,38 +1833,38 @@ export default function AdminPage() {
       {/* Duplicate Role Modal */}
       {dupRoleOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Duplicate Custom Role">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => { setDupRoleOpen(false); setDupTargetRole(null); }} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg" aria-label="Close">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => { setDupRoleOpen(false); setDupTargetRole(null); }} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg" aria-label="Close">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base">Duplicate Custom Role</h3>
-              <p className="text-xs text-slate-400">Clone the entire permissions matrix into a new custom role profile.</p>
+              <p className="text-xs text-muted-foreground">Clone the entire permissions matrix into a new custom role profile.</p>
             </div>
             <form onSubmit={handleDuplicateSubmit} className="space-y-4 text-xs font-semibold">
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">New Role Name</label>
+                <label className="text-muted-foreground uppercase text-[10px]">New Role Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Senior Developer"
                   value={dupNewName}
                   onChange={(e) => setDupNewName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Description</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Description</label>
                 <textarea
                   placeholder="Cloned scope details..."
                   value={dupDesc}
                   onChange={(e) => setDupDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-20 resize-none"
                 />
               </div>
 
-              <button type="submit" className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md">
+              <button type="submit" className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md">
                 Clone Role
               </button>
             </form>
@@ -1875,17 +1875,17 @@ export default function AdminPage() {
       {/* Grant Temporary Role Modal */}
       {tempRoleOpen && tempRoleTargetUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Grant Temporary Role">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button
               onClick={() => { setTempRoleOpen(false); setTempRoleTargetUser(null); }}
-              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg"
+              className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base">Grant Temporary Role</h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-muted-foreground">
                 Give {tempRoleTargetUser.firstName} {tempRoleTargetUser.lastName} elevated access that automatically
                 reverts on its own — no need to remember to revoke it later.
               </p>
@@ -1895,13 +1895,13 @@ export default function AdminPage() {
               className="space-y-4 text-xs font-semibold"
             >
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]" htmlFor="temp-role-select">Role</label>
+                <label className="text-muted-foreground uppercase text-[10px]" htmlFor="temp-role-select">Role</label>
                 <select
                   id="temp-role-select"
                   required
                   value={tempRoleId}
                   onChange={(e) => setTempRoleId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 >
                   <option value="" disabled>Select a role...</option>
                   {roles?.map((r: any) => (
@@ -1911,7 +1911,7 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]" htmlFor="temp-role-expiry">Expires On</label>
+                <label className="text-muted-foreground uppercase text-[10px]" htmlFor="temp-role-expiry">Expires On</label>
                 <input
                   id="temp-role-expiry"
                   type="datetime-local"
@@ -1919,9 +1919,9 @@ export default function AdminPage() {
                   min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
                   value={tempRoleExpiresAt}
                   onChange={(e) => setTempRoleExpiresAt(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
-                <p className="text-[10px] text-slate-400 normal-case font-normal">
+                <p className="text-[10px] text-muted-foreground normal-case font-normal">
                   Permissions revert automatically the moment this passes — no follow-up action needed.
                 </p>
               </div>
@@ -1929,7 +1929,7 @@ export default function AdminPage() {
               <button
                 type="submit"
                 disabled={assignRoleMutation.isPending}
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md disabled:opacity-50"
               >
                 {assignRoleMutation.isPending ? 'Granting...' : 'Grant Temporary Access'}
               </button>
@@ -1941,17 +1941,17 @@ export default function AdminPage() {
       {/* Invite Teammate Onboarding Modal */}
       {inviteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Invite Teammate">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setInviteModalOpen(false); setGeneratedLink(''); }} 
-              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
               id="close-invite-modal-btn"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
-              <h3 className="font-bold text-base flex items-center space-x-1.5 text-slate-900 dark:text-slate-100">
+              <h3 className="font-bold text-base flex items-center space-x-1.5 text-foreground dark:text-foreground">
                 <UserPlus className="h-5 w-5 text-primary" />
                 <span>Invite New Teammate</span>
               </h3>
@@ -1960,24 +1960,24 @@ export default function AdminPage() {
 
             <form onSubmit={handleInviteSubmit} className="space-y-4 text-xs font-semibold">
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[10px]">Email Address</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Email Address</label>
                 <input
                   type="email"
                   required
                   placeholder="name@company.com"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                   id="invite-email-input"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[10px]">Assign System Role</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Assign System Role</label>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                   id="invite-role-select"
                 >
                   <option value="EMPLOYEE">Employee (Base Teammate)</option>
@@ -1988,7 +1988,7 @@ export default function AdminPage() {
 
               <button 
                 type="submit" 
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all"
                 id="submit-invite-btn"
               >
                 Send Onboarding Link
@@ -1996,10 +1996,10 @@ export default function AdminPage() {
             </form>
 
             {generatedLink && (
-              <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 border rounded-xl space-y-2 text-xs">
-                <span className="font-bold text-slate-700 dark:text-slate-300">Teammate Onboarding Link:</span>
-                <div className="flex items-center justify-between space-x-2 bg-white dark:bg-slate-900 border rounded-lg p-2 overflow-hidden">
-                  <span className="truncate select-all text-slate-650 dark:text-slate-350 pr-2 select-all font-mono text-[10px] flex-1">
+              <div className="mt-4 p-3 bg-muted dark:bg-card/50 border rounded-xl space-y-2 text-xs">
+                <span className="font-bold text-foreground dark:text-foreground">Teammate Onboarding Link:</span>
+                <div className="flex items-center justify-between space-x-2 bg-card dark:bg-card border rounded-lg p-2 overflow-hidden">
+                  <span className="truncate select-all text-muted-foreground dark:text-foreground pr-2 select-all font-mono text-[10px] flex-1">
                     {generatedLink}
                   </span>
                   <button
@@ -2007,7 +2007,7 @@ export default function AdminPage() {
                       navigator.clipboard.writeText(generatedLink);
                       toast.success('Link copied to clipboard!');
                     }}
-                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 shrink-0"
+                    className="p-1.5 hover:bg-muted dark:hover:bg-card rounded text-muted-foreground shrink-0"
                     title="Copy onboarding link"
                     type="button"
                     id="copy-invite-link-btn"
@@ -2025,76 +2025,76 @@ export default function AdminPage() {
       {/* Edit User Details Modal */}
       {editUserOpen && selectedEditUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Edit Teammate Profile">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setEditUserOpen(false); setSelectedEditUser(null); }} 
-              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
               id="close-edit-user-modal-btn"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Edit Teammate Profile</h3>
+              <h3 className="font-bold text-base text-foreground dark:text-foreground">Edit Teammate Profile</h3>
               <p className="text-xs text-muted-foreground">Modify details for {selectedEditUser.email}</p>
             </div>
 
             <form onSubmit={handleEditUserSubmit} className="space-y-3.5 text-xs font-semibold">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[10px]">First Name</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">First Name</label>
                   <input
                     type="text"
                     required
                     value={editFirstName}
                     onChange={(e) => setEditFirstName(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                     id="edit-firstname-input"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[10px]">Last Name</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">Last Name</label>
                   <input
                     type="text"
                     required
                     value={editLastName}
                     onChange={(e) => setEditLastName(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                     id="edit-lastname-input"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[10px]">Email Address</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Email Address</label>
                 <input
                   type="email"
                   required
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                   id="edit-email-input"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[10px]">Designation</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">Designation</label>
                   <input
                     type="text"
                     value={editDesignation}
                     onChange={(e) => setEditDesignation(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                     id="edit-designation-input"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[10px]">Office Location</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">Office Location</label>
                   <input
                     type="text"
                     value={editLocation}
                     onChange={(e) => setEditLocation(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                    className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                     id="edit-location-input"
                   />
                 </div>
@@ -2102,13 +2102,13 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[10px]">System Access Role</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">System Access Role</label>
                   <select
                     value={editSystemRole}
                     onChange={(e) => setEditSystemRole(e.target.value as any)}
                     disabled={selectedEditUser?.id === user?.id}
                     title={selectedEditUser?.id === user?.id ? "You can't change your own system access role." : undefined}
-                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                     id="edit-system-role-select"
                   >
                     <option value="EMPLOYEE">Employee</option>
@@ -2117,11 +2117,11 @@ export default function AdminPage() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[10px]">Custom RBAC Role</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">Custom RBAC Role</label>
                   <select
                     value={editCustomRole}
                     onChange={(e) => setEditCustomRole(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                    className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs"
                     id="edit-custom-role-select"
                   >
                     <option value="">-- No custom role --</option>
@@ -2134,11 +2134,11 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[10px]">Reporting Manager</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">Reporting Manager</label>
                   <select
                     value={editManagerId}
                     onChange={(e) => setEditManagerId(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                    className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs"
                     id="edit-manager-select"
                   >
                     <option value="">No Manager Assigned</option>
@@ -2148,11 +2148,11 @@ export default function AdminPage() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-slate-400 uppercase text-[10px]">Department</label>
+                  <label className="text-muted-foreground uppercase text-[10px]">Department</label>
                   <select
                     value={editDepartmentId}
                     onChange={(e) => setEditDepartmentId(e.target.value)}
-                    className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                    className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs"
                     id="edit-department-select"
                   >
                     <option value="">No Department</option>
@@ -2164,19 +2164,19 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[10px]">Joining Date</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Joining Date</label>
                 <input
                   type="date"
                   value={editJoiningDate}
                   onChange={(e) => setEditJoiningDate(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none text-xs"
+                  className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs"
                   id="edit-joining-date-input"
                 />
               </div>
 
               <button 
                 type="submit" 
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all mt-2"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all mt-2"
                 id="submit-edit-user-btn"
               >
                 Save Changes
@@ -2189,37 +2189,37 @@ export default function AdminPage() {
       {/* Force Change Password Modal */}
       {changePasswordOpen && selectedPasswordUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs animate-fade-in p-4" role="dialog" aria-modal="true" aria-label="Reset User Password">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative">
             <button 
               onClick={() => { setChangePasswordOpen(false); setSelectedPasswordUser(null); }} 
-              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
               id="close-password-modal-btn"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Reset User Password</h3>
+              <h3 className="font-bold text-base text-foreground dark:text-foreground">Reset User Password</h3>
               <p className="text-xs text-muted-foreground">Force update password credentials for {selectedPasswordUser.firstName} {selectedPasswordUser.lastName}</p>
             </div>
 
             <form onSubmit={handleChangePasswordSubmit} className="space-y-4 text-xs font-semibold">
               <div className="space-y-1.5">
-                <label className="text-slate-400 uppercase text-[10px]">New Password</label>
+                <label className="text-muted-foreground uppercase text-[10px]">New Password</label>
                 <input
                   type="password"
                   required
                   placeholder="At least 6 characters"
                   value={adminNewPassword}
                   onChange={(e) => setAdminNewPassword(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                   id="admin-new-password-input"
                 />
               </div>
 
               <button 
                 type="submit" 
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md hover:bg-primary/95 transition-all"
                 id="submit-password-btn"
               >
                 Confirm Reset Password

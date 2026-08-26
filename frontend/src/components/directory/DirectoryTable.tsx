@@ -13,10 +13,10 @@ export function DirectoryTable({
   onStartChat: (u: any) => void;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border rounded-2xl overflow-x-auto shadow-sm text-left">
+    <div className="bg-card dark:bg-card border rounded-2xl overflow-x-auto shadow-sm text-left">
       <table className="w-full text-left border-collapse text-xs">
         <thead>
-          <tr className="border-b bg-slate-50/50 dark:bg-slate-800/40 text-slate-450 uppercase font-extrabold text-[10px] tracking-wider">
+          <tr className="border-b bg-muted/50 dark:bg-card/40 text-muted-foreground uppercase font-extrabold text-[10px] tracking-wider">
             <th className="p-4">Teammate</th>
             <th className="p-4">Designation</th>
             <th className="p-4">Department</th>
@@ -31,10 +31,10 @@ export function DirectoryTable({
             <tr
               key={colleague.id}
               onClick={() => onSelectUser(colleague)}
-              className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/20 cursor-pointer transition-colors"
+              className="border-b hover:bg-muted dark:hover:bg-card/20 cursor-pointer transition-colors"
             >
               <td className="p-4 flex items-center space-x-3">
-                <div className="h-8 w-8 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center text-xs font-bold uppercase text-slate-500 overflow-hidden shrink-0 border">
+                <div className="h-8 w-8 bg-secondary dark:bg-card rounded-full flex items-center justify-center text-xs font-bold uppercase text-muted-foreground overflow-hidden shrink-0 border">
                   {colleague.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={colleague.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -42,14 +42,14 @@ export function DirectoryTable({
                     `${colleague.firstName[0]}${colleague.lastName[0]}`
                   )}
                 </div>
-                <span className="font-bold text-slate-800 dark:text-slate-200">
+                <span className="font-bold text-foreground dark:text-foreground">
                   {colleague.firstName} {colleague.lastName}
                 </span>
               </td>
-              <td className="p-4 font-semibold text-slate-650 dark:text-slate-350">{colleague.designation || 'Teammate'}</td>
-              <td className="p-4 text-slate-550 font-medium">{colleague.department?.name || 'General Org'}</td>
-              <td className="p-4 text-slate-550 font-medium">{colleague.officeLocation || colleague.location || 'Remote'}</td>
-              <td className="p-4 text-slate-555 font-medium">{colleague.timezone || 'UTC'}</td>
+              <td className="p-4 font-semibold text-muted-foreground dark:text-foreground">{colleague.designation || 'Teammate'}</td>
+              <td className="p-4 text-muted-foreground font-medium">{colleague.department?.name || 'General Org'}</td>
+              <td className="p-4 text-muted-foreground font-medium">{colleague.officeLocation || colleague.location || 'Remote'}</td>
+              <td className="p-4 text-muted-foreground font-medium">{colleague.timezone || 'UTC'}</td>
               <td className="p-4">
                 <span
                   className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${statusBadgeClass(
@@ -72,7 +72,7 @@ export function DirectoryTable({
                   )}
                   <button
                     onClick={() => onSelectUser(colleague)}
-                    className="px-3 py-1.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-505 hover:text-foreground font-semibold"
+                    className="px-3 py-1.5 border rounded-lg hover:bg-muted dark:hover:bg-card text-muted-foreground hover:text-foreground font-semibold"
                   >
                     View Profile
                   </button>

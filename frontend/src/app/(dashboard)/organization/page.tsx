@@ -400,7 +400,7 @@ export default function OrganizationPage() {
         {activeTab === 'departments' && (
           <button
             onClick={() => setCreateDeptOpen(true)}
-            className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
+            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
           >
             <Plus className="h-4 w-4" />
             <span>Create Department</span>
@@ -410,7 +410,7 @@ export default function OrganizationPage() {
         {activeTab === 'teams' && (
           <button
             onClick={() => setCreateTeamOpen(true)}
-            className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
+            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
           >
             <Plus className="h-4 w-4" />
             <span>Create Team</span>
@@ -431,56 +431,56 @@ export default function OrganizationPage() {
       />
 
       {/* Tab Workspaces */}
-      <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
+      <div className="bg-card dark:bg-card border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
         {/* Organization Settings Workspace */}
         {activeTab === 'org' && (
           <div className="space-y-6 animate-in fade-in duration-200 text-xs max-w-3xl">
             <div className="border-b pb-3 flex items-start justify-between gap-4">
               <div>
                 <h3 className="font-bold text-sm text-foreground">Organization Branding & Configuration</h3>
-                <p className="text-[10px] text-slate-400 mt-0.5">
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   These values propagate everywhere automatically — the sidebar, login/registration screens, outbound
                   emails, the public landing page, and file watermarks all read from here. No code change needed.
                 </p>
               </div>
               {orgSettingsData?.updatedAt && (
-                <span className="text-[9px] text-slate-400 whitespace-nowrap shrink-0 pt-0.5">
+                <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0 pt-0.5">
                   Last updated {new Date(orgSettingsData.updatedAt).toLocaleString()}
                 </span>
               )}
             </div>
 
             {loadingOrgSettings ? (
-              <div className="flex items-center justify-center py-20 text-slate-450">
+              <div className="flex items-center justify-center py-20 text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
                 <span>Loading organization settings...</span>
               </div>
             ) : (
               <div className="space-y-5 pt-1">
                 {/* Identity */}
-                <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+                <div className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-4">
                   <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
                     <Building2 className="h-3.5 w-3.5" />
                     <span>Identity</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Organization Name</label>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Organization Name</label>
                       <input
                         type="text"
                         value={orgForm.orgName || ''}
                         onChange={(e) => setOrgForm({ ...orgForm, orgName: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="ConnectHub"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Tagline</label>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Tagline</label>
                       <input
                         type="text"
                         value={orgForm.tagline || ''}
                         onChange={(e) => setOrgForm({ ...orgForm, tagline: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="Enterprise Communication & Collaboration Platform"
                       />
                     </div>
@@ -488,28 +488,28 @@ export default function OrganizationPage() {
                 </div>
 
                 {/* Branding */}
-                <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+                <div className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-4">
                   <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
                     <Palette className="h-3.5 w-3.5" />
                     <span>Branding</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                         <ImageIcon className="h-3 w-3" /> Logo
                       </label>
                       <div className="flex items-center gap-3">
-                        <div className="h-14 w-14 shrink-0 rounded-xl border bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                        <div className="h-14 w-14 shrink-0 rounded-xl border bg-card dark:bg-card flex items-center justify-center overflow-hidden">
                           {orgForm.logoUrl ? (
                             <img src={orgForm.logoUrl} alt="Organization logo" className="h-full w-full object-contain" />
                           ) : (
-                            <ImageIcon className="h-5 w-5 text-slate-300" />
+                            <ImageIcon className="h-5 w-5 text-foreground" />
                           )}
                         </div>
                         <div className="flex-1 space-y-1.5">
                           <label
                             htmlFor="org-logo-upload"
-                            className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-[10px] font-bold transition-all"
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-card dark:bg-card hover:bg-muted dark:hover:bg-card cursor-pointer text-[10px] font-bold transition-all"
                           >
                             {uploadLogoMutation.isPending ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -538,21 +538,21 @@ export default function OrganizationPage() {
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                         <ImageIcon className="h-3 w-3" /> Favicon
                       </label>
                       <div className="flex items-center gap-3">
-                        <div className="h-14 w-14 shrink-0 rounded-xl border bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                        <div className="h-14 w-14 shrink-0 rounded-xl border bg-card dark:bg-card flex items-center justify-center overflow-hidden">
                           {orgForm.faviconUrl ? (
                             <img src={orgForm.faviconUrl} alt="Organization favicon" className="h-full w-full object-contain" />
                           ) : (
-                            <ImageIcon className="h-5 w-5 text-slate-300" />
+                            <ImageIcon className="h-5 w-5 text-foreground" />
                           )}
                         </div>
                         <div className="flex-1 space-y-1.5">
                           <label
                             htmlFor="org-favicon-upload"
-                            className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-[10px] font-bold transition-all"
+                            className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-card dark:bg-card hover:bg-muted dark:hover:bg-card cursor-pointer text-[10px] font-bold transition-all"
                           >
                             {uploadFaviconMutation.isPending ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -581,13 +581,13 @@ export default function OrganizationPage() {
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Primary Color</label>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Primary Color</label>
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
                           value={orgForm.primaryColor || '#4f46e5'}
                           onChange={(e) => setOrgForm({ ...orgForm, primaryColor: e.target.value })}
-                          className="h-9 w-12 border rounded-lg bg-white dark:bg-slate-900 cursor-pointer shrink-0"
+                          className="h-9 w-12 border rounded-lg bg-card dark:bg-card cursor-pointer shrink-0"
                         />
                         <input
                           type="text"
@@ -599,7 +599,7 @@ export default function OrganizationPage() {
                               toast.error('Primary color must be a valid hex code, e.g. #4f46e5.');
                             }
                           }}
-                          className="flex-1 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                          className="flex-1 px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                           placeholder="#4f46e5"
                         />
                       </div>
@@ -608,55 +608,55 @@ export default function OrganizationPage() {
                 </div>
 
                 {/* Contact */}
-                <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+                <div className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-4">
                   <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
                     <Mail className="h-3.5 w-3.5" />
                     <span>Contact</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Support Email</label>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Support Email</label>
                       <input
                         type="email"
                         value={orgForm.supportEmail || ''}
                         onChange={(e) => setOrgForm({ ...orgForm, supportEmail: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="support@example.com"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                         <Phone className="h-3 w-3" /> Support Phone
                       </label>
                       <input
                         type="tel"
                         value={orgForm.supportPhone || ''}
                         onChange={(e) => setOrgForm({ ...orgForm, supportPhone: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="+1 (800) 555-0100"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                         <Globe className="h-3 w-3" /> Website
                       </label>
                       <input
                         type="text"
                         value={orgForm.website || ''}
                         onChange={(e) => setOrgForm({ ...orgForm, website: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="https://example.com"
                       />
                     </div>
                     <div className="space-y-1 md:col-span-2">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                         <MapPin className="h-3 w-3" /> Address
                       </label>
                       <input
                         type="text"
                         value={orgForm.address || ''}
                         onChange={(e) => setOrgForm({ ...orgForm, address: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="123 Main St, Suite 100, San Francisco, CA"
                       />
                     </div>
@@ -664,49 +664,49 @@ export default function OrganizationPage() {
                 </div>
 
                 {/* Defaults */}
-                <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+                <div className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-4">
                   <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
                     <FileText className="h-3.5 w-3.5" />
                     <span>Defaults</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Default Watermark Text</label>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Default Watermark Text</label>
                       <input
                         type="text"
                         value={orgForm.defaultWatermarkText || ''}
                         onChange={(e) => setOrgForm({ ...orgForm, defaultWatermarkText: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="ConnectHub CONFIDENTIAL"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Default Timezone</label>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Default Timezone</label>
                       <select
                         value={orgForm.defaultTimezone || 'UTC'}
                         onChange={(e) => setOrgForm({ ...orgForm, defaultTimezone: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                       >
                         {COMMON_TIMEZONES.map((tz) => (
                           <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
                         ))}
                       </select>
-                      <p className="text-[9px] text-slate-400">Applied to new employees' accounts when they register or accept an invite.</p>
+                      <p className="text-[9px] text-muted-foreground">Applied to new employees' accounts when they register or accept an invite.</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
                   <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     <span>Access & Registration</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 -mt-1">
+                  <p className="text-[10px] text-muted-foreground -mt-1">
                     Controls how new accounts can be created once your workspace is set up. The very first Admin
                     account is always exempt from this — it always gets in, so there's someone to configure it.
                   </p>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Registration Mode</label>
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Registration Mode</label>
                     <div className="grid grid-cols-1 gap-2">
                       {[
                         { value: 'INVITE_ONLY', title: 'Invite Only (Recommended)', desc: "Nobody can self-register. Every account starts as an invitation from an Admin or Manager." },
@@ -716,7 +716,7 @@ export default function OrganizationPage() {
                         <label
                           key={opt.value}
                           className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                            orgForm.registrationMode === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
+                            orgForm.registrationMode === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-muted/60 dark:hover:bg-card/60'
                           }`}
                         >
                           <input
@@ -729,7 +729,7 @@ export default function OrganizationPage() {
                           />
                           <div>
                             <p className="font-bold text-foreground">{opt.title}</p>
-                            <p className="text-[10px] text-slate-400 leading-normal mt-0.5">{opt.desc}</p>
+                            <p className="text-[10px] text-muted-foreground leading-normal mt-0.5">{opt.desc}</p>
                           </div>
                         </label>
                       ))}
@@ -737,30 +737,30 @@ export default function OrganizationPage() {
                   </div>
                   {orgForm.registrationMode === 'DOMAIN_RESTRICTED' && (
                     <div className="space-y-1 pt-1">
-                      <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Allowed Email Domains</label>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Allowed Email Domains</label>
                       <input
                         type="text"
                         value={allowedDomainsInput}
                         onChange={(e) => setAllowedDomainsInput(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="yourcompany.com, yourcompany.io"
                       />
-                      <p className="text-[9px] text-slate-400">Comma-separated. Anyone signing up with an email on one of these domains is auto-approved as an Employee.</p>
+                      <p className="text-[9px] text-muted-foreground">Comma-separated. Anyone signing up with an email on one of these domains is auto-approved as an Employee.</p>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
                   <div className="flex items-center justify-between border-b pb-2">
                     <div className="flex items-center gap-2 font-bold text-xs text-foreground">
                       <ShieldCheck className="h-3.5 w-3.5" />
                       <span>Single Sign-On (Google)</span>
                     </div>
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${orgSettingsData?.ssoGoogleAvailable ? 'bg-emerald-500/10 text-emerald-600' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'}`}>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${orgSettingsData?.ssoGoogleAvailable ? 'bg-emerald-500/10 text-emerald-600' : 'bg-secondary dark:bg-card text-muted-foreground'}`}>
                       {orgSettingsData?.ssoGoogleAvailable ? 'Active' : 'Not Configured'}
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-400 -mt-1">
+                  <p className="text-[10px] text-muted-foreground -mt-1">
                     Lets employees sign in with their Google account instead of a password. Requires
                     GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI to be set on the server —
                     that part is infra-level config, not editable here. This toggle lets you turn it off for the
@@ -772,45 +772,45 @@ export default function OrganizationPage() {
                       role="switch"
                       aria-checked={ssoGoogleEnabled}
                       onClick={() => setSsoGoogleEnabled(!ssoGoogleEnabled)}
-                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${ssoGoogleEnabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${ssoGoogleEnabled ? 'bg-primary' : 'bg-secondary dark:bg-card'}`}
                     >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${ssoGoogleEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${ssoGoogleEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
                     <span className="text-xs font-bold">{ssoGoogleEnabled ? 'Enabled' : 'Disabled'}</span>
                   </label>
                 </div>
 
-                <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+                <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
                   <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
                     <HeartPulse className="h-3.5 w-3.5" />
                     <span>Health Alerts</span>
                   </div>
-                  <p className="text-[10px] text-slate-400 -mt-1">
+                  <p className="text-[10px] text-muted-foreground -mt-1">
                     Get notified the moment System Health status changes — checked every 2 minutes in the
                     background, whether or not anyone has the System Health tab open. Works with a Slack incoming
                     webhook URL, or any endpoint that accepts a JSON POST.
                   </p>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Alert Webhook URL</label>
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Alert Webhook URL</label>
                     <div className="flex gap-2">
                       <input
                         type="text"
                         value={orgForm.alertWebhookUrl || ''}
                         onChange={(e) => setOrgForm({ ...orgForm, alertWebhookUrl: e.target.value })}
-                        className="flex-1 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="flex-1 px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="https://hooks.slack.com/services/..."
                       />
                       <button
                         type="button"
                         onClick={() => sendTestAlertMutation.mutate(orgForm.alertWebhookUrl)}
                         disabled={sendTestAlertMutation.isPending || !orgForm.alertWebhookUrl}
-                        className="flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 whitespace-nowrap"
+                        className="flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-[11px] font-bold hover:bg-muted dark:hover:bg-card disabled:opacity-50 whitespace-nowrap"
                       >
                         {sendTestAlertMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                         Send Test
                       </button>
                     </div>
-                    <p className="text-[9px] text-slate-400">Leave blank to disable alerting. "Send Test" tries the URL above immediately, even before you save.</p>
+                    <p className="text-[9px] text-muted-foreground">Leave blank to disable alerting. "Send Test" tries the URL above immediately, even before you save.</p>
                   </div>
                 </div>
 
@@ -818,7 +818,7 @@ export default function OrganizationPage() {
                   <button
                     onClick={handleSaveOrgSettings}
                     disabled={updateOrgSettingsMutation.isPending}
-                    className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-white rounded-xl font-bold text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
                   >
                     {updateOrgSettingsMutation.isPending ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -837,34 +837,34 @@ export default function OrganizationPage() {
         {activeTab === 'departments' && (
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b text-slate-400 uppercase text-[9px] tracking-wider font-bold">
+              <tr className="border-b text-muted-foreground uppercase text-[9px] tracking-wider font-bold">
                 <th className="pb-3">Department Name</th>
                 <th className="pb-3">Manager</th>
                 <th className="pb-3">Description</th>
                 <th className="pb-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y font-semibold text-slate-600 dark:text-slate-350">
+            <tbody className="divide-y font-semibold text-muted-foreground dark:text-foreground">
               {loadingDepts ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-10 text-slate-400">Loading department structures...</td>
+                  <td colSpan={4} className="text-center py-10 text-muted-foreground">Loading department structures...</td>
                 </tr>
               ) : depts?.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-10 text-slate-400">No departments yet. Create one to get started.</td>
+                  <td colSpan={4} className="text-center py-10 text-muted-foreground">No departments yet. Create one to get started.</td>
                 </tr>
               ) : (
                 depts?.map((d: any) => (
-                  <tr key={d.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20">
+                  <tr key={d.id} className="hover:bg-muted/50 dark:hover:bg-card/20">
                     <td className="py-3.5 font-bold text-primary">{d.name}</td>
                     <td className="py-3.5">
                       {d.manager ? `${d.manager.firstName} ${d.manager.lastName}` : 'No manager assigned'}
                     </td>
-                    <td className="py-3.5 text-slate-400">{d.description || 'No description provided.'}</td>
+                    <td className="py-3.5 text-muted-foreground">{d.description || 'No description provided.'}</td>
                     <td className="py-3.5 text-right space-x-1">
                       <button
                         onClick={() => openEditDept(d)}
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded"
+                        className="p-1 hover:bg-muted dark:hover:bg-card text-muted-foreground rounded"
                         title="Edit department"
                       >
                         <ClipboardPen className="h-4 w-4" />
@@ -888,30 +888,30 @@ export default function OrganizationPage() {
         {activeTab === 'teams' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {loadingTeams ? (
-              <div className="col-span-2 flex items-center justify-center py-20 text-slate-450">
+              <div className="col-span-2 flex items-center justify-center py-20 text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
                 <span>Loading teams...</span>
               </div>
             ) : teams?.length === 0 ? (
-              <div className="col-span-2 text-center py-16 text-slate-400 text-xs">
+              <div className="col-span-2 text-center py-16 text-muted-foreground text-xs">
                 No teams yet. Create one to start building rosters.
               </div>
             ) : (
               teams?.map((t: any) => (
-                <div key={t.id} className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-3">
+                <div key={t.id} className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
                       <h4 className="font-bold text-sm flex items-center gap-1.5">
                         <UsersRound className="h-4 w-4 text-primary" />
                         <span>{t.name}</span>
                       </h4>
-                      <p className="text-[10px] text-slate-400">{t.department?.name} · {t.members?.length || 0} member{t.members?.length === 1 ? '' : 's'} · {t._count?.projects || 0} project{t._count?.projects === 1 ? '' : 's'}</p>
-                      {t.description && <p className="text-[10px] text-slate-450 mt-1">{t.description}</p>}
+                      <p className="text-[10px] text-muted-foreground">{t.department?.name} · {t.members?.length || 0} member{t.members?.length === 1 ? '' : 's'} · {t._count?.projects || 0} project{t._count?.projects === 1 ? '' : 's'}</p>
+                      {t.description && <p className="text-[10px] text-muted-foreground mt-1">{t.description}</p>}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => openEditTeam(t)}
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded"
+                        className="p-1 hover:bg-muted dark:hover:bg-card text-muted-foreground rounded"
                         title="Edit team"
                       >
                         <ClipboardPen className="h-4 w-4" />
@@ -928,14 +928,14 @@ export default function OrganizationPage() {
 
                   <div className="flex flex-wrap gap-1.5">
                     {t.members?.length === 0 ? (
-                      <span className="text-[10px] text-slate-400 italic">No members yet.</span>
+                      <span className="text-[10px] text-muted-foreground italic">No members yet.</span>
                     ) : (
                       t.members.map((m: any) => (
-                        <span key={m.id} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-900 border rounded-full text-[10px] font-semibold">
+                        <span key={m.id} className="flex items-center gap-1 px-2 py-1 bg-card dark:bg-card border rounded-full text-[10px] font-semibold">
                           {m.user.firstName} {m.user.lastName}
                           <button
                             onClick={() => removeTeamMemberMutation.mutate({ teamId: t.id, userId: m.userId })}
-                            className="text-slate-400 hover:text-red-500"
+                            className="text-muted-foreground hover:text-red-500"
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -951,7 +951,7 @@ export default function OrganizationPage() {
                         setManageTeamRosterId(t.id);
                         setAddMemberUserId(e.target.value);
                       }}
-                      className="flex-1 bg-white dark:bg-slate-900 border rounded-lg px-2 py-1.5 text-[10px] focus:outline-none"
+                      className="flex-1 bg-card dark:bg-card border rounded-lg px-2 py-1.5 text-[10px] focus:outline-none"
                     >
                       <option value="">-- Add a member --</option>
                       {systemUsers
@@ -968,7 +968,7 @@ export default function OrganizationPage() {
                         setManageTeamRosterId(null);
                       }}
                       disabled={manageTeamRosterId !== t.id || !addMemberUserId}
-                      className="px-3 py-1.5 bg-primary text-white rounded-lg text-[10px] font-bold hover:opacity-90 disabled:opacity-40 transition-all"
+                      className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-[10px] font-bold hover:opacity-90 disabled:opacity-40 transition-all"
                     >
                       Add
                     </button>
@@ -983,43 +983,43 @@ export default function OrganizationPage() {
       {/* Create Department Modal */}
       {createDeptOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setCreateDeptOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => setCreateDeptOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base">Establish New Department</h3>
-              <p className="text-xs text-slate-400">Organize and segment user pools into functional divisions.</p>
+              <p className="text-xs text-muted-foreground">Organize and segment user pools into functional divisions.</p>
             </div>
             <form onSubmit={handleCreateDeptSubmit} className="space-y-4 text-xs font-semibold">
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Department Name</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Department Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Finance Division"
                   value={deptName}
                   onChange={(e) => setDeptName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Description</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Description</label>
                 <textarea
                   placeholder="Functional division details..."
                   value={deptDesc}
                   onChange={(e) => setDeptDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-20 resize-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Manager (optional)</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Manager (optional)</label>
                 <select
                   value={deptManagerId}
                   onChange={(e) => setDeptManagerId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 >
                   <option value="">-- No manager assigned --</option>
                   {systemUsers?.map((u: any) => (
@@ -1031,7 +1031,7 @@ export default function OrganizationPage() {
               <button
                 type="submit"
                 disabled={createDeptMutation.isPending}
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md disabled:opacity-50"
               >
                 {createDeptMutation.isPending ? 'Creating...' : 'Establish division'}
               </button>
@@ -1043,41 +1043,41 @@ export default function OrganizationPage() {
       {/* Edit Department Modal */}
       {editDept && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setEditDept(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => setEditDept(null)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base">Edit Department</h3>
-              <p className="text-xs text-slate-400">Rename this division, update its description, or reassign its manager.</p>
+              <p className="text-xs text-muted-foreground">Rename this division, update its description, or reassign its manager.</p>
             </div>
             <form onSubmit={handleEditDeptSubmit} className="space-y-4 text-xs font-semibold">
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Department Name</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Department Name</label>
                 <input
                   type="text"
                   required
                   value={editDeptName}
                   onChange={(e) => setEditDeptName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Description</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Description</label>
                 <textarea
                   value={editDeptDesc}
                   onChange={(e) => setEditDeptDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-20 resize-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Manager</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Manager</label>
                 <select
                   value={editDeptManagerId}
                   onChange={(e) => setEditDeptManagerId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 >
                   <option value="">-- No manager assigned --</option>
                   {systemUsers?.map((u: any) => (
@@ -1089,7 +1089,7 @@ export default function OrganizationPage() {
               <button
                 type="submit"
                 disabled={updateDeptMutation.isPending}
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md disabled:opacity-50"
               >
                 {updateDeptMutation.isPending ? 'Saving...' : 'Save Changes'}
               </button>
@@ -1101,13 +1101,13 @@ export default function OrganizationPage() {
       {/* Create Team Modal */}
       {createTeamOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setCreateTeamOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => setCreateTeamOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base">Create New Team</h3>
-              <p className="text-xs text-slate-400">Build a roster within a department to organize projects and members.</p>
+              <p className="text-xs text-muted-foreground">Build a roster within a department to organize projects and members.</p>
             </div>
             <form
               onSubmit={(e) => {
@@ -1118,24 +1118,24 @@ export default function OrganizationPage() {
               className="space-y-4 text-xs font-semibold"
             >
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Team Name</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Team Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Platform Engineering"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Department</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Department</label>
                 <select
                   required
                   value={teamDeptId}
                   onChange={(e) => setTeamDeptId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 >
                   <option value="">-- Select a department --</option>
                   {depts?.map((d: any) => (
@@ -1145,19 +1145,19 @@ export default function OrganizationPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Description (optional)</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Description (optional)</label>
                 <textarea
                   placeholder="What does this team own..."
                   value={teamDesc}
                   onChange={(e) => setTeamDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-20 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={createTeamMutation.isPending}
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md disabled:opacity-50"
               >
                 {createTeamMutation.isPending ? 'Creating...' : 'Create Team'}
               </button>
@@ -1169,33 +1169,33 @@ export default function OrganizationPage() {
       {/* Edit Team Modal */}
       {editTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setEditTeam(null)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => setEditTeam(null)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base">Edit Team</h3>
-              <p className="text-xs text-slate-400">Rename this team, update its description, or move it to a different department.</p>
+              <p className="text-xs text-muted-foreground">Rename this team, update its description, or move it to a different department.</p>
             </div>
             <form onSubmit={handleEditTeamSubmit} className="space-y-4 text-xs font-semibold">
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Team Name</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Team Name</label>
                 <input
                   type="text"
                   required
                   value={editTeamName}
                   onChange={(e) => setEditTeamName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Department</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Department</label>
                 <select
                   required
                   value={editTeamDeptId}
                   onChange={(e) => setEditTeamDeptId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 >
                   <option value="">-- Select a department --</option>
                   {depts?.map((d: any) => (
@@ -1205,18 +1205,18 @@ export default function OrganizationPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Description</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Description</label>
                 <textarea
                   value={editTeamDesc}
                   onChange={(e) => setEditTeamDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-20 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={updateTeamMutation.isPending}
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md disabled:opacity-50"
               >
                 {updateTeamMutation.isPending ? 'Saving...' : 'Save Changes'}
               </button>

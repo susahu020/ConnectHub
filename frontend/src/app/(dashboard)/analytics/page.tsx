@@ -40,25 +40,25 @@ export default function AnalyticsDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 dark:bg-slate-950">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-muted dark:bg-card">
         <Activity className="h-8 w-8 animate-spin text-primary mb-3" />
-        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Aggregating workspace analytics...</p>
+        <p className="text-xs text-muted-foreground dark:text-muted-foreground font-bold uppercase tracking-wider">Aggregating workspace analytics...</p>
       </div>
     );
   }
 
   if (error || !stats) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 dark:bg-slate-950 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-muted dark:bg-card text-center">
         <ShieldAlert className="h-8 w-8 text-rose-500 mb-3" />
-        <p className="text-sm font-bold text-slate-800 dark:text-white">Failed to load analytics</p>
-        <p className="text-xs text-slate-500 mt-1">Please ensure your user role has administrative permissions.</p>
+        <p className="text-sm font-bold text-foreground">Failed to load analytics</p>
+        <p className="text-xs text-muted-foreground mt-1">Please ensure your user role has administrative permissions.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50 dark:bg-slate-950">
+    <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-muted dark:bg-card">
       <AnalyticsHeader />
       <AnalyticsTabs activeTab={activeTab} onChange={setActiveTab} />
 

@@ -92,21 +92,21 @@ export default function ImageCropperModal({ isOpen, imageSrc, onClose, onCrop }:
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-fade-in text-left">
-      <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-6 shadow-2xl relative">
+      <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-6 shadow-2xl relative">
         <button 
           onClick={onClose} 
-          className="absolute right-4 top-4 text-slate-500 hover:bg-slate-105 p-1 rounded-lg transition-all"
+          className="absolute right-4 top-4 text-muted-foreground hover:bg-secondary p-1 rounded-lg transition-all"
         >
           <X className="h-5 w-5" />
         </button>
 
         <div className="space-y-1">
-          <h3 className="font-extrabold text-sm text-slate-850 dark:text-slate-100">Adjust & Crop Image</h3>
-          <p className="text-[10px] text-slate-400">Zoom and align the photo to fit perfectly inside the profile circular avatar frame.</p>
+          <h3 className="font-extrabold text-sm text-foreground dark:text-foreground">Adjust & Crop Image</h3>
+          <p className="text-[10px] text-muted-foreground">Zoom and align the photo to fit perfectly inside the profile circular avatar frame.</p>
         </div>
 
         {/* Circular Crop Frame Window - Exactly 300x300 px */}
-        <div className="relative w-[300px] h-[300px] mx-auto bg-slate-100 dark:bg-slate-950 rounded-2xl overflow-hidden flex items-center justify-center border select-none relative">
+        <div className="relative w-[300px] h-[300px] mx-auto bg-muted dark:bg-card rounded-2xl overflow-hidden flex items-center justify-center border select-none relative">
           <div className="absolute h-[200px] w-[200px] rounded-full border-2 border-primary border-dashed z-20 pointer-events-none shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]" />
           
           <img
@@ -124,11 +124,11 @@ export default function ImageCropperModal({ isOpen, imageSrc, onClose, onCrop }:
         </div>
 
         {/* Adjustments Panel Sliders */}
-        <div className="space-y-4 text-xs font-bold text-slate-650 dark:text-slate-350">
+        <div className="space-y-4 text-xs font-bold text-muted-foreground dark:text-foreground">
           
           {/* Zoom Slider */}
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-slate-400">
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
               <span className="flex items-center space-x-1">
                 <ZoomOut className="h-3.5 w-3.5" />
                 <span>Zoom Scale</span>
@@ -142,13 +142,13 @@ export default function ImageCropperModal({ isOpen, imageSrc, onClose, onCrop }:
               step="0.05"
               value={zoom}
               onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
+              className="w-full h-1.5 bg-muted dark:bg-card rounded-lg appearance-none cursor-pointer accent-primary"
             />
           </div>
 
           {/* Horizontal Position X Slider */}
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-slate-400">
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
               <span className="flex items-center space-x-1">
                 <Move className="h-3.5 w-3.5" />
                 <span>Move X (Horizontal)</span>
@@ -162,13 +162,13 @@ export default function ImageCropperModal({ isOpen, imageSrc, onClose, onCrop }:
               step="1"
               value={offsetX}
               onChange={(e) => setOffsetX(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
+              className="w-full h-1.5 bg-muted dark:bg-card rounded-lg appearance-none cursor-pointer accent-primary"
             />
           </div>
 
           {/* Vertical Position Y Slider */}
           <div className="space-y-1">
-            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-slate-400">
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
               <span className="flex items-center space-x-1">
                 <Move className="h-3.5 w-3.5 rotate-90" />
                 <span>Move Y (Vertical)</span>
@@ -182,7 +182,7 @@ export default function ImageCropperModal({ isOpen, imageSrc, onClose, onCrop }:
               step="1"
               value={offsetY}
               onChange={(e) => setOffsetY(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
+              className="w-full h-1.5 bg-muted dark:bg-card rounded-lg appearance-none cursor-pointer accent-primary"
             />
           </div>
         </div>
@@ -190,7 +190,7 @@ export default function ImageCropperModal({ isOpen, imageSrc, onClose, onCrop }:
         {/* Actions Button */}
         <button
           onClick={handleCropAndSave}
-          className="w-full py-3 bg-primary hover:bg-primary/95 text-white text-xs font-black rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5"
+          className="w-full py-3 bg-primary hover:bg-primary/95 text-primary-foreground text-xs font-black rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5"
         >
           <Check className="h-4 w-4" />
           <span>Apply Cropped Avatar</span>

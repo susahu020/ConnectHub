@@ -20,9 +20,9 @@ export function CelebrationModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-foreground/40 backdrop-blur-md p-4"
     >
-      <div className="bg-white dark:bg-slate-900 border border-border rounded-3xl w-full max-w-md p-8 shadow-2xl relative text-center overflow-hidden">
+      <div className="bg-card dark:bg-card border border-border rounded-3xl w-full max-w-md p-8 shadow-2xl relative text-center overflow-hidden">
         <div className="absolute -top-10 -left-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl" />
         <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl" />
 

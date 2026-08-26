@@ -41,34 +41,34 @@ export function CalendarMonthGrid({
   const hideHover = () => setHoverInfo(null);
 
   return (
-    <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm space-y-4">
+    <div className="lg:col-span-3 bg-card dark:bg-card border border-border dark:border-border rounded-3xl p-5 shadow-sm space-y-4">
       <div className="flex items-center justify-between pb-2">
-        <h2 className="text-lg font-extrabold text-slate-800 dark:text-slate-100">
+        <h2 className="text-lg font-extrabold text-foreground dark:text-foreground">
           {MONTH_NAMES[month]} {year}
         </h2>
         <div className="flex items-center space-x-1.5">
-          <button onClick={onPrevMonth} aria-label="Previous month" className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl border transition-all">
+          <button onClick={onPrevMonth} aria-label="Previous month" className="p-2 hover:bg-muted dark:hover:bg-card rounded-xl border transition-all">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button onClick={onToday} className="px-3.5 py-2 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl border transition-all">
+          <button onClick={onToday} className="px-3.5 py-2 text-xs font-bold hover:bg-muted dark:hover:bg-card rounded-xl border transition-all">
             Today
           </button>
-          <button onClick={onNextMonth} aria-label="Next month" className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl border transition-all">
+          <button onClick={onNextMonth} aria-label="Next month" className="p-2 hover:bg-muted dark:hover:bg-card rounded-xl border transition-all">
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 border-t dark:border-slate-800 pt-3">
+      <div className="grid grid-cols-7 gap-1 border-t dark:border-border pt-3">
         {WEEKDAY_LABELS.map((d) => (
-          <div key={d} className="text-center text-[10px] font-black uppercase text-slate-400 py-1.5">
+          <div key={d} className="text-center text-[10px] font-black uppercase text-muted-foreground py-1.5">
             {d}
           </div>
         ))}
 
         {matrix.map((day, idx) => {
           if (day === null) {
-            return <div key={`blank-${idx}`} className="h-28 bg-slate-50/20 dark:bg-slate-800/10 rounded-2xl border border-transparent" />;
+            return <div key={`blank-${idx}`} className="h-28 bg-muted/20 dark:bg-card/10 rounded-2xl border border-transparent" />;
           }
 
           const dayEvents = getEventsForDay(day);
@@ -77,20 +77,20 @@ export function CalendarMonthGrid({
           return (
             <div
               key={`day-${day}`}
-              className={`h-28 p-2 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between transition-all hover:border-primary/50 dark:hover:border-primary/50 hover:shadow-md ${
+              className={`h-28 p-2 rounded-2xl border border-border dark:border-border flex flex-col justify-between transition-all hover:border-primary/50 dark:hover:border-primary/50 hover:shadow-md ${
                 isToday ? 'bg-primary/5 border-primary/20 dark:border-primary/30' : 'bg-transparent'
               }`}
             >
               <div className="flex items-center justify-between">
                 <span
                   className={`text-xs font-extrabold flex items-center justify-center h-5 w-5 rounded-full ${
-                    isToday ? 'bg-primary text-white' : 'text-slate-700 dark:text-slate-350'
+                    isToday ? 'bg-primary text-primary-foreground' : 'text-foreground dark:text-foreground'
                   }`}
                 >
                   {day}
                 </span>
                 {dayEvents.length > 0 && (
-                  <span className="text-[9px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-black text-slate-500">
+                  <span className="text-[9px] bg-muted dark:bg-card px-1.5 py-0.5 rounded font-black text-muted-foreground">
                     {dayEvents.length} items
                   </span>
                 )}
@@ -112,7 +112,7 @@ export function CalendarMonthGrid({
                   <p
                     onMouseEnter={(e) => showHover(e, dayEvents.slice(3))}
                     onMouseLeave={hideHover}
-                    className="text-[9px] text-slate-400 italic text-center font-semibold cursor-default"
+                    className="text-[9px] text-muted-foreground italic text-center font-semibold cursor-default"
                   >
                     + {dayEvents.length - 3} more
                   </p>
@@ -130,28 +130,28 @@ export function CalendarMonthGrid({
           className="fixed z-50 pointer-events-none w-64 -translate-x-1/2 -translate-y-[calc(100%+10px)]"
           style={{ left: hoverInfo.x, top: hoverInfo.y }}
         >
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-3 divide-y divide-slate-100 dark:divide-slate-800 max-h-72 overflow-y-auto">
+          <div className="bg-card dark:bg-card border border-border dark:border-border rounded-2xl shadow-2xl p-3 divide-y divide-border dark:divide-border max-h-72 overflow-y-auto">
             {hoverInfo.events.map((ev) => {
               const Icon = ev.icon;
               return (
                 <div key={ev.id} className="space-y-1 py-2 first:pt-0 last:pb-0">
                   <div className="flex items-start gap-2">
                     <span className={`h-5 w-5 rounded-md flex items-center justify-center shrink-0 ${ev.dotColor}`}>
-                      {Icon && <Icon className="h-3 w-3 text-white" />}
+                      {Icon && <Icon className="h-3 w-3 text-foreground" />}
                     </span>
-                    <p className="text-xs font-extrabold text-slate-800 dark:text-slate-100 leading-tight">{ev.title}</p>
+                    <p className="text-xs font-extrabold text-foreground dark:text-foreground leading-tight">{ev.title}</p>
                   </div>
                   {ev.description && (
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug pl-7">{ev.description}</p>
+                    <p className="text-[10px] text-muted-foreground dark:text-muted-foreground leading-snug pl-7">{ev.description}</p>
                   )}
                   {ev.meta && (
-                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold pl-7">{ev.meta}</p>
+                    <p className="text-[9px] text-muted-foreground dark:text-muted-foreground font-semibold pl-7">{ev.meta}</p>
                   )}
                 </div>
               );
             })}
           </div>
-          <div className="w-2.5 h-2.5 bg-white dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-800 rotate-45 mx-auto -mt-[7px]" />
+          <div className="w-2.5 h-2.5 bg-card dark:bg-card border-b border-r border-border dark:border-border rotate-45 mx-auto -mt-[7px]" />
         </div>
       )}
     </div>

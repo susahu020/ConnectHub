@@ -4,7 +4,7 @@ export function TasksTab({ stats }: { stats: any }) {
   const { taskCompletion } = stats;
 
   const statusCards = [
-    { label: 'TODO', count: taskCompletion.statusCounts.TODO, color: 'border-slate-200 bg-slate-500/10 text-slate-650' },
+    { label: 'TODO', count: taskCompletion.statusCounts.TODO, color: 'border-border bg-secondary/10 text-muted-foreground' },
     { label: 'IN PROGRESS', count: taskCompletion.statusCounts.IN_PROGRESS, color: 'border-primary/20 bg-primary/10 text-primary' },
     { label: 'REVIEW', count: taskCompletion.statusCounts.REVIEW, color: 'border-amber-200 bg-amber-500/10 text-amber-600' },
     { label: 'COMPLETED', count: taskCompletion.statusCounts.COMPLETED, color: 'border-green-200 bg-green-500/10 text-green-600' },
@@ -21,14 +21,14 @@ export function TasksTab({ stats }: { stats: any }) {
         ))}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Overall Completion Meter</span>
-        <p className="text-5xl font-black text-slate-900 dark:text-white">{taskCompletion.completionRate}%</p>
-        <p className="text-xs text-slate-500 mt-2">
+      <div className="bg-card dark:bg-card border border-border dark:border-border rounded-2xl p-6 shadow-sm flex flex-col items-center justify-center text-center">
+        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Overall Completion Meter</span>
+        <p className="text-5xl font-black text-foreground">{taskCompletion.completionRate}%</p>
+        <p className="text-xs text-muted-foreground mt-2">
           Of the {taskCompletion.totalTasks} total tasks assigned in the system, {taskCompletion.statusCounts.COMPLETED} have been
           completed. Average task resolution duration: <strong>{taskCompletion.avgTaskResolutionHours} hours</strong>.
         </p>
-        <div className="w-full max-w-md bg-slate-100 dark:bg-slate-850 h-2.5 rounded-full overflow-hidden mt-6">
+        <div className="w-full max-w-md bg-muted dark:bg-card h-2.5 rounded-full overflow-hidden mt-6">
           <div className="bg-primary h-full" style={{ width: `${taskCompletion.completionRate}%` }} />
         </div>
       </div>

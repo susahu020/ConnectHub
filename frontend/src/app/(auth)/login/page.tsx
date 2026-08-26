@@ -11,6 +11,7 @@ import { Layers, Loader2, Eye, EyeOff, ShieldCheck, ArrowLeft } from 'lucide-rea
 import { api, API_BASE_URL } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
+import AuthBrandPanel from '../../../components/auth/AuthBrandPanel';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -109,32 +110,56 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-6 py-12">
-      <div className="w-full max-w-md space-y-8 bg-card p-8 rounded-3xl border shadow-xl relative overflow-hidden">
-        {/* Glow effects */}
-        <div className="absolute -top-24 -right-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 h-48 w-48 bg-warm/10 rounded-full blur-3xl" />
+    <div className="min-h-screen flex bg-background">
+      <AuthBrandPanel
+        orgName={orgSettings.orgName}
+        logoUrl={orgSettings.logoUrl}
+        heading="Welcome back to your workspace"
+        subheading="Sign in to pick up right where your team left off — chat, tasks, files, and reporting, all in one place."
+        bullets={[
+          'Real-time chat, channels, and presence',
+          'Kanban boards with due dates and priorities',
+          'Enterprise-grade RBAC and audit logs',
+        ]}
+        quote={{
+          text: `Switching to ${orgSettings.orgName} cut the number of tools our team juggles from five down to one.`,
+          author: 'Priya Nathan',
+          role: 'Head of Operations',
+        }}
+      />
 
-        <div className="flex flex-col items-center space-y-2 text-center">
-          <Link href="/" className="flex items-center space-x-2 text-2xl font-bold tracking-tight mb-2">
+      <div className="flex-1 flex items-center justify-center px-6 py-12 lg:py-16 relative">
+        <Link
+          href="/"
+          className="absolute top-6 left-6 lg:top-8 lg:left-8 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Back to home</span>
+        </Link>
+
+        <div className="w-full max-w-md space-y-8">
+          {/* Compact logo header — shown only where the brand panel is hidden */}
+          <Link href="/" className="lg:hidden flex items-center justify-center space-x-2 text-xl font-bold tracking-tight">
             {orgSettings.logoUrl ? (
-              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-8 w-8 rounded object-contain" />
+              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-7 w-7 rounded-full object-cover" />
             ) : (
-              <Layers className="h-8 w-8 text-primary" />
+              <Layers className="h-7 w-7 text-primary" />
             )}
             <span>{orgSettings.orgName}</span>
           </Link>
-          <h2 className="text-2xl font-bold tracking-tight">
-            {require2fa ? 'Two-Factor Verification' : `Sign In to ${orgSettings.orgName}`}
-          </h2>
-          <p className="text-sm text-muted-foreground leading-normal">
-            {require2fa 
-              ? 'Enter the 6-digit code from your authenticator app or a backup recovery code.' 
-              : 'Enter your credentials to access your workspace portal'}
-          </p>
-        </div>
 
-        {require2fa ? (
+          <div className="space-y-2 text-center lg:text-left">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}>
+              {require2fa ? 'Two-Factor Verification' : 'Sign in'}
+            </h2>
+            <p className="text-sm text-muted-foreground leading-normal">
+              {require2fa 
+                ? 'Enter the 6-digit code from your authenticator app or a backup recovery code.' 
+                : 'Enter your credentials to access your workspace portal.'}
+            </p>
+          </div>
+
+          {require2fa ? (
           /* 2FA CODE FORM */
           <form onSubmit={handleVerifyOTP} className="space-y-6">
             <div className="space-y-2">
@@ -283,6 +308,7 @@ function LoginForm() {
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

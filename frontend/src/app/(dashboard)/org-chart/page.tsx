@@ -33,19 +33,19 @@ export default function OrgChart() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 dark:bg-slate-950">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-muted dark:bg-card">
         <Activity className="h-8 w-8 animate-spin text-primary mb-3" />
-        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Loading organization chart...</p>
+        <p className="text-xs text-muted-foreground dark:text-muted-foreground font-bold uppercase tracking-wider">Loading organization chart...</p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 dark:bg-slate-950 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-muted dark:bg-card text-center">
         <GitFork className="h-8 w-8 text-rose-500 mb-3" />
-        <p className="text-sm font-bold text-slate-800 dark:text-white">Failed to load company hierarchy</p>
-        <p className="text-xs text-slate-500 mt-1">Please try again later.</p>
+        <p className="text-sm font-bold text-foreground">Failed to load company hierarchy</p>
+        <p className="text-xs text-muted-foreground mt-1">Please try again later.</p>
       </div>
     );
   }
@@ -118,21 +118,21 @@ export default function OrgChart() {
       case 'AWAY': return 'bg-amber-500';
       case 'BUSY':
       case 'DND': return 'bg-rose-500';
-      default: return 'bg-slate-350 dark:bg-slate-650';
+      default: return 'bg-secondary dark:bg-card';
     }
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50 dark:bg-slate-950">
+    <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-muted dark:bg-card">
       
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-3xl font-black tracking-tight text-foreground flex items-center gap-2">
             <GitFork className="h-8 w-8 text-primary transform rotate-180" />
             Company Org Chart
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-sm text-muted-foreground dark:text-muted-foreground mt-1">
             Explore the reporting lines, department heads, and active personnel hierarchy.
           </p>
         </div>
@@ -141,13 +141,13 @@ export default function OrgChart() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => toggleAll(true)}
-            className="px-3.5 py-2 text-xs font-black text-slate-700 bg-white border dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 rounded-xl hover:bg-slate-50 transition-all"
+            className="px-3.5 py-2 text-xs font-black text-foreground bg-card border dark:bg-card dark:border-border dark:text-foreground rounded-xl hover:bg-muted transition-all"
           >
             Expand All
           </button>
           <button
             onClick={() => toggleAll(false)}
-            className="px-3.5 py-2 text-xs font-black text-slate-700 bg-white border dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 rounded-xl hover:bg-slate-50 transition-all"
+            className="px-3.5 py-2 text-xs font-black text-foreground bg-card border dark:bg-card dark:border-border dark:text-foreground rounded-xl hover:bg-muted transition-all"
           >
             Collapse All
           </button>
@@ -155,17 +155,17 @@ export default function OrgChart() {
       </div>
 
       {/* SEARCH AND FILTER BAR */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm mb-12 flex items-center gap-3">
-        <Search className="h-5 w-5 text-slate-450 shrink-0" />
+      <div className="bg-card dark:bg-card border border-border dark:border-border rounded-2xl p-4 shadow-sm mb-12 flex items-center gap-3">
+        <Search className="h-5 w-5 text-muted-foreground shrink-0" />
         <input
           type="text"
           placeholder="Search team members by name or designation..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+          className="w-full bg-transparent text-sm text-foreground placeholder-muted-foreground focus:outline-none"
         />
         {searchTerm && (
-          <button onClick={() => setSearchTerm('')} className="p-1 rounded text-slate-450 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <button onClick={() => setSearchTerm('')} className="p-1 rounded text-muted-foreground hover:bg-muted dark:hover:bg-card">
             <X className="h-4 w-4" />
           </button>
         )}
@@ -182,15 +182,15 @@ export default function OrgChart() {
               return (
                 <div 
                   key={ceo.id}
-                  className={`bg-gradient-to-br from-primary to-primary-dark text-white rounded-2xl p-5 shadow-xl w-64 flex flex-col items-center text-center relative border-2 transition-all ${
+                  className={`bg-gradient-to-br from-primary to-primary-dark text-primary-foreground rounded-2xl p-5 shadow-xl w-64 flex flex-col items-center text-center relative border-2 transition-all ${
                     highlighted ? 'border-amber-400 ring-4 ring-amber-400/35 scale-105' : 'border-transparent'
                   }`}
                 >
-                  <div className="relative h-16 w-16 rounded-full border-2 border-white overflow-hidden mb-3">
+                  <div className="relative h-16 w-16 rounded-full border-2 border-card overflow-hidden mb-3">
                     {ceo.avatarUrl ? (
                       <img src={ceo.avatarUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <div className="h-full w-full bg-slate-700 flex items-center justify-center font-bold text-lg">
+                      <div className="h-full w-full bg-card flex items-center justify-center font-bold text-lg">
                         {ceo.firstName[0]}{ceo.lastName[0]}
                       </div>
                     )}
@@ -204,7 +204,7 @@ export default function OrgChart() {
                   </p>
                   
                   {highlighted && (
-                    <span className="absolute -top-3 bg-amber-400 text-slate-950 font-black text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
+                    <span className="absolute -top-3 bg-amber-400 text-foreground font-black text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
                       Match
                     </span>
                   )}
@@ -214,8 +214,8 @@ export default function OrgChart() {
           </div>
           
           {/* Connector Down */}
-          <div className="h-10 w-0.5 bg-slate-300 dark:bg-slate-800 relative">
-            <ArrowDown className="absolute top-full -left-1.5 h-3.5 w-3.5 text-slate-300 dark:text-slate-800" />
+          <div className="h-10 w-0.5 bg-secondary dark:bg-card relative">
+            <ArrowDown className="absolute top-full -left-1.5 h-3.5 w-3.5 text-foreground dark:text-foreground" />
           </div>
         </div>
 
@@ -229,7 +229,7 @@ export default function OrgChart() {
             return (
               <div 
                 key={dept.id} 
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col space-y-4 h-fit"
+                className="bg-card dark:bg-card border border-border dark:border-border rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col space-y-4 h-fit"
               >
                 {/* Department Header */}
                 <div 
@@ -241,10 +241,10 @@ export default function OrgChart() {
                       <Layers className="h-4 w-4" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-black text-slate-800 dark:text-white leading-tight group-hover:text-primary transition-all">
+                      <h4 className="text-sm font-black text-foreground leading-tight group-hover:text-primary transition-all">
                         {dept.name}
                       </h4>
-                      <p className="text-[10px] text-slate-400 font-bold">
+                      <p className="text-[10px] text-muted-foreground font-bold">
                         {dept.members.length + (dept.manager ? 1 : 0)} members
                         {matchingMembersCount > 0 && (
                           <span className="text-amber-500 ml-1.5">({matchingMembersCount} matches)</span>
@@ -253,9 +253,9 @@ export default function OrgChart() {
                     </div>
                   </div>
                   {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-slate-400 group-hover:text-slate-650" />
+                    <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-650" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground" />
                   )}
                 </div>
 
@@ -271,79 +271,79 @@ export default function OrgChart() {
                       {/* LEVEL 3: DEPARTMENT MANAGER */}
                       {dept.manager ? (
                         <div className="flex flex-col items-center">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Department Manager</p>
+                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-wider mb-2">Department Manager</p>
                           <div 
-                            className={`w-full bg-slate-50 dark:bg-slate-850 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3 relative transition-all ${
+                            className={`w-full bg-muted dark:bg-card border border-border dark:border-border rounded-2xl p-4 flex items-center gap-3 relative transition-all ${
                               managerHighlight ? 'border-amber-400 ring-2 ring-amber-400/25' : ''
                             }`}
                           >
-                            <div className="relative h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden shrink-0">
+                            <div className="relative h-10 w-10 rounded-full bg-secondary dark:bg-card overflow-hidden shrink-0">
                               {dept.manager.avatarUrl ? (
                                 <img src={dept.manager.avatarUrl} alt="" className="h-full w-full object-cover" />
                               ) : (
-                                <div className="h-full w-full flex items-center justify-center font-bold text-xs uppercase text-slate-650">
+                                <div className="h-full w-full flex items-center justify-center font-bold text-xs uppercase text-muted-foreground">
                                   {dept.manager.firstName[0]}{dept.manager.lastName[0]}
                                 </div>
                               )}
-                              <span className={`absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border border-slate-50 ${getStatusColor(dept.manager.status)}`} />
+                              <span className={`absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border border-border ${getStatusColor(dept.manager.status)}`} />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-xs font-black text-slate-800 dark:text-white truncate">
+                              <p className="text-xs font-black text-foreground truncate">
                                 {dept.manager.firstName} {dept.manager.lastName}
                               </p>
-                              <p className="text-[10px] text-slate-500 truncate leading-tight mt-0.5">
+                              <p className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
                                 {dept.manager.designation || 'Manager'}
                               </p>
                             </div>
                             {managerHighlight && (
-                              <span className="absolute top-2 right-2 bg-amber-400 text-slate-950 font-black text-[7px] uppercase px-1.5 py-0.5 rounded shadow">
+                              <span className="absolute top-2 right-2 bg-amber-400 text-foreground font-black text-[7px] uppercase px-1.5 py-0.5 rounded shadow">
                                 Match
                               </span>
                             )}
                           </div>
 
                           {dept.members.length > 0 && (
-                            <div className="h-4 w-0.5 bg-slate-200 dark:bg-slate-800" />
+                            <div className="h-4 w-0.5 bg-secondary dark:bg-card" />
                           )}
                         </div>
                       ) : (
-                        <div className="text-center py-2 text-slate-400 italic text-[10px]">No manager assigned.</div>
+                        <div className="text-center py-2 text-muted-foreground italic text-[10px]">No manager assigned.</div>
                       )}
 
                       {/* LEVEL 4: EMPLOYEES GRID */}
                       {dept.members.length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider pl-1">Employees</p>
+                          <p className="text-[9px] font-black text-muted-foreground uppercase tracking-wider pl-1">Employees</p>
                           <div className="grid grid-cols-1 gap-2 max-h-[220px] overflow-y-auto pr-1.5 scrollbar-thin">
                             {dept.members.map((emp: any) => {
                               const empHighlight = userMatchesSearch(emp);
                               return (
                                 <div 
                                   key={emp.id}
-                                  className={`bg-slate-50/50 dark:bg-slate-850/40 border border-slate-100/50 dark:border-slate-850 rounded-xl p-2.5 flex items-center gap-2.5 relative transition-all ${
+                                  className={`bg-muted/50 dark:bg-card/40 border border-border/50 dark:border-border rounded-xl p-2.5 flex items-center gap-2.5 relative transition-all ${
                                     empHighlight ? 'border-amber-400 ring-2 ring-amber-400/25 bg-amber-500/5' : ''
                                   }`}
                                 >
-                                  <div className="relative h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden shrink-0">
+                                  <div className="relative h-8 w-8 rounded-full bg-secondary dark:bg-card overflow-hidden shrink-0">
                                     {emp.avatarUrl ? (
                                       <img src={emp.avatarUrl} alt="" className="h-full w-full object-cover" />
                                     ) : (
-                                      <div className="h-full w-full flex items-center justify-center font-bold text-[10px] uppercase text-slate-650">
+                                      <div className="h-full w-full flex items-center justify-center font-bold text-[10px] uppercase text-muted-foreground">
                                         {emp.firstName[0]}{emp.lastName[0]}
                                       </div>
                                     )}
-                                    <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full border border-slate-50 ${getStatusColor(emp.status)}`} />
+                                    <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full border border-border ${getStatusColor(emp.status)}`} />
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
+                                    <p className="text-xs font-bold text-foreground truncate">
                                       {emp.firstName} {emp.lastName}
                                     </p>
-                                    <p className="text-[9px] text-slate-450 truncate mt-0.5">
+                                    <p className="text-[9px] text-muted-foreground truncate mt-0.5">
                                       {emp.designation || 'Employee'}
                                     </p>
                                   </div>
                                   {empHighlight && (
-                                    <span className="absolute top-1.5 right-1.5 bg-amber-400 text-slate-950 font-black text-[6px] uppercase px-1 rounded shadow">
+                                    <span className="absolute top-1.5 right-1.5 bg-amber-400 text-foreground font-black text-[6px] uppercase px-1 rounded shadow">
                                       Match
                                     </span>
                                   )}

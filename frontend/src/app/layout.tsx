@@ -6,6 +6,17 @@ export const metadata: Metadata = {
   title: 'ConnectHub - Enterprise Communication & Collaboration Platform',
   description: 'Enterprise-grade team communication, chat, Kanban boards, and file sharing hub.',
   viewport: 'width=device-width, initial-scale=1',
+  openGraph: {
+    title: 'ConnectHub - Enterprise Communication & Collaboration Platform',
+    description: 'Chat, Kanban boards, file storage, and admin tooling in a single self-hosted workspace.',
+    type: 'website',
+    siteName: 'ConnectHub',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ConnectHub - Enterprise Communication & Collaboration Platform',
+    description: 'Chat, Kanban boards, file storage, and admin tooling in a single self-hosted workspace.',
+  },
 };
 
 export default function RootLayout({

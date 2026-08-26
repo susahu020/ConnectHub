@@ -211,54 +211,54 @@ export default function OrganizationSettingsPage() {
         <p className="text-sm text-muted-foreground mt-0.5">Configure your workspace's identity, branding, and access rules.</p>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
+      <div className="bg-card dark:bg-card border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
         <div className="space-y-6 animate-in fade-in duration-200 text-xs max-w-3xl">
           <div className="border-b pb-3 flex items-start justify-between gap-4">
             <div>
               <h3 className="font-bold text-sm text-foreground">Organization Branding & Configuration</h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">
+              <p className="text-[10px] text-muted-foreground mt-0.5">
                 These values propagate everywhere automatically — the sidebar, login/registration screens, outbound
                 emails, the public landing page, and file watermarks all read from here. No code change needed.
               </p>
             </div>
             {orgSettingsData?.updatedAt && (
-              <span className="text-[9px] text-slate-400 whitespace-nowrap shrink-0 pt-0.5">
+              <span className="text-[9px] text-muted-foreground whitespace-nowrap shrink-0 pt-0.5">
                 Last updated {new Date(orgSettingsData.updatedAt).toLocaleString()}
               </span>
             )}
           </div>
 
           {loadingOrgSettings ? (
-            <div className="flex items-center justify-center py-20 text-slate-450">
+            <div className="flex items-center justify-center py-20 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
               <span>Loading organization settings...</span>
             </div>
           ) : (
             <div className="space-y-5 pt-1">
               {/* Identity */}
-              <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+              <div className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-4">
                 <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
                   <Building2 className="h-3.5 w-3.5" />
                   <span>Identity</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Organization Name</label>
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Organization Name</label>
                     <input
                       type="text"
                       value={orgForm.orgName || ''}
                       onChange={(e) => setOrgForm({ ...orgForm, orgName: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                       placeholder="ConnectHub"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Tagline</label>
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Tagline</label>
                     <input
                       type="text"
                       value={orgForm.tagline || ''}
                       onChange={(e) => setOrgForm({ ...orgForm, tagline: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                       placeholder="Enterprise Communication & Collaboration Platform"
                     />
                   </div>
@@ -266,28 +266,28 @@ export default function OrganizationSettingsPage() {
               </div>
 
               {/* Branding */}
-              <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+              <div className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-4">
                 <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
                   <Palette className="h-3.5 w-3.5" />
                   <span>Branding</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                       <ImageIcon className="h-3 w-3" /> Logo
                     </label>
                     <div className="flex items-center gap-3">
-                      <div className="h-14 w-14 shrink-0 rounded-xl border bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                      <div className="h-14 w-14 shrink-0 rounded-xl border bg-card dark:bg-card flex items-center justify-center overflow-hidden">
                         {orgForm.logoUrl ? (
                           <img src={orgForm.logoUrl} alt="Organization logo" className="h-full w-full object-contain" />
                         ) : (
-                          <ImageIcon className="h-5 w-5 text-slate-300" />
+                          <ImageIcon className="h-5 w-5 text-foreground" />
                         )}
                       </div>
                       <div className="flex-1 space-y-1.5">
                         <label
                           htmlFor="org-logo-upload"
-                          className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-[10px] font-bold transition-all"
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-card dark:bg-card hover:bg-muted dark:hover:bg-card cursor-pointer text-[10px] font-bold transition-all"
                         >
                           {uploadLogoMutation.isPending ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -316,21 +316,21 @@ export default function OrganizationSettingsPage() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                       <ImageIcon className="h-3 w-3" /> Favicon
                     </label>
                     <div className="flex items-center gap-3">
-                      <div className="h-14 w-14 shrink-0 rounded-xl border bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
+                      <div className="h-14 w-14 shrink-0 rounded-xl border bg-card dark:bg-card flex items-center justify-center overflow-hidden">
                         {orgForm.faviconUrl ? (
                           <img src={orgForm.faviconUrl} alt="Organization favicon" className="h-full w-full object-contain" />
                         ) : (
-                          <ImageIcon className="h-5 w-5 text-slate-300" />
+                          <ImageIcon className="h-5 w-5 text-foreground" />
                         )}
                       </div>
                       <div className="flex-1 space-y-1.5">
                         <label
                           htmlFor="org-favicon-upload"
-                          className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-[10px] font-bold transition-all"
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 border rounded-xl bg-card dark:bg-card hover:bg-muted dark:hover:bg-card cursor-pointer text-[10px] font-bold transition-all"
                         >
                           {uploadFaviconMutation.isPending ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -359,13 +359,13 @@ export default function OrganizationSettingsPage() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Primary Color</label>
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Primary Color</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={orgForm.primaryColor || '#4f46e5'}
                         onChange={(e) => setOrgForm({ ...orgForm, primaryColor: e.target.value })}
-                        className="h-9 w-12 border rounded-lg bg-white dark:bg-slate-900 cursor-pointer shrink-0"
+                        className="h-9 w-12 border rounded-lg bg-card dark:bg-card cursor-pointer shrink-0"
                       />
                       <input
                         type="text"
@@ -377,7 +377,7 @@ export default function OrganizationSettingsPage() {
                             toast.error('Primary color must be a valid hex code, e.g. #4f46e5.');
                           }
                         }}
-                        className="flex-1 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                        className="flex-1 px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                         placeholder="#4f46e5"
                       />
                     </div>
@@ -386,43 +386,43 @@ export default function OrganizationSettingsPage() {
               </div>
 
               {/* Contact */}
-              <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+              <div className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-4">
                 <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
                   <Mail className="h-3.5 w-3.5" />
                   <span>Contact</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Support Email</label>
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Support Email</label>
                     <input
                       type="email"
                       value={orgForm.supportEmail || ''}
                       onChange={(e) => setOrgForm({ ...orgForm, supportEmail: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                       placeholder="support@example.com"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                       <Globe className="h-3 w-3" /> Website
                     </label>
                     <input
                       type="text"
                       value={orgForm.website || ''}
                       onChange={(e) => setOrgForm({ ...orgForm, website: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                       placeholder="https://example.com"
                     />
                   </div>
                   <div className="space-y-1 md:col-span-2">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> Address
                     </label>
                     <input
                       type="text"
                       value={orgForm.address || ''}
                       onChange={(e) => setOrgForm({ ...orgForm, address: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                       placeholder="123 Main St, Suite 100, San Francisco, CA"
                     />
                   </div>
@@ -430,49 +430,49 @@ export default function OrganizationSettingsPage() {
               </div>
 
               {/* Defaults */}
-              <div className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-4">
+              <div className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-4">
                 <div className="flex items-center gap-2 text-primary font-bold text-[11px] uppercase tracking-wider">
                   <FileText className="h-3.5 w-3.5" />
                   <span>Defaults</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Default Watermark Text</label>
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Default Watermark Text</label>
                     <input
                       type="text"
                       value={orgForm.defaultWatermarkText || ''}
                       onChange={(e) => setOrgForm({ ...orgForm, defaultWatermarkText: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                       placeholder="ConnectHub CONFIDENTIAL"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Default Timezone</label>
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Default Timezone</label>
                     <select
                       value={orgForm.defaultTimezone || 'UTC'}
                       onChange={(e) => setOrgForm({ ...orgForm, defaultTimezone: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                     >
                       {COMMON_TIMEZONES.map((tz) => (
                         <option key={tz} value={tz}>{tz.replace('_', ' ')}</option>
                       ))}
                     </select>
-                    <p className="text-[9px] text-slate-400">Applied to new employees' accounts when they register or accept an invite.</p>
+                    <p className="text-[9px] text-muted-foreground">Applied to new employees' accounts when they register or accept an invite.</p>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+              <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
                 <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
                   <ShieldCheck className="h-3.5 w-3.5" />
                   <span>Access & Registration</span>
                 </div>
-                <p className="text-[10px] text-slate-400 -mt-1">
+                <p className="text-[10px] text-muted-foreground -mt-1">
                   Controls how new accounts can be created once your workspace is set up. The very first Admin
                   account is always exempt from this — it always gets in, so there's someone to configure it.
                 </p>
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Registration Mode</label>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Registration Mode</label>
                   <div className="grid grid-cols-1 gap-2">
                     {[
                       { value: 'INVITE_ONLY', title: 'Invite Only (Recommended)', desc: "Nobody can self-register. Every account starts as an invitation from an Admin or Manager." },
@@ -482,7 +482,7 @@ export default function OrganizationSettingsPage() {
                       <label
                         key={opt.value}
                         className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                          orgForm.registrationMode === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
+                          orgForm.registrationMode === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-muted/60 dark:hover:bg-card/60'
                         }`}
                       >
                         <input
@@ -495,7 +495,7 @@ export default function OrganizationSettingsPage() {
                         />
                         <div>
                           <p className="font-bold text-foreground">{opt.title}</p>
-                          <p className="text-[10px] text-slate-400 leading-normal mt-0.5">{opt.desc}</p>
+                          <p className="text-[10px] text-muted-foreground leading-normal mt-0.5">{opt.desc}</p>
                         </div>
                       </label>
                     ))}
@@ -503,20 +503,20 @@ export default function OrganizationSettingsPage() {
                 </div>
                 {orgForm.registrationMode === 'DOMAIN_RESTRICTED' && (
                   <div className="space-y-1 pt-1">
-                    <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Allowed Email Domains</label>
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Allowed Email Domains</label>
                     <input
                       type="text"
                       value={allowedDomainsInput}
                       onChange={(e) => setAllowedDomainsInput(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      className="w-full px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                       placeholder="yourcompany.com, yourcompany.io"
                     />
-                    <p className="text-[9px] text-slate-400">Comma-separated. Anyone signing up with an email on one of these domains is auto-approved as an Employee.</p>
+                    <p className="text-[9px] text-muted-foreground">Comma-separated. Anyone signing up with an email on one of these domains is auto-approved as an Employee.</p>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+              <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
                 <div className="flex items-center justify-between border-b pb-2">
                   <div className="flex items-center gap-2 font-bold text-xs text-foreground">
                     <ShieldCheck className="h-3.5 w-3.5" />
@@ -528,24 +528,24 @@ export default function OrganizationSettingsPage() {
                     aria-checked={mfaRequired}
                     aria-label="Require two-factor authentication for all users"
                     onClick={() => setMfaRequired(!mfaRequired)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${mfaRequired ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${mfaRequired ? 'bg-primary' : 'bg-secondary dark:bg-card'}`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${mfaRequired ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${mfaRequired ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-400 -mt-1">
+                <p className="text-[10px] text-muted-foreground -mt-1">
                   When on, every user must set up 2FA before they can use the rest of the app. Anyone without it
                   enabled yet is limited to the 2FA setup screen the next time they load a page — nobody is signed
                   out or locked out immediately when you turn this on.
                 </p>
               </div>
 
-              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+              <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
                 <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
                   <MonitorSmartphone className="h-3.5 w-3.5" />
                   <span>Session & Login Policy</span>
                 </div>
-                <p className="text-[10px] text-slate-400 -mt-1">
+                <p className="text-[10px] text-muted-foreground -mt-1">
                   Controls whether the same account can be signed in from more than one browser or device at
                   the same time. Employees can always see and manage their own active sessions from Settings →
                   Security.
@@ -560,7 +560,7 @@ export default function OrganizationSettingsPage() {
                       <label
                         key={opt.value}
                         className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                          orgForm.duplicateLoginPolicy === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
+                          orgForm.duplicateLoginPolicy === opt.value ? 'border-primary bg-primary/5' : 'hover:bg-muted/60 dark:hover:bg-card/60'
                         }`}
                       >
                         <input
@@ -573,7 +573,7 @@ export default function OrganizationSettingsPage() {
                         />
                         <div>
                           <p className="font-bold text-foreground">{opt.title}</p>
-                          <p className="text-[10px] text-slate-400 leading-normal mt-0.5">{opt.desc}</p>
+                          <p className="text-[10px] text-muted-foreground leading-normal mt-0.5">{opt.desc}</p>
                         </div>
                       </label>
                     ))}
@@ -581,12 +581,12 @@ export default function OrganizationSettingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+              <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
                 <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
                   <Trash2 className="h-3.5 w-3.5" />
                   <span>Recycle Bin Retention</span>
                 </div>
-                <p className="text-[10px] text-slate-400 -mt-1">
+                <p className="text-[10px] text-muted-foreground -mt-1">
                   How long a deleted file or folder sits in someone's Recycle Bin before it's automatically and
                   permanently purged. Leave blank to keep deleted items forever until someone manually empties
                   their own trash.
@@ -599,13 +599,13 @@ export default function OrganizationSettingsPage() {
                     placeholder="Forever"
                     value={recycleBinRetentionDays}
                     onChange={(e) => setRecycleBinRetentionDays(e.target.value)}
-                    className="w-24 px-3 py-2 rounded-xl border bg-white dark:bg-slate-900 text-xs font-bold focus:outline-none"
+                    className="w-24 px-3 py-2 rounded-xl border bg-card dark:bg-card text-xs font-bold focus:outline-none"
                   />
-                  <span className="text-xs text-slate-400 font-semibold">days</span>
+                  <span className="text-xs text-muted-foreground font-semibold">days</span>
                 </div>
               </div>
 
-              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+              <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
                 <div className="flex items-center justify-between border-b pb-2">
                   <div className="flex items-center gap-2 font-bold text-xs text-foreground">
                     <ShieldCheck className="h-3.5 w-3.5" />
@@ -616,12 +616,12 @@ export default function OrganizationSettingsPage() {
                       ? 'bg-amber-500/10 text-amber-600'
                       : orgSettingsData?.ssoGoogleAvailable
                         ? 'bg-emerald-500/10 text-emerald-600'
-                        : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+                        : 'bg-secondary dark:bg-card text-muted-foreground'
                   }`}>
                     {orgSettingsData?.ssoGoogleUsingDemoCredentials ? 'Demo Credentials' : orgSettingsData?.ssoGoogleAvailable ? 'Active' : 'Not Configured'}
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-400 -mt-1">
+                <p className="text-[10px] text-muted-foreground -mt-1">
                   Lets employees sign in with their Google account instead of a password. Requires
                   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI to be set on the server —
                   that part is infra-level config, not editable here. This toggle lets you turn it off for the
@@ -644,45 +644,45 @@ export default function OrganizationSettingsPage() {
                     role="switch"
                     aria-checked={ssoGoogleEnabled}
                     onClick={() => setSsoGoogleEnabled(!ssoGoogleEnabled)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${ssoGoogleEnabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${ssoGoogleEnabled ? 'bg-primary' : 'bg-secondary dark:bg-card'}`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${ssoGoogleEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${ssoGoogleEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
                   </button>
                   <span className="text-xs font-bold">{ssoGoogleEnabled ? 'Enabled' : 'Disabled'}</span>
                 </label>
               </div>
 
-              <div className="space-y-3 border rounded-2xl p-5 bg-slate-50/40 dark:bg-slate-800/30">
+              <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
                 <div className="flex items-center gap-2 font-bold text-xs text-foreground border-b pb-2">
                   <HeartPulse className="h-3.5 w-3.5" />
                   <span>Health Alerts</span>
                 </div>
-                <p className="text-[10px] text-slate-400 -mt-1">
+                <p className="text-[10px] text-muted-foreground -mt-1">
                   Get notified the moment System Health status changes — checked every 2 minutes in the
                   background, whether or not anyone has the System Health tab open. Works with a Slack incoming
                   webhook URL, or any endpoint that accepts a JSON POST.
                 </p>
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Alert Webhook URL</label>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Alert Webhook URL</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       value={orgForm.alertWebhookUrl || ''}
                       onChange={(e) => setOrgForm({ ...orgForm, alertWebhookUrl: e.target.value })}
-                      className="flex-1 px-3 py-2 border rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
+                      className="flex-1 px-3 py-2 border rounded-xl bg-card dark:bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 text-xs"
                       placeholder="https://hooks.slack.com/services/..."
                     />
                     <button
                       type="button"
                       onClick={() => sendTestAlertMutation.mutate(orgForm.alertWebhookUrl)}
                       disabled={sendTestAlertMutation.isPending || !orgForm.alertWebhookUrl}
-                      className="flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 whitespace-nowrap"
+                      className="flex items-center gap-1.5 px-3.5 py-2 border rounded-xl text-[11px] font-bold hover:bg-muted dark:hover:bg-card disabled:opacity-50 whitespace-nowrap"
                     >
                       {sendTestAlertMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                       Send Test
                     </button>
                   </div>
-                  <p className="text-[9px] text-slate-400">Leave blank to disable alerting. "Send Test" tries the URL above immediately, even before you save.</p>
+                  <p className="text-[9px] text-muted-foreground">Leave blank to disable alerting. "Send Test" tries the URL above immediately, even before you save.</p>
                 </div>
               </div>
 
@@ -690,7 +690,7 @@ export default function OrganizationSettingsPage() {
                 <button
                   onClick={handleSaveOrgSettings}
                   disabled={updateOrgSettingsMutation.isPending}
-                  className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-white rounded-xl font-bold text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {updateOrgSettingsMutation.isPending ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

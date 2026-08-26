@@ -109,10 +109,10 @@ export function Sidebar({
             onClick={onCloseMobile}
             className="flex items-center gap-2.5 font-bold text-[15px] tracking-tight shrink-0 min-w-0"
           >
-            <span className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+            <span className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
               {orgSettings.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={orgSettings.logoUrl} alt="" className="h-full w-full object-contain" />
+                <img src={orgSettings.logoUrl} alt="" className="h-full w-full object-cover" />
               ) : (
                 <span className="text-primary font-black text-sm">
                   {orgSettings.orgName.charAt(0)}

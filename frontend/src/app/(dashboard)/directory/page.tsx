@@ -92,9 +92,9 @@ export default function DirectoryPage() {
       />
 
       {isLoading ? (
-        <div className="text-center text-xs text-slate-400 py-20">Loading directory...</div>
+        <div className="text-center text-xs text-muted-foreground py-20">Loading directory...</div>
       ) : data?.users?.length === 0 ? (
-        <div className="text-center text-xs text-slate-400 py-20 border rounded-2xl bg-white dark:bg-slate-900">
+        <div className="text-center text-xs text-muted-foreground py-20 border rounded-2xl bg-card dark:bg-card">
           No teammates match your filter inputs.
         </div>
       ) : viewMode === 'GRID' ? (

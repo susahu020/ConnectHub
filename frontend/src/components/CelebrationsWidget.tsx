@@ -126,10 +126,10 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
     const activeOnDayTitle = type === 'birthday' ? 'Active on actual birthday' : 'Active on actual anniversary';
 
     return (
-      <div key={`${type}-${person.id}`} className="border-b border-slate-50 dark:border-slate-850 pb-2 last:border-b-0 last:pb-0 space-y-2">
+      <div key={`${type}-${person.id}`} className="border-b border-border dark:border-border pb-2 last:border-b-0 last:pb-0 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="h-8 w-8 rounded-full bg-slate-105 dark:bg-slate-800 overflow-hidden flex items-center justify-center text-[10px] font-bold uppercase text-slate-650 dark:text-slate-350 shrink-0">
+            <div className="h-8 w-8 rounded-full bg-secondary dark:bg-card overflow-hidden flex items-center justify-center text-[10px] font-bold uppercase text-muted-foreground dark:text-foreground shrink-0">
               {person.avatarUrl ? (
                 <img src={person.avatarUrl} alt="" className="h-full w-full object-cover" />
               ) : (
@@ -137,8 +137,8 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-slate-800 dark:text-white truncate">{person.firstName} {person.lastName}</p>
-              <p className="text-[9px] text-slate-400 leading-none truncate">{subtitle}</p>
+              <p className="text-xs font-bold text-foreground truncate">{person.firstName} {person.lastName}</p>
+              <p className="text-[9px] text-muted-foreground leading-none truncate">{subtitle}</p>
             </div>
           </div>
           {isSelf && todayFlag ? (
@@ -154,8 +154,8 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
               onClick={() => openWishModal(person, type)}
               className={`px-2.5 py-1.5 text-[9px] font-black rounded-xl transition-all shrink-0 ${
                 todayFlag && !alreadySent
-                  ? 'text-white bg-warm hover:bg-warm-dark shadow-xs'
-                  : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
+                  ? 'text-foreground bg-warm hover:bg-warm-dark shadow-xs'
+                  : 'bg-muted text-muted-foreground dark:bg-card dark:text-muted-foreground cursor-not-allowed'
               }`}
               title={alreadySent ? alreadySentTitle : (todayFlag ? sendTitle : activeOnDayTitle)}
             >
@@ -166,13 +166,13 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
 
         {todayFlag && wishesForPerson.length > 0 && (
           <div className="ml-11 max-h-24 overflow-y-auto space-y-1.5 pr-1">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider">
+            <p className="text-[8px] font-black text-muted-foreground uppercase tracking-wider">
               {wishesForPerson.length} Wish{wishesForPerson.length > 1 ? 'es' : ''} Received
             </p>
             {wishesForPerson.map((w: any) => (
-              <div key={w.id} className="bg-slate-50 dark:bg-slate-850 rounded-lg px-2.5 py-1.5">
-                <p className="text-[9px] font-bold text-slate-700 dark:text-slate-300">{w.sender?.firstName} {w.sender?.lastName}</p>
-                <p className="text-[9px] text-slate-500 dark:text-slate-400 truncate">{w.message.split('\n')[0]}</p>
+              <div key={w.id} className="bg-muted dark:bg-card rounded-lg px-2.5 py-1.5">
+                <p className="text-[9px] font-bold text-foreground dark:text-foreground">{w.sender?.firstName} {w.sender?.lastName}</p>
+                <p className="text-[9px] text-muted-foreground dark:text-muted-foreground truncate">{w.message.split('\n')[0]}</p>
               </div>
             ))}
           </div>
@@ -183,27 +183,27 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
 
   const modalContent = modalOpen && (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 animate-scale-up">
+      <div className="bg-card dark:bg-card border border-border dark:border-border rounded-2xl w-full max-w-md p-6 space-y-4 animate-scale-up">
         <div className="flex items-center justify-between border-b pb-3">
-          <h3 className="text-base font-black text-slate-900 dark:text-white">
+          <h3 className="text-base font-black text-foreground">
             {wishType === 'birthday' ? 'Birthday Wishes !!' : 'Work Anniversary Wishes !!'}
           </h3>
-          <button onClick={() => setModalOpen(false)} className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-850 rounded">
+          <button onClick={() => setModalOpen(false)} className="p-1 text-muted-foreground hover:bg-muted dark:hover:bg-card rounded">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form onSubmit={submitWish} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
               {wishType === 'birthday' ? 'Sending birthday wishes to' : 'Sending anniversary wishes to'}
             </label>
-            <p className="w-full bg-slate-50 dark:bg-slate-850 border border-transparent rounded-xl px-3.5 py-2 text-xs font-bold text-foreground">
+            <p className="w-full bg-muted dark:bg-card border border-transparent rounded-xl px-3.5 py-2 text-xs font-bold text-foreground">
               {targetName}
             </p>
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
               {wishType === 'birthday' ? 'Birthday Message' : 'Work Anniversary Message'}
             </label>
             <textarea
@@ -212,13 +212,13 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Write a public message of appreciation..."
-              className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+              className="w-full bg-muted dark:bg-card border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
             />
           </div>
           <button
             type="submit"
             disabled={sendWishMutation.isPending}
-            className="w-full py-2.5 bg-warm text-white text-xs font-black rounded-xl hover:bg-warm-dark transition-all"
+            className="w-full py-2.5 bg-warm text-foreground text-xs font-black rounded-xl hover:bg-warm-dark transition-all"
           >
             {sendWishMutation.isPending ? 'Sending...' : 'Send Wishes'}
           </button>
@@ -240,7 +240,7 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
         {todaysAnniversaries.map((a: any) => renderPerson(a, 'anniversary'))}
       </div>
     ) : (
-      <p className="text-xs text-slate-400 italic py-2">No birthdays or work anniversaries today. Check back tomorrow! 🎈</p>
+      <p className="text-xs text-muted-foreground italic py-2">No birthdays or work anniversaries today. Check back tomorrow! 🎈</p>
     );
 
     if (embedded) {
@@ -255,8 +255,8 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
     if (!hasAny) return null;
 
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4 text-left mb-6">
-        <h3 className="text-sm font-black text-slate-850 dark:text-white border-b pb-2 flex items-center gap-2">
+      <div className="bg-card dark:bg-card border border-border dark:border-border rounded-3xl p-6 shadow-xs space-y-4 text-left mb-6">
+        <h3 className="text-sm font-black text-foreground border-b pb-2 flex items-center gap-2">
           🎉 Today's Celebrations
         </h3>
         {content}
@@ -267,26 +267,26 @@ export default function CelebrationsWidget({ variant = 'full', embedded = false 
 
   return (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4 text-left">
-        <h4 className="text-sm font-black text-slate-850 dark:text-white border-b pb-2 flex items-center gap-2">
+      <div className="bg-card dark:bg-card border border-border dark:border-border rounded-3xl p-6 shadow-xs space-y-4 text-left">
+        <h4 className="text-sm font-black text-foreground border-b pb-2 flex items-center gap-2">
           🎂 Birthdays This Month
         </h4>
         <div className="space-y-3">
           {celebrations?.birthdays?.length === 0 ? (
-            <p className="text-xs text-slate-400 italic">No birthdays this month.</p>
+            <p className="text-xs text-muted-foreground italic">No birthdays this month.</p>
           ) : (
             celebrations?.birthdays?.map((b: any) => renderPerson(b, 'birthday'))
           )}
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-805 rounded-3xl p-6 shadow-xs space-y-4 text-left">
-        <h4 className="text-sm font-black text-slate-855 dark:text-white border-b pb-2 flex items-center gap-2">
+      <div className="bg-card dark:bg-card border border-border dark:border-border rounded-3xl p-6 shadow-xs space-y-4 text-left">
+        <h4 className="text-sm font-black text-foreground border-b pb-2 flex items-center gap-2">
           🎖️ Work Anniversaries
         </h4>
         <div className="space-y-3">
           {celebrations?.anniversaries?.length === 0 ? (
-            <p className="text-xs text-slate-400 italic">No anniversaries this month.</p>
+            <p className="text-xs text-muted-foreground italic">No anniversaries this month.</p>
           ) : (
             celebrations?.anniversaries?.map((a: any) => renderPerson(a, 'anniversary'))
           )}

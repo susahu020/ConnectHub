@@ -7,10 +7,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'react-hot-toast';
-import { Layers, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Layers, Loader2, Eye, EyeOff, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
 import { passwordZodSchema, PASSWORD_HINT } from '../../../lib/passwordPolicy';
+import AuthBrandPanel from '../../../components/auth/AuthBrandPanel';
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -118,16 +119,16 @@ function RegisterForm() {
   if (registrationBlocked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-6 py-12">
-        <div className="w-full max-w-md space-y-5 bg-card p-8 rounded-3xl border shadow-xl text-center">
+        <div className="w-full max-w-md space-y-5 bg-card p-8 rounded-3xl border shadow-sm text-center">
           <div className="flex flex-col items-center space-y-2">
             {orgSettings.logoUrl ? (
-              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-10 w-10 rounded object-contain" />
+              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-10 w-10 rounded-full object-cover" />
             ) : (
               <Layers className="h-10 w-10 text-primary" />
             )}
             <span className="text-xl font-bold">{orgSettings.orgName}</span>
           </div>
-          <h2 className="text-lg font-bold">This workspace is invite-only</h2>
+          <h2 className="text-lg font-bold" style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}>This workspace is invite-only</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
             {orgSettings.orgName} isn&apos;t open to public sign-ups. If you&apos;re joining a team here, ask an
             administrator or your manager to send you an invitation email — it'll bring you straight back to this
@@ -136,33 +137,69 @@ function RegisterForm() {
           <Link href="/login" className="inline-block font-semibold text-primary hover:underline text-sm">
             Back to Sign In
           </Link>
+          <div>
+            <Link href="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back to home</span>
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-6 py-12">
-      <div className="w-full max-w-lg space-y-6 bg-card p-8 rounded-3xl border shadow-xl relative overflow-hidden">
-        <div className="absolute -top-24 -right-24 h-48 w-48 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 h-48 w-48 bg-warm/10 rounded-full blur-3xl" />
+    <div className="min-h-screen flex bg-background">
+      <AuthBrandPanel
+        orgName={orgSettings.orgName}
+        logoUrl={orgSettings.logoUrl}
+        heading={tokenVerified ? "You've been invited" : `Join ${orgSettings.orgName}`}
+        subheading={
+          tokenVerified
+            ? 'Finish setting up your profile to start chatting, tracking tasks, and collaborating with your team.'
+            : 'Bring your team\'s chat, tasks, files, and reporting into one workspace — set up in minutes.'
+        }
+        bullets={[
+          'Unlimited channels and direct messages',
+          'Kanban boards, calendars, and file storage',
+          'Role-based access control out of the box',
+        ]}
+        quote={{
+          text: 'The Kanban board and file explorer alone replaced two separate subscriptions for us.',
+          author: 'Marcus Webb',
+          role: 'Engineering Manager',
+        }}
+      />
 
-        <div className="flex flex-col items-center space-y-2 text-center">
-          <Link href="/" className="flex items-center space-x-2 text-2xl font-bold tracking-tight mb-2">
+      <div className="flex-1 flex items-center justify-center px-6 py-12 lg:py-16 relative">
+        <Link
+          href="/"
+          className="absolute top-6 left-6 lg:top-8 lg:left-8 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Back to home</span>
+        </Link>
+
+        <div className="w-full max-w-lg space-y-6">
+          <Link href="/" className="lg:hidden flex items-center justify-center space-x-2 text-xl font-bold tracking-tight">
             {orgSettings.logoUrl ? (
-              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-8 w-8 rounded object-contain" />
+              <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-7 w-7 rounded-full object-cover" />
             ) : (
-              <Layers className="h-8 w-8 text-primary" />
+              <Layers className="h-7 w-7 text-primary" />
             )}
             <span>{orgSettings.orgName}</span>
           </Link>
-          <h2 className="text-2xl font-bold tracking-tight">Register New Workspace Profile</h2>
-          <p className="text-sm text-muted-foreground">
-            Fill in the details below to join the collaboration network
-          </p>
-        </div>
 
-        {tokenVerified && (
+          <div className="space-y-2 text-center lg:text-left">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}>
+              Create your account
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Fill in the details below to join the collaboration network.
+            </p>
+          </div>
+
+          {tokenVerified && (
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl flex items-center space-x-2.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold leading-snug">
             <ShieldCheck className="h-5 w-5 text-emerald-500 shrink-0" />
             <div>
@@ -331,6 +368,7 @@ function RegisterForm() {
           <Link href="/login" className="font-semibold text-primary hover:underline">
             Sign In
           </Link>
+        </div>
         </div>
       </div>
     </div>

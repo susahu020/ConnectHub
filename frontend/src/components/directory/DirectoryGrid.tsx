@@ -19,12 +19,12 @@ export function DirectoryGrid({
         <div
           key={colleague.id}
           onClick={() => onSelectUser(colleague)}
-          className="bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative overflow-hidden"
+          className="bg-card dark:bg-card border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative overflow-hidden"
         >
           <div className="space-y-3.5">
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <div className="h-11 w-11 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center text-sm font-extrabold uppercase text-slate-500 overflow-hidden shrink-0">
+                <div className="h-11 w-11 bg-secondary dark:bg-card rounded-full flex items-center justify-center text-sm font-extrabold uppercase text-muted-foreground overflow-hidden shrink-0">
                   {colleague.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={colleague.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -33,7 +33,7 @@ export function DirectoryGrid({
                   )}
                 </div>
                 <span
-                  className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-slate-900 ${statusDotColor(
+                  className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card dark:border-border ${statusDotColor(
                     colleague.status
                   )}`}
                 />
@@ -48,18 +48,18 @@ export function DirectoryGrid({
               </div>
             </div>
 
-            <div className="space-y-1.5 text-[10px] text-slate-505 dark:text-slate-400 font-semibold leading-none text-left">
+            <div className="space-y-1.5 text-[10px] text-muted-foreground dark:text-muted-foreground font-semibold leading-none text-left">
               <div className="flex items-center space-x-1.5">
-                <MapPin className="h-3.5 w-3.5 text-slate-405" />
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>{colleague.officeLocation || colleague.location || 'Remote'}</span>
               </div>
               <div className="flex items-center space-x-1.5">
-                <Briefcase className="h-3.5 w-3.5 text-slate-405" />
+                <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
                 <span>{colleague.department?.name || 'General Org'}</span>
               </div>
               {colleague.timezone && (
                 <div className="flex items-center space-x-1.5">
-                  <Globe className="h-3.5 w-3.5 text-slate-405" />
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>Timezone: {colleague.timezone}</span>
                 </div>
               )}
@@ -68,12 +68,12 @@ export function DirectoryGrid({
             {colleague.skills?.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {colleague.skills.slice(0, 3).map((s: string) => (
-                  <span key={s} className="px-2 py-0.5 bg-slate-50 dark:bg-slate-800 border rounded-full text-[10px] font-bold text-slate-500">
+                  <span key={s} className="px-2 py-0.5 bg-muted dark:bg-card border rounded-full text-[10px] font-bold text-muted-foreground">
                     {s}
                   </span>
                 ))}
                 {colleague.skills.length > 3 && (
-                  <span className="text-[10px] text-slate-400 font-extrabold self-center">+{colleague.skills.length - 3}</span>
+                  <span className="text-[10px] text-muted-foreground font-extrabold self-center">+{colleague.skills.length - 3}</span>
                 )}
               </div>
             )}

@@ -116,7 +116,7 @@ export function CurvedTabs({
             className={`relative z-10 flex shrink-0 items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-xs font-bold uppercase tracking-wide leading-none transition-colors duration-200 ${
               active
                 ? 'text-primary'
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                : 'text-muted-foreground hover:text-muted-foreground dark:hover:text-foreground'
             }`}
           >
             {tab.icon}
@@ -138,7 +138,7 @@ export function CurvedTabs({
             d={buildBaselinePath(metrics)}
             fill="none"
             strokeWidth={2}
-            className="stroke-slate-200 dark:stroke-slate-800"
+            className="stroke-border dark:stroke-border"
           />
         </svg>
       )}

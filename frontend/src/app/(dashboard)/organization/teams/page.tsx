@@ -112,35 +112,35 @@ export default function TeamsPage() {
         </div>
         <button
           onClick={() => setCreateTeamOpen(true)}
-          className="px-4 py-2.5 bg-primary text-white rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
+          className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
         >
           <Plus className="h-4 w-4" />
           <span>Create Team</span>
         </button>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
+      <div className="bg-card dark:bg-card border rounded-2xl p-6 shadow-sm overflow-x-auto min-h-[400px]">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {loadingTeams ? (
-            <div className="col-span-2 flex items-center justify-center py-20 text-slate-450">
+            <div className="col-span-2 flex items-center justify-center py-20 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
               <span>Loading teams...</span>
             </div>
           ) : teams?.length === 0 ? (
-            <div className="col-span-2 text-center py-16 text-slate-400 text-xs">
+            <div className="col-span-2 text-center py-16 text-muted-foreground text-xs">
               No teams yet. Create one to start building rosters.
             </div>
           ) : (
             teams?.map((t: any) => (
-              <div key={t.id} className="border rounded-2xl p-4 bg-slate-50/40 dark:bg-slate-800/30 space-y-3">
+              <div key={t.id} className="border rounded-2xl p-4 bg-muted/40 dark:bg-card/30 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
                     <h4 className="font-bold text-sm flex items-center gap-1.5">
                       <UsersRound className="h-4 w-4 text-primary" />
                       <span>{t.name}</span>
                     </h4>
-                    <p className="text-[10px] text-slate-400">{t.department?.name} · {t.members?.length || 0} member{t.members?.length === 1 ? '' : 's'} · {t._count?.projects || 0} project{t._count?.projects === 1 ? '' : 's'}</p>
-                    {t.description && <p className="text-[10px] text-slate-450 mt-1">{t.description}</p>}
+                    <p className="text-[10px] text-muted-foreground">{t.department?.name} · {t.members?.length || 0} member{t.members?.length === 1 ? '' : 's'} · {t._count?.projects || 0} project{t._count?.projects === 1 ? '' : 's'}</p>
+                    {t.description && <p className="text-[10px] text-muted-foreground mt-1">{t.description}</p>}
                   </div>
                   <button
                     onClick={() => handleDeleteTeam(t.id)}
@@ -152,14 +152,14 @@ export default function TeamsPage() {
 
                 <div className="flex flex-wrap gap-1.5">
                   {t.members?.length === 0 ? (
-                    <span className="text-[10px] text-slate-400 italic">No members yet.</span>
+                    <span className="text-[10px] text-muted-foreground italic">No members yet.</span>
                   ) : (
                     t.members.map((m: any) => (
-                      <span key={m.id} className="flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-900 border rounded-full text-[10px] font-semibold">
+                      <span key={m.id} className="flex items-center gap-1 px-2 py-1 bg-card dark:bg-card border rounded-full text-[10px] font-semibold">
                         {m.user.firstName} {m.user.lastName}
                         <button
                           onClick={() => removeTeamMemberMutation.mutate({ teamId: t.id, userId: m.userId })}
-                          className="text-slate-400 hover:text-red-500"
+                          className="text-muted-foreground hover:text-red-500"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -175,7 +175,7 @@ export default function TeamsPage() {
                       setManageTeamRosterId(t.id);
                       setAddMemberUserId(e.target.value);
                     }}
-                    className="flex-1 bg-white dark:bg-slate-900 border rounded-lg px-2 py-1.5 text-[10px] focus:outline-none"
+                    className="flex-1 bg-card dark:bg-card border rounded-lg px-2 py-1.5 text-[10px] focus:outline-none"
                   >
                     <option value="">-- Add a member --</option>
                     {systemUsers
@@ -192,7 +192,7 @@ export default function TeamsPage() {
                       setManageTeamRosterId(null);
                     }}
                     disabled={manageTeamRosterId !== t.id || !addMemberUserId}
-                    className="px-3 py-1.5 bg-primary text-white rounded-lg text-[10px] font-bold hover:opacity-90 disabled:opacity-40 transition-all"
+                    className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-[10px] font-bold hover:opacity-90 disabled:opacity-40 transition-all"
                   >
                     Add
                   </button>
@@ -205,13 +205,13 @@ export default function TeamsPage() {
 
       {createTeamOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
-            <button onClick={() => setCreateTeamOpen(false)} className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 p-1 rounded-lg">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+            <button onClick={() => setCreateTeamOpen(false)} className="absolute right-4 top-4 text-muted-foreground hover:bg-muted p-1 rounded-lg">
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base">Create New Team</h3>
-              <p className="text-xs text-slate-400">Build a roster within a department to organize projects and members.</p>
+              <p className="text-xs text-muted-foreground">Build a roster within a department to organize projects and members.</p>
             </div>
             <form
               onSubmit={(e) => {
@@ -222,24 +222,24 @@ export default function TeamsPage() {
               className="space-y-4 text-xs font-semibold"
             >
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Team Name</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Team Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Platform Engineering"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Department</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Department</label>
                 <select
                   required
                   value={teamDeptId}
                   onChange={(e) => setTeamDeptId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
                 >
                   <option value="">-- Select a department --</option>
                   {depts?.map((d: any) => (
@@ -249,19 +249,19 @@ export default function TeamsPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-slate-400 uppercase text-[10px]">Description (optional)</label>
+                <label className="text-muted-foreground uppercase text-[10px]">Description (optional)</label>
                 <textarea
                   placeholder="What does this team own..."
                   value={teamDesc}
                   onChange={(e) => setTeamDesc(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-20 resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-20 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={createTeamMutation.isPending}
-                className="w-full py-2.5 bg-primary text-white font-bold rounded-xl shadow-md disabled:opacity-50"
+                className="w-full py-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-md disabled:opacity-50"
               >
                 {createTeamMutation.isPending ? 'Creating...' : 'Create Team'}
               </button>

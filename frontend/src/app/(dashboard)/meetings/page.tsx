@@ -2173,7 +2173,7 @@ export default function MeetingsPage() {
 
   return (
     <div
-      className={`flex-1 flex flex-col bg-white dark:bg-slate-905 dark:bg-slate-950 p-3 sm:p-8 h-[calc(100vh-4rem)] ${
+      className={`flex-1 flex flex-col bg-card dark:bg-card dark:bg-card p-3 sm:p-8 h-[calc(100vh-4rem)] ${
         meetingStep === 'lobby' ? 'overflow-y-auto' : 'overflow-hidden'
       }`}
     >
@@ -2183,7 +2183,7 @@ export default function MeetingsPage() {
           straight through to the meeting rather than flashing the "New
           meeting / Join a meeting" screen first. */}
       {meetingStep === 'lobby' && resolvingLinkCode && (
-        <div className="flex-grow flex flex-col items-center justify-center gap-3 text-slate-450 dark:text-slate-400">
+        <div className="flex-grow flex flex-col items-center justify-center gap-3 text-muted-foreground dark:text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
           <p className="text-xs font-semibold">Opening your meeting...</p>
         </div>
@@ -2196,14 +2196,14 @@ export default function MeetingsPage() {
           {/* LEFT SIDE: GOOGLE MEET CONFIG PANEL */}
           <div className="w-full lg:w-1/2 space-y-12 text-left animate-in fade-in duration-300">
             <div className="flex items-center space-x-3 select-none">
-              <h2 className="text-3xl font-normal text-slate-800 dark:text-slate-100 font-sans tracking-tight font-light">Meet</h2>
+              <h2 className="text-3xl font-normal text-foreground dark:text-foreground font-sans tracking-tight font-light">Meet</h2>
             </div>
 
             <div className="space-y-6">
-              <h3 className="text-2xl lg:text-3xl font-light leading-snug text-slate-700 dark:text-slate-300">
+              <h3 className="text-2xl lg:text-3xl font-light leading-snug text-foreground dark:text-foreground">
                 Premium video meetings.<br />Now free for everyone in the workspace.
               </h3>
-              <p className="text-sm text-slate-450 dark:text-slate-400 max-w-md leading-relaxed">
+              <p className="text-sm text-muted-foreground dark:text-muted-foreground max-w-md leading-relaxed">
                 Connect, collaborate, and celebrate from anywhere with {orgSettings.orgName} Meetings. No permission prompts are sent until you join.
               </p>
             </div>
@@ -2213,7 +2213,7 @@ export default function MeetingsPage() {
               <button
                 onClick={handleCreateMeeting}
                 disabled={creatingMeeting}
-                className="px-6 py-3 bg-primary hover:bg-primary-dark disabled:opacity-60 text-white font-medium text-sm rounded-xl shadow-md shadow-primary/15 transition-all flex items-center space-x-2"
+                className="px-6 py-3 bg-primary hover:bg-primary-dark disabled:opacity-60 text-primary-foreground font-medium text-sm rounded-xl shadow-md shadow-primary/15 transition-all flex items-center space-x-2"
               >
                 {creatingMeeting ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <Video className="h-4.5 w-4.5" />}
                 <span>New meeting</span>
@@ -2221,7 +2221,7 @@ export default function MeetingsPage() {
 
               <button
                 onClick={() => setShowScheduleModal(true)}
-                className="px-6 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm rounded-xl transition-all flex items-center space-x-2"
+                className="px-6 py-3 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card text-foreground dark:text-foreground font-medium text-sm rounded-xl transition-all flex items-center space-x-2"
               >
                 <Calendar className="h-4.5 w-4.5" />
                 <span>Schedule</span>
@@ -2229,7 +2229,7 @@ export default function MeetingsPage() {
 
               <button
                 onClick={handleGetCalendarFeed}
-                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-sm rounded-xl transition-all flex items-center space-x-2"
+                className="px-4 py-3 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card text-foreground dark:text-foreground font-medium text-sm rounded-xl transition-all flex items-center space-x-2"
                 title="Subscribe to your meetings from Google Calendar, Outlook, or Apple Calendar"
               >
                 <Rss className="h-4.5 w-4.5" />
@@ -2238,15 +2238,15 @@ export default function MeetingsPage() {
 
               {/* Unified code-entry pill: icon + input + attached Join action, so
                   the join button is always visible rather than appearing/disappearing. */}
-              <div className="flex items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-3.5 pr-1.5 py-1.5 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
-                <Laptop className="h-4 w-4 text-slate-450 shrink-0" />
+              <div className="flex items-center bg-muted dark:bg-card border border-border dark:border-border rounded-xl pl-3.5 pr-1.5 py-1.5 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+                <Laptop className="h-4 w-4 text-muted-foreground shrink-0" />
                 <input
                   type="text"
                   placeholder="Enter a code or link"
                   value={meetingId}
                   onChange={(e) => setMeetingId(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && meetingId.trim() && !joiningMeeting) handleJoinExisting(); }}
-                  className="bg-transparent text-sm font-semibold outline-none w-44 sm:w-52 px-3 py-1.5 text-slate-850 dark:text-slate-100 placeholder:font-normal placeholder:text-slate-400"
+                  className="bg-transparent text-sm font-semibold outline-none w-44 sm:w-52 px-3 py-1.5 text-foreground dark:text-foreground placeholder:font-normal placeholder:text-muted-foreground"
                 />
                 <button
                   onClick={() => handleJoinExisting()}
@@ -2259,14 +2259,14 @@ export default function MeetingsPage() {
               </div>
             </div>
 
-            <hr className="border-slate-200 dark:border-slate-850 max-w-md" />
+            <hr className="border-border dark:border-border max-w-md" />
 
             {/* My Meetings & Scheduled badge */}
             <div className="space-y-3 select-none max-w-md">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">My Meetings</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">My Meetings</span>
 
               {loadingMyMeetings ? (
-                <div className="flex items-center space-x-2 text-slate-400 text-xs px-4 py-3.5">
+                <div className="flex items-center space-x-2 text-muted-foreground text-xs px-4 py-3.5">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Loading your meetings...</span>
                 </div>
@@ -2278,8 +2278,8 @@ export default function MeetingsPage() {
 
                 if (upcoming.length === 0) {
                   return (
-                    <div className="flex items-center space-x-3 text-slate-450 text-xs bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3.5">
-                      <Calendar className="h-5 w-5 text-slate-400 shrink-0" />
+                    <div className="flex items-center space-x-3 text-muted-foreground text-xs bg-muted dark:bg-card border border-dashed border-border dark:border-border rounded-xl px-4 py-3.5">
+                      <Calendar className="h-5 w-5 text-muted-foreground shrink-0" />
                       <p>Nothing scheduled yet. Click "Schedule" to book a meeting and invite teammates.</p>
                     </div>
                   );
@@ -2291,18 +2291,18 @@ export default function MeetingsPage() {
                       const when = new Date(m.scheduledFor).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
                       const isLive = m.status === 'LIVE';
                       return (
-                        <div key={m.id} className="flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3">
+                        <div key={m.id} className="flex items-center justify-between gap-3 bg-muted dark:bg-card border border-border dark:border-border rounded-xl px-4 py-3">
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                            <p className="text-xs font-bold text-foreground dark:text-foreground truncate">
                               {m.title || 'Untitled Meeting'}
                               {isLive && <span className="ml-2 text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded align-middle">LIVE</span>}
                               {m.recurrenceRule && (
-                                <span className="ml-2 text-[9px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded align-middle capitalize">
+                                <span className="ml-2 text-[9px] font-black text-muted-foreground bg-muted dark:bg-card px-1.5 py-0.5 rounded align-middle capitalize">
                                   Repeats {m.recurrenceRule.toLowerCase()}
                                 </span>
                               )}
                             </p>
-                            <p className="text-[10px] text-slate-450 mt-0.5">
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
                               {when} {m.isHost ? '· You\'re hosting' : m.isCoHost ? '· You\'re a co-host' : `· Hosted by ${m.host?.firstName} ${m.host?.lastName}`}
                             </p>
                           </div>
@@ -2314,7 +2314,7 @@ export default function MeetingsPage() {
                                 onClick={() => handleDownloadIcs(m)}
                                 title="Add to your calendar app (.ics)"
                                 aria-label={`Add ${m.title || 'meeting'} to calendar`}
-                                className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50"
+                                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted dark:hover:bg-card rounded-lg transition-all disabled:opacity-50"
                               >
                                 <Download className="h-3.5 w-3.5" />
                               </button>
@@ -2323,7 +2323,7 @@ export default function MeetingsPage() {
                               <>
                                 <button
                                   onClick={() => isLive ? handleJoinExisting(m.code) : handleStartScheduledMeeting(m)}
-                                  className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-[10px] font-bold transition-all"
+                                  className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-primary-foreground rounded-lg text-[10px] font-bold transition-all"
                                 >
                                   {isLive ? 'Join' : 'Start'}
                                 </button>
@@ -2340,7 +2340,7 @@ export default function MeetingsPage() {
                                 )}
                               </>
                             ) : m.myInviteStatus === 'DECLINED' ? (
-                              <span className="text-[10px] font-bold text-slate-400 px-2">Declined</span>
+                              <span className="text-[10px] font-bold text-muted-foreground px-2">Declined</span>
                             ) : m.myInviteStatus === 'PENDING' ? (
                               <>
                                 <button
@@ -2364,19 +2364,19 @@ export default function MeetingsPage() {
                               // just without the host-only Cancel option.
                               <button
                                 onClick={() => isLive ? handleJoinExisting(m.code) : handleStartScheduledMeeting(m)}
-                                className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-[10px] font-bold transition-all"
+                                className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-primary-foreground rounded-lg text-[10px] font-bold transition-all"
                               >
                                 {isLive ? 'Join' : 'Start'}
                               </button>
                             ) : isLive ? (
                               <button
                                 onClick={() => handleJoinExisting(m.code)}
-                                className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg text-[10px] font-bold transition-all"
+                                className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-primary-foreground rounded-lg text-[10px] font-bold transition-all"
                               >
                                 Join
                               </button>
                             ) : (
-                              <span className="text-[10px] font-bold text-slate-400 px-2">Not started yet</span>
+                              <span className="text-[10px] font-bold text-muted-foreground px-2">Not started yet</span>
                             )}
                           </div>
                         </div>
@@ -2392,27 +2392,27 @@ export default function MeetingsPage() {
           <div className="w-full lg:w-1/2 flex flex-col items-center justify-center space-y-6 text-center select-none">
             {/* Styled lock & avatars illustration badge */}
             <div className="relative h-64 w-64 flex items-center justify-center">
-              <div className="absolute inset-0 bg-slate-100/60 dark:bg-slate-900/60 rounded-full blur-2xl" />
+              <div className="absolute inset-0 bg-muted/60 dark:bg-card/60 rounded-full blur-2xl" />
               {/* Illustrated Center Graphic */}
-              <div className="relative bg-primary/5 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/60 p-8 rounded-full h-48 w-48 flex items-center justify-center shadow-inner">
+              <div className="relative bg-primary/5 dark:bg-card/50 border border-border dark:border-border/60 p-8 rounded-full h-48 w-48 flex items-center justify-center shadow-inner">
                 {/* Users facing each other */}
-                <div className="absolute left-6 bottom-8 w-16 h-16 rounded-full bg-yellow-500 text-white font-black text-lg flex items-center justify-center shadow-md animate-pulse">
+                <div className="absolute left-6 bottom-8 w-16 h-16 rounded-full bg-yellow-500 text-foreground font-black text-lg flex items-center justify-center shadow-md animate-pulse">
                   SC
                 </div>
-                <div className="absolute right-6 bottom-8 w-16 h-16 rounded-full bg-emerald-500 text-white font-black text-lg flex items-center justify-center shadow-md animate-pulse delay-500">
+                <div className="absolute right-6 bottom-8 w-16 h-16 rounded-full bg-emerald-500 text-foreground font-black text-lg flex items-center justify-center shadow-md animate-pulse delay-500">
                   ER
                 </div>
                 
                 {/* Shield badge */}
-                <div className="p-4 bg-primary text-white rounded-2xl shadow-lg border border-primary-light animate-bounce">
+                <div className="p-4 bg-primary text-primary-foreground rounded-2xl shadow-lg border border-primary-light animate-bounce">
                   <Lock className="h-6 w-6" />
                 </div>
               </div>
             </div>
 
             <div className="space-y-2 max-w-sm">
-              <h4 className="text-xl font-medium text-slate-800 dark:text-slate-100">Your meeting is safe</h4>
-              <p className="text-xs text-slate-450 dark:text-slate-400 leading-relaxed">
+              <h4 className="text-xl font-medium text-foreground dark:text-foreground">Your meeting is safe</h4>
+              <p className="text-xs text-muted-foreground dark:text-muted-foreground leading-relaxed">
                 No one can join a meeting unless invited or admitted by the host
               </p>
             </div>
@@ -2429,59 +2429,59 @@ export default function MeetingsPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-5 shadow-2xl relative text-left max-h-[85vh] overflow-y-auto"
+              className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-5 shadow-2xl relative text-left max-h-[85vh] overflow-y-auto"
             >
               <button
                 onClick={() => setShowScheduleModal(false)}
-                className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+                className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
               >
                 <X className="h-5 w-5" />
               </button>
 
               <div className="space-y-1">
-                <h3 className="text-lg font-medium text-slate-800 dark:text-slate-100">Schedule a meeting</h3>
-                <p className="text-xs text-slate-450 dark:text-slate-400">Pick a time and invite teammates — they'll get a notification.</p>
+                <h3 className="text-lg font-medium text-foreground dark:text-foreground">Schedule a meeting</h3>
+                <p className="text-xs text-muted-foreground dark:text-muted-foreground">Pick a time and invite teammates — they'll get a notification.</p>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Title (optional)</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1.5">Title (optional)</label>
                 <input
                   type="text"
                   value={scheduleTitle}
                   onChange={(e) => setScheduleTitle(e.target.value)}
                   placeholder="e.g. Weekly sync"
-                  className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                  className="w-full bg-muted dark:bg-card border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Date</label>
+                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1.5">Date</label>
                   <input
                     type="date"
                     value={scheduleDate}
                     min={new Date().toISOString().split('T')[0]}
                     onChange={(e) => setScheduleDate(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                    className="w-full bg-muted dark:bg-card border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Time</label>
+                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1.5">Time</label>
                   <input
                     type="time"
                     value={scheduleTime}
                     onChange={(e) => setScheduleTime(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                    className="w-full bg-muted dark:bg-card border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Duration</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1.5">Duration</label>
                 <select
                   value={scheduleDuration}
                   onChange={(e) => setScheduleDuration(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                  className="w-full bg-muted dark:bg-card border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
                 >
                   <option value="15">15 minutes</option>
                   <option value="30">30 minutes</option>
@@ -2493,11 +2493,11 @@ export default function MeetingsPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Repeats</label>
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1.5">Repeats</label>
                 <select
                   value={scheduleRecurrenceRule}
                   onChange={(e) => setScheduleRecurrenceRule(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                  className="w-full bg-muted dark:bg-card border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
                 >
                   <option value="">Doesn't repeat</option>
                   <option value="DAILY">Daily</option>
@@ -2509,30 +2509,30 @@ export default function MeetingsPage() {
 
               {scheduleRecurrenceRule && (
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Repeat Until</label>
+                  <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1.5">Repeat Until</label>
                   <input
                     type="date"
                     value={scheduleRecurrenceEndDate}
                     min={scheduleDate || new Date().toISOString().split('T')[0]}
                     onChange={(e) => setScheduleRecurrenceEndDate(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
+                    className="w-full bg-muted dark:bg-card border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">Capped at {52} occurrences either way.</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Capped at {52} occurrences either way.</p>
                 </div>
               )}
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">
+                <label className="block text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1.5">
                   Invite teammates {scheduleInviteeIds.length > 0 && `(${scheduleInviteeIds.length} selected)`}
                 </label>
-                <div className="border rounded-xl max-h-40 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-850">
+                <div className="border rounded-xl max-h-40 overflow-y-auto divide-y divide-border dark:divide-border">
                   {directoryUsers.length === 0 ? (
-                    <p className="text-[11px] text-slate-400 italic px-3 py-3">No teammates found.</p>
+                    <p className="text-[11px] text-muted-foreground italic px-3 py-3">No teammates found.</p>
                   ) : (
                     directoryUsers.map((emp: any) => {
                       const invited = scheduleInviteeIds.includes(emp.id);
                       return (
-                      <div key={emp.id} className="flex items-center justify-between gap-2.5 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-850">
+                      <div key={emp.id} className="flex items-center justify-between gap-2.5 px-3 py-2 hover:bg-muted dark:hover:bg-card">
                         <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
                           <input
                             type="checkbox"
@@ -2540,7 +2540,7 @@ export default function MeetingsPage() {
                             onChange={() => toggleScheduleInvitee(emp.id)}
                             className="rounded shrink-0"
                           />
-                          <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate">{emp.firstName} {emp.lastName}</span>
+                          <span className="text-xs font-semibold text-foreground dark:text-foreground truncate">{emp.firstName} {emp.lastName}</span>
                         </label>
                         {/* Co-host designation — only makes sense once they're
                             actually invited (Meet/Teams "co-organizer" parity). */}
@@ -2552,7 +2552,7 @@ export default function MeetingsPage() {
                             className={`shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wide transition-all ${
                               scheduleCoHostIds.includes(emp.id)
                                 ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
-                                : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+                                : 'text-muted-foreground hover:bg-secondary dark:hover:bg-card'
                             }`}
                           >
                             <Crown className="h-3 w-3" /> Co-host
@@ -2572,13 +2572,13 @@ export default function MeetingsPage() {
                   onChange={(e) => setScheduleMuteOnEntry(e.target.checked)}
                   className="rounded"
                 />
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Mute participants on entry</span>
+                <span className="text-xs font-semibold text-foreground dark:text-foreground">Mute participants on entry</span>
               </label>
 
               <button
                 onClick={handleScheduleMeeting}
                 disabled={scheduling || !scheduleDate || !scheduleTime}
-                className="w-full py-2.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-primary hover:bg-primary-dark disabled:opacity-50 text-primary-foreground text-xs font-black rounded-xl transition-all flex items-center justify-center gap-2"
               >
                 {scheduling && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 <span>Schedule Meeting</span>
@@ -2593,38 +2593,38 @@ export default function MeetingsPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-sm space-y-6 shadow-2xl relative text-center"
+              className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-sm space-y-6 shadow-2xl relative text-center"
             >
               <button 
                 onClick={() => setShowShareModal(false)} 
-                className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+                className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
               >
                 <X className="h-5 w-5" />
               </button>
 
               <div className="space-y-2">
-                <h3 className="text-lg font-medium text-slate-800 dark:text-slate-100">Share your new meeting</h3>
-                <p className="text-xs text-slate-450 dark:text-slate-400 leading-relaxed">
+                <h3 className="text-lg font-medium text-foreground dark:text-foreground">Share your new meeting</h3>
+                <p className="text-xs text-muted-foreground dark:text-muted-foreground leading-relaxed">
                   Copy this link and send it to people you want to meet with. Be sure you save it so you can use it later, too.
                 </p>
               </div>
 
               {/* Full, unclipped invite link — wraps instead of ellipsizing so the whole URL is visible/selectable */}
-              <div className="flex items-start justify-between gap-2 bg-slate-50 dark:bg-slate-950 px-4 py-3 rounded-xl border border-slate-100 dark:border-slate-850 text-left">
-                <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-350 break-all select-all leading-relaxed">
+              <div className="flex items-start justify-between gap-2 bg-muted dark:bg-card px-4 py-3 rounded-xl border border-border dark:border-border text-left">
+                <span className="text-[11px] font-semibold text-foreground dark:text-foreground break-all select-all leading-relaxed">
                   {buildInviteLink(newMeetingCode)}
                 </span>
                 <button 
                   onClick={() => handleCopyLink(newMeetingCode)}
-                  className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all shrink-0"
+                  className="p-1 hover:bg-secondary dark:hover:bg-card rounded-lg text-muted-foreground dark:text-muted-foreground transition-all shrink-0"
                   title="Copy link"
                 >
                   <Copy className="h-4.5 w-4.5" />
                 </button>
               </div>
 
-              <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md font-mono normal-case">{newMeetingCode}</span>
+              <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                <span className="px-2 py-0.5 bg-muted dark:bg-card rounded-md font-mono normal-case">{newMeetingCode}</span>
                 <span>is your meeting code</span>
               </div>
 
@@ -2632,7 +2632,7 @@ export default function MeetingsPage() {
               <div className="flex items-center justify-center space-x-3 pt-2">
                 <button
                   onClick={() => handleSendInvite(newMeetingCode)}
-                  className="px-4 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-xl shadow-md flex items-center space-x-1.5 transition-all"
+                  className="px-4 py-2.5 bg-primary hover:bg-primary-dark text-primary-foreground font-medium text-xs rounded-xl shadow-md flex items-center space-x-1.5 transition-all"
                 >
                   <Share2 className="h-3.5 w-3.5" />
                   <span>Send invite</span>
@@ -2640,7 +2640,7 @@ export default function MeetingsPage() {
 
                 <button
                   onClick={handleStartCreatedMeeting}
-                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-primary font-semibold text-xs rounded-xl flex items-center space-x-1.5 transition-all"
+                  className="px-4 py-2.5 border border-border dark:border-border hover:bg-muted dark:hover:bg-card text-primary font-semibold text-xs rounded-xl flex items-center space-x-1.5 transition-all"
                 >
                   <Video className="h-3.5 w-3.5" />
                   <span>Start now</span>
@@ -2654,33 +2654,33 @@ export default function MeetingsPage() {
       {/* CALENDAR SUBSCRIPTION MODAL */}
       {showSubscribeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4" role="dialog" aria-modal="true" aria-label="Sync to Calendar App">
-          <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
+          <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-md space-y-4 shadow-2xl relative">
             <button
               onClick={() => setShowSubscribeModal(false)}
-              className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+              className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
             <div className="space-y-1">
               <h3 className="font-bold text-base flex items-center gap-2"><Rss className="h-4 w-4 text-primary" /> Sync to Your Calendar App</h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-muted-foreground">
                 Paste this link into Google Calendar, Outlook, or Apple Calendar as a subscription — new meetings
                 you're invited to will show up automatically, no manual export needed.
               </p>
             </div>
 
             {subscribingFeed && !feedUrls ? (
-              <div className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+              <div className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
             ) : feedUrls ? (
               <>
-                <div className="flex items-start justify-between gap-2 bg-slate-50 dark:bg-slate-950 px-4 py-3 rounded-xl border text-left">
-                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-350 break-all select-all leading-relaxed">
+                <div className="flex items-start justify-between gap-2 bg-muted dark:bg-card px-4 py-3 rounded-xl border text-left">
+                  <span className="text-[11px] font-semibold text-foreground dark:text-foreground break-all select-all leading-relaxed">
                     {feedUrls.feedUrl}
                   </span>
                   <button
                     onClick={() => { navigator.clipboard.writeText(feedUrls.feedUrl); toast.success('Copied!'); }}
-                    className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-all shrink-0"
+                    className="p-1 hover:bg-secondary dark:hover:bg-card rounded-lg text-muted-foreground dark:text-muted-foreground transition-all shrink-0"
                     title="Copy link"
                   >
                     <Copy className="h-4.5 w-4.5" />
@@ -2688,14 +2688,14 @@ export default function MeetingsPage() {
                 </div>
                 <a
                   href={feedUrls.webcalUrl}
-                  className="block text-center px-4 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium text-xs rounded-xl shadow-md transition-all"
+                  className="block text-center px-4 py-2.5 bg-primary hover:bg-primary-dark text-primary-foreground font-medium text-xs rounded-xl shadow-md transition-all"
                 >
                   Open directly in my calendar app
                 </a>
                 <button
                   onClick={handleRegenerateFeed}
                   disabled={subscribingFeed}
-                  className="w-full text-center text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors disabled:opacity-50"
+                  className="w-full text-center text-[10px] font-bold text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-50"
                 >
                   Link not working, or shared by mistake? Generate a new one
                 </button>
@@ -2716,18 +2716,18 @@ export default function MeetingsPage() {
                 <AlertCircle className="h-10 w-10" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Meeting not started by host</h2>
-                <p className="text-xs text-slate-450 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                <h2 className="text-xl font-bold text-foreground dark:text-foreground">Meeting not started by host</h2>
+                <p className="text-xs text-muted-foreground dark:text-muted-foreground max-w-xs mx-auto leading-relaxed">
                   The host has not started this meeting workspace yet. You will automatically enter the room as soon as the host starts the call.
                 </p>
               </div>
               
-              <div className="bg-slate-50 dark:bg-slate-900 border rounded-xl p-4 space-y-3">
+              <div className="bg-muted dark:bg-card border rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between text-left">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Target Room</span>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{meetingId}</p>
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">Target Room</span>
+                  <p className="text-xs font-bold text-foreground dark:text-foreground">{meetingId}</p>
                 </div>
-                <div className="flex items-center justify-center space-x-2 text-slate-450 dark:text-slate-400">
+                <div className="flex items-center justify-center space-x-2 text-muted-foreground dark:text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   <span className="text-[10px] font-bold uppercase tracking-wide">Watching for host to start...</span>
                 </div>
@@ -2742,8 +2742,8 @@ export default function MeetingsPage() {
               
               {waitingStatus === 'asking' && (
                 <div className="space-y-2">
-                  <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Asking to join call...</h2>
-                  <p className="text-xs text-slate-450 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                  <h2 className="text-xl font-bold text-foreground dark:text-foreground">Asking to join call...</h2>
+                  <p className="text-xs text-muted-foreground dark:text-muted-foreground max-w-xs mx-auto leading-relaxed">
                     Host is reviewing your entry request. Camera and audio access will be activated upon host approval.
                   </p>
                 </div>
@@ -2752,23 +2752,23 @@ export default function MeetingsPage() {
               {waitingStatus === 'denied' && (
                 <div className="space-y-2">
                   <h2 className="text-xl font-bold text-red-500">Entry Request Cancelled</h2>
-                  <p className="text-xs text-slate-450 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                  <p className="text-xs text-muted-foreground dark:text-muted-foreground max-w-xs mx-auto leading-relaxed">
                     The host has denied your request to join this session.
                   </p>
                 </div>
               )}
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-900 border rounded-2xl w-full flex items-center justify-between text-left">
+              <div className="p-4 bg-muted dark:bg-card border rounded-2xl w-full flex items-center justify-between text-left">
                 <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wide">Target Room</span>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{meetingId}</p>
+                  <span className="text-[9px] font-bold text-muted-foreground block uppercase tracking-wide">Target Room</span>
+                  <p className="text-xs font-bold text-foreground dark:text-foreground">{meetingId}</p>
                 </div>
                 <Loader2 className="h-4 w-4 animate-spin text-primary" />
               </div>
 
               <button
                 onClick={() => setMeetingStep('lobby')}
-                className="text-xs text-slate-450 hover:text-slate-650 underline block mx-auto pt-2"
+                className="text-xs text-muted-foreground hover:text-muted-foreground underline block mx-auto pt-2"
               >
                 Back to lobby
               </button>
@@ -2805,19 +2805,19 @@ export default function MeetingsPage() {
             </div>
             
             {/* Header info */}
-            <div className="flex items-center justify-between bg-white dark:bg-slate-900 border px-6 py-3 rounded-2xl shadow-xs">
+            <div className="flex items-center justify-between bg-card dark:bg-card border px-6 py-3 rounded-2xl shadow-xs">
               <div className="flex items-center space-x-2.5">
                 <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${recordingNotice ? 'bg-red-500' : 'bg-emerald-500'}`} />
                 <div className="text-left">
-                  <h3 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                  <h3 className="text-xs font-black text-foreground dark:text-foreground uppercase tracking-wide">
                     Live Session ({activeRoomId === 'main' ? 'Main Room' : breakoutRooms.find(r => r.id === activeRoomId)?.name})
                   </h3>
                   <p className="text-[10px] text-muted-foreground flex items-center space-x-1.5 mt-0.5">
-                    <span className="font-semibold text-primary bg-primary/10 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                    <span className="font-semibold text-primary bg-primary/10 dark:bg-card px-1.5 py-0.5 rounded">
                       {participants.length + 1} participant{participants.length + 1 > 1 ? 's' : ''}
                     </span>
                     {meetingStartedAt && (
-                      <span className="font-mono font-semibold text-slate-500">
+                      <span className="font-mono font-semibold text-muted-foreground">
                         {String(Math.floor(elapsedSeconds / 3600)).padStart(2, '0')}:{String(Math.floor((elapsedSeconds % 3600) / 60)).padStart(2, '0')}:{String(elapsedSeconds % 60).padStart(2, '0')}
                       </span>
                     )}
@@ -2836,7 +2836,7 @@ export default function MeetingsPage() {
                 {isHost && joinRequests.length > 1 && (
                   <button
                     onClick={handleAdmitAllRequests}
-                    className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-xl text-[10px] font-bold transition-all flex items-center space-x-1"
+                    className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-primary-foreground rounded-xl text-[10px] font-bold transition-all flex items-center space-x-1"
                   >
                     <Users className="h-3 w-3" />
                     <span>Admit all ({joinRequests.length})</span>
@@ -2847,7 +2847,7 @@ export default function MeetingsPage() {
                   <button
                     onClick={() => setShowCreatePollModal(true)}
                     title="Create a poll"
-                    className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-350 transition-all"
+                    className="p-2 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card rounded-xl text-foreground dark:text-foreground transition-all"
                   >
                     <BarChart3 className="h-3.5 w-3.5" />
                   </button>
@@ -2856,7 +2856,7 @@ export default function MeetingsPage() {
                 <button
                   onClick={() => setViewMode(prev => prev === 'grid' ? 'speaker' : 'grid')}
                   title={viewMode === 'grid' ? 'Switch to speaker view' : 'Switch to grid view'}
-                  className={`p-2 rounded-xl transition-all ${viewMode === 'speaker' ? 'bg-primary text-white' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350'}`}
+                  className={`p-2 rounded-xl transition-all ${viewMode === 'speaker' ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-secondary text-foreground'}`}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
                 </button>
@@ -2864,7 +2864,7 @@ export default function MeetingsPage() {
                 <button
                   onClick={handleToggleFullscreen}
                   title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-                  className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-350 transition-all"
+                  className="p-2 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card rounded-xl text-foreground dark:text-foreground transition-all"
                 >
                   {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
                 </button>
@@ -2872,7 +2872,7 @@ export default function MeetingsPage() {
                 <button
                   onClick={() => setShowKeyboardShortcuts(true)}
                   title="Keyboard shortcuts"
-                  className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-slate-700 dark:text-slate-350 transition-all"
+                  className="p-2 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card rounded-xl text-foreground dark:text-foreground transition-all"
                 >
                   <Keyboard className="h-3.5 w-3.5" />
                 </button>
@@ -2882,7 +2882,7 @@ export default function MeetingsPage() {
                     onClick={handleToggleMeetingLock}
                     title={meetingLocked ? 'Unlock meeting' : 'Lock meeting (no new joins)'}
                     className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center space-x-1 ${
-                      meetingLocked ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-350'
+                      meetingLocked ? 'bg-amber-500 hover:bg-amber-600 text-foreground' : 'bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card text-foreground dark:text-foreground'
                     }`}
                   >
                     {meetingLocked ? <Lock className="h-3 w-3" /> : <LockOpen className="h-3 w-3" />}
@@ -2892,7 +2892,7 @@ export default function MeetingsPage() {
 
                 <button
                   onClick={() => handleCopyLink(meetingId)}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-[10px] font-bold transition-all text-slate-700 dark:text-slate-350 flex items-center space-x-1"
+                  className="px-3 py-1.5 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card rounded-xl text-[10px] font-bold transition-all text-foreground dark:text-foreground flex items-center space-x-1"
                 >
                   <Copy className="h-3 w-3" />
                   <span>Invite Link</span>
@@ -2902,7 +2902,7 @@ export default function MeetingsPage() {
                   <button
                     onClick={() => setShowBreakoutMenu(!showBreakoutMenu)}
                     className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center space-x-1 ${
-                      showBreakoutMenu ? 'bg-primary text-white' : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                      showBreakoutMenu ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-secondary text-foreground'
                     }`}
                   >
                     <Compass className="h-3 w-3" />
@@ -2911,8 +2911,8 @@ export default function MeetingsPage() {
 
                   {/* Breakout rooms menu */}
                   {showBreakoutMenu && (
-                    <div className="absolute right-0 top-9 bg-white dark:bg-slate-900 border rounded-2xl shadow-xl p-3 w-56 z-40 space-y-2 text-left animate-fade-in">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block border-b pb-1">Rooms</span>
+                    <div className="absolute right-0 top-9 bg-card dark:bg-card border rounded-2xl shadow-xl p-3 w-56 z-40 space-y-2 text-left animate-fade-in">
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block border-b pb-1">Rooms</span>
 
                       {breakoutRooms.map((room) => (
                         <div key={room.id} className="flex items-center gap-1">
@@ -2924,7 +2924,7 @@ export default function MeetingsPage() {
                             className={`flex-1 text-left px-2 py-1.5 rounded-lg text-xs font-semibold block transition-all truncate ${
                               activeRoomId === room.id 
                                 ? 'bg-primary/10 text-primary font-bold' 
-                                : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                                : 'hover:bg-muted dark:hover:bg-card'
                             }`}
                           >
                             {room.name}
@@ -2933,7 +2933,7 @@ export default function MeetingsPage() {
                             <button
                               onClick={() => handleRemoveBreakoutRoom(room.id)}
                               title="Remove room"
-                              className="p-1 rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 shrink-0"
+                              className="p-1 rounded-lg text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 shrink-0"
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -2942,7 +2942,7 @@ export default function MeetingsPage() {
                       ))}
 
                       {!canModerate && breakoutRooms.length === 1 && (
-                        <p className="text-[10px] text-slate-400 italic px-2 py-1">The host hasn't created any breakout rooms yet.</p>
+                        <p className="text-[10px] text-muted-foreground italic px-2 py-1">The host hasn't created any breakout rooms yet.</p>
                       )}
 
                       {canModerate && (
@@ -2954,7 +2954,7 @@ export default function MeetingsPage() {
                               onChange={(e) => setNewBreakoutRoomName(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') handleAddBreakoutRoom(); }}
                               placeholder={`Breakout Room ${breakoutRooms.length}`}
-                              className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-850 border rounded-lg px-2 py-1 text-[10px] text-foreground focus:outline-none"
+                              className="flex-1 min-w-0 bg-muted dark:bg-card border rounded-lg px-2 py-1 text-[10px] text-foreground focus:outline-none"
                             />
                             <button
                               onClick={handleAddBreakoutRoom}
@@ -2985,31 +2985,31 @@ export default function MeetingsPage() {
               
               {/* Whiteboard module */}
               {showWhiteboard ? (
-                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border rounded-3xl p-4 flex flex-col gap-3 min-h-[300px]">
+                <div className="lg:col-span-2 bg-card dark:bg-card border rounded-3xl p-4 flex flex-col gap-3 min-h-[300px]">
                   <div className="flex items-center justify-between border-b pb-2 select-none">
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Collaboration Whiteboard</span>
+                    <span className="text-xs font-black text-foreground dark:text-foreground uppercase tracking-wider">Collaboration Whiteboard</span>
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => setActiveTool('pen')}
-                        className={`p-1.5 rounded-lg ${activeTool === 'pen' ? 'bg-primary/10 text-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`}
+                        className={`p-1.5 rounded-lg ${activeTool === 'pen' ? 'bg-primary/10 text-primary' : 'hover:bg-muted dark:hover:bg-card text-muted-foreground'}`}
                         title="Pen Tool"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => setActiveTool('eraser')}
-                        className={`p-1.5 rounded-lg ${activeTool === 'eraser' ? 'bg-primary/10 text-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500'}`}
+                        className={`p-1.5 rounded-lg ${activeTool === 'eraser' ? 'bg-primary/10 text-primary' : 'hover:bg-muted dark:hover:bg-card text-muted-foreground'}`}
                         title="Eraser Tool"
                       >
                         <Eraser className="h-4 w-4" />
                       </button>
-                      <button onClick={clearCanvas} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500" title="Clear Canvas">
+                      <button onClick={clearCanvas} className="p-1.5 hover:bg-muted dark:hover:bg-card rounded-lg text-muted-foreground" title="Clear Canvas">
                         <X className="h-4 w-4" />
                       </button>
-                      <button onClick={downloadCanvas} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500" title="Save Drawing">
+                      <button onClick={downloadCanvas} className="p-1.5 hover:bg-muted dark:hover:bg-card rounded-lg text-muted-foreground" title="Save Drawing">
                         <Download className="h-4 w-4" />
                       </button>
-                      <button onClick={() => setShowWhiteboard(false)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500" title="Close Whiteboard">
+                      <button onClick={() => setShowWhiteboard(false)} className="p-1.5 hover:bg-muted dark:hover:bg-card rounded-lg text-muted-foreground" title="Close Whiteboard">
                         <Maximize2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -3022,16 +3022,16 @@ export default function MeetingsPage() {
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
                     onMouseLeave={stopDrawing}
-                    className="flex-1 w-full border bg-slate-55 rounded-2xl cursor-crosshair touch-none text-slate-800 dark:text-slate-100"
+                    className="flex-1 w-full border bg-muted rounded-2xl cursor-crosshair touch-none text-foreground dark:text-foreground"
                   />
                 </div>
               ) : null}
 
               {/* Screen Share panel (your own) */}
               {screenSharing ? (
-                <div className="lg:col-span-2 bg-slate-900 border rounded-3xl p-4 flex flex-col justify-between shadow-md relative min-h-[300px]">
+                <div className="lg:col-span-2 bg-card border rounded-3xl p-4 flex flex-col justify-between shadow-md relative min-h-[300px]">
                   <video ref={screenVideoRef} autoPlay playsInline className="w-full h-full object-contain rounded-xl" />
-                  <span className="absolute top-6 left-6 bg-red-500 text-white font-bold text-[9px] uppercase tracking-wide px-2.5 py-0.5 rounded-full">
+                  <span className="absolute top-6 left-6 bg-red-500 text-foreground font-bold text-[9px] uppercase tracking-wide px-2.5 py-0.5 rounded-full">
                     Sharing Screen
                   </span>
                 </div>
@@ -3043,9 +3043,9 @@ export default function MeetingsPage() {
               {(Object.entries(remoteScreenStreams) as [string, MediaStream][]).map(([socketId, stream]) => {
                 const presenter = participants.find((p) => p.socketId === socketId);
                 return (
-                  <div key={`screen-${socketId}`} className="lg:col-span-2 bg-slate-900 border rounded-3xl p-4 flex flex-col justify-between shadow-md relative min-h-[300px]">
+                  <div key={`screen-${socketId}`} className="lg:col-span-2 bg-card border rounded-3xl p-4 flex flex-col justify-between shadow-md relative min-h-[300px]">
                     <RemoteVideo stream={stream} className="w-full h-full object-contain rounded-xl" />
-                    <span className="absolute top-6 left-6 bg-emerald-500 text-white font-bold text-[9px] uppercase tracking-wide px-2.5 py-0.5 rounded-full">
+                    <span className="absolute top-6 left-6 bg-emerald-500 text-foreground font-bold text-[9px] uppercase tracking-wide px-2.5 py-0.5 rounded-full">
                       {presenter?.name || 'Someone'} is presenting
                     </span>
                   </div>
@@ -3053,16 +3053,16 @@ export default function MeetingsPage() {
               })}
 
               {/* Local calling stream panel */}
-              <div className="bg-white dark:bg-slate-900 border rounded-3xl p-3.5 flex flex-col justify-between shadow-sm relative min-h-[220px]">
-                <div className="flex-1 rounded-2xl overflow-hidden bg-slate-905 bg-slate-950 flex items-center justify-center relative aspect-video">
+              <div className="bg-card dark:bg-card border rounded-3xl p-3.5 flex flex-col justify-between shadow-sm relative min-h-[220px]">
+                <div className="flex-1 rounded-2xl overflow-hidden bg-card bg-card flex items-center justify-center relative aspect-video">
                   {videoOn && !mediaAccessFailed ? (
                     <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
                   ) : (
-                    <div className="w-full h-full bg-slate-800 dark:bg-slate-900 flex flex-col items-center justify-center relative select-none">
-                      <div className="w-14 h-14 rounded-full bg-primary text-white font-black text-lg flex items-center justify-center shadow-md animate-pulse">
+                    <div className="w-full h-full bg-card dark:bg-card flex flex-col items-center justify-center relative select-none">
+                      <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground font-black text-lg flex items-center justify-center shadow-md animate-pulse">
                         {user?.firstName?.substring(0, 2).toUpperCase() || 'ME'}
                       </div>
-                      <span className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-wider block">
+                      <span className="text-[9px] text-muted-foreground mt-2 font-bold uppercase tracking-wider block">
                         {mediaAccessFailed ? 'Camera blocked (HTTP/Permission)' : 'Camera is off'}
                       </span>
                     </div>
@@ -3070,19 +3070,19 @@ export default function MeetingsPage() {
 
                   {/* Hand raise badge */}
                   {handRaised && (
-                    <div className="absolute top-2 right-2 bg-amber-500 text-white p-1 rounded-full shadow-md animate-bounce z-10 text-xs">
+                    <div className="absolute top-2 right-2 bg-amber-500 text-foreground p-1 rounded-full shadow-md animate-bounce z-10 text-xs">
                       ✋
                     </div>
                   )}
 
                   {/* Micro label */}
-                  <span className="absolute bottom-2 left-2 bg-black/60 text-white font-bold text-[9px] px-2 py-0.5 rounded-md backdrop-blur-xs select-none">
+                  <span className="absolute bottom-2 left-2 bg-black/60 text-foreground font-bold text-[9px] px-2 py-0.5 rounded-md backdrop-blur-xs select-none">
                     {user?.firstName} (You)
                   </span>
                 </div>
 
                 <div className="mt-2.5 flex items-center justify-between text-[10px]">
-                  <span className="font-extrabold text-slate-500 uppercase tracking-wider">Local Stream</span>
+                  <span className="font-extrabold text-muted-foreground uppercase tracking-wider">Local Stream</span>
                   <div className="flex items-center space-x-1.5">
                     {audioOn ? <Mic className="h-3.5 w-3.5 text-primary" /> : <MicOff className="h-3.5 w-3.5 text-red-500" />}
                     {videoOn ? <Video className="h-3.5 w-3.5 text-primary" /> : <VideoOff className="h-3.5 w-3.5 text-red-500" />}
@@ -3094,27 +3094,27 @@ export default function MeetingsPage() {
               {participants.map((part) => (
                 <div
                   key={part.socketId}
-                  className={`bg-white dark:bg-slate-900 border rounded-3xl p-3.5 flex flex-col justify-between shadow-sm relative min-h-[220px] transition-all ${
+                  className={`bg-card dark:bg-card border rounded-3xl p-3.5 flex flex-col justify-between shadow-sm relative min-h-[220px] transition-all ${
                     effectivePinnedSocketId === part.socketId ? 'ring-2 ring-primary md:col-span-2 lg:col-span-2 md:row-span-2' : ''
                   }`}
                 >
-                  <div className="flex-1 rounded-2xl overflow-hidden bg-slate-955 flex items-center justify-center relative aspect-video">
+                  <div className="flex-1 rounded-2xl overflow-hidden bg-card flex items-center justify-center relative aspect-video">
                     {part.videoOn ? (
-                      <div className="w-full h-full bg-slate-800 dark:bg-slate-905 flex items-center justify-center relative">
+                      <div className="w-full h-full bg-card dark:bg-card flex items-center justify-center relative">
                         {remoteStreams[part.socketId] ? (
                           <RemoteVideo stream={remoteStreams[part.socketId]} className="w-full h-full object-cover" />
                         ) : (
                           <>
                             {/* Mock user placeholder graphic stream card */}
-                            <div className="w-12 h-12 rounded-full bg-primary text-white font-black text-sm flex items-center justify-center animate-pulse">
+                            <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground font-black text-sm flex items-center justify-center animate-pulse">
                               {part.avatar}
                             </div>
-                            <span className="absolute bottom-2 right-2 text-[9px] text-slate-400 font-medium">1080p WebRTC stream</span>
+                            <span className="absolute bottom-2 right-2 text-[9px] text-muted-foreground font-medium">1080p WebRTC stream</span>
                           </>
                         )}
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center text-slate-600">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <VideoOff className="h-8 w-8 stroke-1" />
                         <span className="text-[10px] font-bold">Camera is off</span>
                       </div>
@@ -3122,7 +3122,7 @@ export default function MeetingsPage() {
 
                     {/* Hand raise badge */}
                     {part.isHandRaised && (
-                      <div className="absolute top-2 right-2 bg-amber-500 text-white p-1 rounded-full shadow-md animate-bounce z-10 text-xs">
+                      <div className="absolute top-2 right-2 bg-amber-500 text-foreground p-1 rounded-full shadow-md animate-bounce z-10 text-xs">
                         ✋
                       </div>
                     )}
@@ -3144,7 +3144,7 @@ export default function MeetingsPage() {
                         <button
                           onClick={() => handleTogglePin(part.socketId)}
                           title={localPinnedSocketId === part.socketId ? 'Unpin' : 'Pin for me'}
-                          className="p-2 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition-all"
+                          className="p-2 bg-card/90 hover:bg-card text-foreground rounded-lg shadow-md transition-all"
                         >
                           {localPinnedSocketId === part.socketId ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                         </button>
@@ -3153,14 +3153,14 @@ export default function MeetingsPage() {
                             <button
                               onClick={() => handleSpotlightParticipant(part.socketId, part.name, spotlightedSocketId !== part.socketId)}
                               title={spotlightedSocketId === part.socketId ? 'Remove spotlight' : 'Spotlight for everyone'}
-                              className="p-2 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition-all"
+                              className="p-2 bg-card/90 hover:bg-card text-foreground rounded-lg shadow-md transition-all"
                             >
                               <Users className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleForceMuteParticipant(part.socketId, part.name)}
                               title="Mute participant"
-                              className="p-2 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition-all"
+                              className="p-2 bg-card/90 hover:bg-card text-foreground rounded-lg shadow-md transition-all"
                             >
                               <MicOff className="h-3.5 w-3.5" />
                             </button>
@@ -3169,7 +3169,7 @@ export default function MeetingsPage() {
                                 onClick={() => handleToggleCoHost(part.userId, part.name, !coHostIds.includes(part.userId))}
                                 title={coHostIds.includes(part.userId) ? 'Remove co-host' : 'Make co-host'}
                                 disabled={updatingCoHostId === part.userId}
-                                className="p-2 bg-white/90 hover:bg-white text-slate-800 rounded-lg shadow-md transition-all disabled:opacity-50"
+                                className="p-2 bg-card/90 hover:bg-card text-foreground rounded-lg shadow-md transition-all disabled:opacity-50"
                               >
                                 <Crown className={`h-3.5 w-3.5 ${coHostIds.includes(part.userId) ? 'text-amber-500' : ''}`} />
                               </button>
@@ -3177,14 +3177,14 @@ export default function MeetingsPage() {
                             <button
                               onClick={() => handleRemoveParticipant(part.socketId, part.name)}
                               title="Remove from meeting"
-                              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md transition-all"
+                              className="p-2 bg-red-600 hover:bg-red-700 text-foreground rounded-lg shadow-md transition-all"
                             >
                               <UserX className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleRemoveParticipant(part.socketId, part.name, true)}
                               title="Remove and block from rejoining"
-                              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md transition-all"
+                              className="p-2 bg-red-600 hover:bg-red-700 text-foreground rounded-lg shadow-md transition-all"
                             >
                               <Ban className="h-3.5 w-3.5" />
                             </button>
@@ -3193,13 +3193,13 @@ export default function MeetingsPage() {
                       </div>
                     </div>
 
-                    <span className="absolute bottom-2 left-2 bg-black/60 text-white font-bold text-[9px] px-2 py-0.5 rounded-md backdrop-blur-xs select-none">
+                    <span className="absolute bottom-2 left-2 bg-black/60 text-foreground font-bold text-[9px] px-2 py-0.5 rounded-md backdrop-blur-xs select-none">
                       {part.name}
                     </span>
                   </div>
 
                   <div className="mt-2.5 flex items-center justify-between text-[10px]">
-                    <span className="font-extrabold text-slate-500 uppercase tracking-wider">
+                    <span className="font-extrabold text-muted-foreground uppercase tracking-wider">
                       {part.userId === hostUserId ? 'Host' : coHostIds.includes(part.userId) ? 'Co-host' : 'Participant'}
                     </span>
                     <div className="flex items-center space-x-1.5">
@@ -3213,20 +3213,20 @@ export default function MeetingsPage() {
             </div>
 
             {/* Bottom action drawer bar */}
-            <div className="bg-slate-900 border border-white/10 px-3 sm:px-6 py-3 sm:py-4 rounded-2xl shadow-xl flex items-center gap-2 sm:gap-0 sm:justify-between z-10 select-none overflow-x-auto">
+            <div className="bg-card border border-card/10 px-3 sm:px-6 py-3 sm:py-4 rounded-2xl shadow-xl flex items-center gap-2 sm:gap-0 sm:justify-between z-10 select-none overflow-x-auto">
               
               {/* Media Controls */}
               <div className="flex items-center space-x-3 shrink-0">
                 <button
                   onClick={toggleAudio}
-                  className={`p-3 rounded-xl transition-all ${audioOn ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                  className={`p-3 rounded-xl transition-all ${audioOn ? 'bg-card text-foreground hover:bg-card' : 'bg-red-500 text-foreground hover:bg-red-600'}`}
                   title={audioOn ? 'Mute Mic' : 'Unmute Mic'}
                 >
                   {audioOn ? <Mic className="h-4.5 w-4.5" /> : <MicOff className="h-4.5 w-4.5" />}
                 </button>
                 <button
                   onClick={toggleVideo}
-                  className={`p-3 rounded-xl transition-all ${videoOn ? 'bg-slate-800 text-white hover:bg-slate-700' : 'bg-red-500 text-white hover:bg-red-600'}`}
+                  className={`p-3 rounded-xl transition-all ${videoOn ? 'bg-card text-foreground hover:bg-card' : 'bg-red-500 text-foreground hover:bg-red-600'}`}
                   title={videoOn ? 'Disable Camera' : 'Enable Camera'}
                 >
                   {videoOn ? <Video className="h-4.5 w-4.5" /> : <VideoOff className="h-4.5 w-4.5" />}
@@ -3234,14 +3234,14 @@ export default function MeetingsPage() {
                 <button
                   onClick={handleRequestScreenShare}
                   disabled={awaitingScreenSharePermission}
-                  className={`p-3 rounded-xl transition-all disabled:opacity-60 ${screenSharing ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-800 text-white hover:bg-slate-700'}`}
+                  className={`p-3 rounded-xl transition-all disabled:opacity-60 ${screenSharing ? 'bg-emerald-500 text-foreground hover:bg-emerald-600' : 'bg-card text-foreground hover:bg-card'}`}
                   title={screenSharing ? 'Stop Screen Share' : isHost ? 'Share Screen' : 'Ask host to share screen'}
                 >
                   {awaitingScreenSharePermission ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <Monitor className="h-4.5 w-4.5" />}
                 </button>
                 <button
                   onClick={toggleHandRaised}
-                  className={`p-3 rounded-xl transition-all ${handRaised ? 'bg-amber-500 text-white' : 'bg-slate-800 text-white hover:bg-slate-700'}`}
+                  className={`p-3 rounded-xl transition-all ${handRaised ? 'bg-amber-500 text-foreground' : 'bg-card text-foreground hover:bg-card'}`}
                   title="Raise / Lower Hand"
                 >
                   ✋
@@ -3252,7 +3252,7 @@ export default function MeetingsPage() {
               <div className="flex items-center space-x-3">
                 <button
                   onClick={() => setShowWhiteboard(!showWhiteboard)}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${showWhiteboard ? 'bg-primary text-white' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${showWhiteboard ? 'bg-primary text-primary-foreground' : 'bg-foreground hover:bg-foreground/90 text-background'}`}
                 >
                   Whiteboard
                 </button>
@@ -3260,7 +3260,7 @@ export default function MeetingsPage() {
                 {isHost && (
                   <button
                     onClick={toggleRecording}
-                    className={`p-3 rounded-xl transition-all flex items-center justify-center ${recording ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-800 text-white hover:bg-slate-700'}`}
+                    className={`p-3 rounded-xl transition-all flex items-center justify-center ${recording ? 'bg-red-500 text-foreground animate-pulse' : 'bg-card text-foreground hover:bg-card'}`}
                     title={recording ? 'Stop Recording' : 'Record Call'}
                   >
                     <Circle className={`h-4 w-4 ${recording ? 'fill-white' : 'fill-red-500 text-red-500'}`} />
@@ -3268,7 +3268,7 @@ export default function MeetingsPage() {
                 )}
 
                 {/* Emojis reaction bar */}
-                <div className="flex items-center bg-slate-800 rounded-xl px-2 py-1 space-x-1 border border-white/5">
+                <div className="flex items-center bg-card rounded-xl px-2 py-1 space-x-1 border border-card/5">
                   {['👍', '❤️', '👏', '😂', '🎉'].map(emoji => (
                     <button
                       key={emoji}
@@ -3291,7 +3291,7 @@ export default function MeetingsPage() {
                     handleDisconnect(false);
                   }
                 }}
-                className="px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-red-600/10 flex items-center space-x-1.5"
+                className="px-5 py-3 bg-red-600 hover:bg-red-700 text-foreground font-extrabold text-xs rounded-xl shadow-lg shadow-red-600/10 flex items-center space-x-1.5"
               >
                 <PhoneOff className="h-4 w-4" />
                 <span>Disconnect</span>
@@ -3304,11 +3304,11 @@ export default function MeetingsPage() {
           {/* Right sidebar messaging pane — full-width overlay on mobile/tablet,
               docked panel from md breakpoint up (same pattern as the Chat page) */}
           {showSidebar && (
-            <aside className="fixed md:relative inset-y-0 right-0 w-full sm:w-96 md:w-80 border rounded-none md:rounded-3xl bg-white dark:bg-slate-900 flex flex-col shrink-0 overflow-hidden shadow-2xl md:shadow-sm z-40 md:z-10 animate-in slide-in-from-right duration-200">
+            <aside className="fixed md:relative inset-y-0 right-0 w-full sm:w-96 md:w-80 border rounded-none md:rounded-3xl bg-card dark:bg-card flex flex-col shrink-0 overflow-hidden shadow-2xl md:shadow-sm z-40 md:z-10 animate-in slide-in-from-right duration-200">
               {/* Close button, mobile/tablet only — the docked desktop panel uses the toolbar toggle instead */}
               <button
                 onClick={() => setShowSidebar(false)}
-                className="md:hidden absolute right-3 top-3 z-10 p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500"
+                className="md:hidden absolute right-3 top-3 z-10 p-1.5 rounded-lg bg-muted dark:bg-card text-muted-foreground"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -3317,7 +3317,7 @@ export default function MeetingsPage() {
                 <button
                   onClick={() => setActiveSidebarTab('chat')}
                   className={`flex-1 py-3 text-center transition-all ${
-                    activeSidebarTab === 'chat' ? 'text-primary border-b-2 border-primary' : 'text-slate-400 hover:text-slate-650'
+                    activeSidebarTab === 'chat' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-muted-foreground'
                   }`}
                 >
                   Chat ({chatMessages.length})
@@ -3325,7 +3325,7 @@ export default function MeetingsPage() {
                 <button
                   onClick={() => setActiveSidebarTab('participants')}
                   className={`flex-1 py-3 text-center transition-all ${
-                    activeSidebarTab === 'participants' ? 'text-primary border-b-2 border-primary' : 'text-slate-400 hover:text-slate-650'
+                    activeSidebarTab === 'participants' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-muted-foreground'
                   }`}
                 >
                   Participants ({participants.length + 1})
@@ -3338,11 +3338,11 @@ export default function MeetingsPage() {
                   <div className="space-y-3.5">
                     {chatMessages.map((msg, idx) => (
                       <div key={idx} className="space-y-0.5 text-left">
-                        <div className="flex items-center justify-between text-[9px] font-black text-slate-400 uppercase tracking-wide">
+                        <div className="flex items-center justify-between text-[9px] font-black text-muted-foreground uppercase tracking-wide">
                           <span>{msg.sender}</span>
                           <span>{msg.time}</span>
                         </div>
-                        <p className="text-[11px] text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border leading-relaxed break-words">
+                        <p className="text-[11px] text-foreground dark:text-foreground bg-muted dark:bg-card p-2.5 rounded-xl border leading-relaxed break-words">
                           {msg.content}
                         </p>
                       </div>
@@ -3355,20 +3355,20 @@ export default function MeetingsPage() {
                     {canModerate && participants.length > 0 && (
                       <button
                         onClick={handleMuteAllParticipants}
-                        className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wide py-2 rounded-xl border border-dashed text-slate-500 hover:text-primary hover:border-primary transition-all"
+                        className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wide py-2 rounded-xl border border-dashed text-muted-foreground hover:text-primary hover:border-primary transition-all"
                       >
                         <MicOff className="h-3 w-3" /> Mute all
                       </button>
                     )}
 
                     {/* Local participant row */}
-                    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border text-left font-sans">
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-muted dark:bg-card border text-left font-sans">
                       <div className="flex items-center space-x-2.5">
-                        <div className="w-8 h-8 rounded-full bg-primary text-white font-black text-xs flex items-center justify-center font-bold">
+                        <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground font-black text-xs flex items-center justify-center font-bold">
                           ME
                         </div>
                         <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{user?.firstName}</p>
+                          <p className="text-xs font-bold text-foreground dark:text-foreground">{user?.firstName}</p>
                           <span className="text-[9px] font-black text-primary uppercase tracking-wider block font-bold flex items-center gap-1">
                             {isHost ? 'Host' : isCoHost ? (<><Crown className="h-2.5 w-2.5" /> Co-host</>) : 'Participant'}
                           </span>
@@ -3381,14 +3381,14 @@ export default function MeetingsPage() {
                     {participants.map((part) => {
                       const partIsCoHost = coHostIds.includes(part.userId);
                       return (
-                      <div key={part.socketId} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50 dark:bg-slate-950 transition-all border text-left font-sans">
+                      <div key={part.socketId} className="flex items-center justify-between p-2 rounded-xl hover:bg-muted dark:bg-card transition-all border text-left font-sans">
                         <div className="flex items-center space-x-2.5">
-                          <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold text-xs flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-full bg-secondary dark:bg-card text-muted-foreground dark:text-muted-foreground font-bold text-xs flex items-center justify-center">
                             {part.avatar}
                           </div>
                           <div className="space-y-0.5">
-                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{part.name}</p>
-                            <span className="text-[9px] font-black text-slate-450 uppercase tracking-wider flex items-center gap-1">
+                            <p className="text-xs font-bold text-foreground dark:text-foreground">{part.name}</p>
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                               {part.userId === hostUserId ? 'Host' : partIsCoHost ? (<><Crown className="h-2.5 w-2.5 text-amber-500" /> Co-host</>) : 'Participant'}
                             </span>
                           </div>
@@ -3399,7 +3399,7 @@ export default function MeetingsPage() {
                               <button
                                 onClick={() => handleForceMuteParticipant(part.socketId, part.name)}
                                 title="Mute participant"
-                                className="p-1.5 rounded-lg text-slate-450 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-all"
+                                className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary dark:hover:bg-card hover:text-foreground dark:hover:text-foreground transition-all"
                               >
                                 <MicOff className="h-3.5 w-3.5" />
                               </button>
@@ -3408,7 +3408,7 @@ export default function MeetingsPage() {
                                   onClick={() => handleToggleCoHost(part.userId, part.name, !partIsCoHost)}
                                   title={partIsCoHost ? 'Remove co-host' : 'Make co-host'}
                                   disabled={updatingCoHostId === part.userId}
-                                  className={`p-1.5 rounded-lg transition-all disabled:opacity-50 ${partIsCoHost ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30' : 'text-slate-450 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                  className={`p-1.5 rounded-lg transition-all disabled:opacity-50 ${partIsCoHost ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30' : 'text-muted-foreground hover:bg-secondary dark:hover:bg-card hover:text-foreground dark:hover:text-foreground'}`}
                                 >
                                   <Crown className="h-3.5 w-3.5" />
                                 </button>
@@ -3416,14 +3416,14 @@ export default function MeetingsPage() {
                               <button
                                 onClick={() => handleRemoveParticipant(part.socketId, part.name)}
                                 title="Remove from meeting"
-                                className="p-1.5 rounded-lg text-slate-450 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-all"
+                                className="p-1.5 rounded-lg text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-all"
                               >
                                 <UserX className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 onClick={() => handleRemoveParticipant(part.socketId, part.name, true)}
                                 title="Remove and block from rejoining"
-                                className="p-1.5 rounded-lg text-slate-450 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-all"
+                                className="p-1.5 rounded-lg text-muted-foreground hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-all"
                               >
                                 <Ban className="h-3.5 w-3.5" />
                               </button>
@@ -3440,15 +3440,15 @@ export default function MeetingsPage() {
 
               {/* Chat Input Container */}
               {activeSidebarTab === 'chat' && (
-                <form onSubmit={handleSendChat} className="p-3 border-t bg-slate-50 dark:bg-slate-950 flex items-center space-x-2">
+                <form onSubmit={handleSendChat} className="p-3 border-t bg-muted dark:bg-card flex items-center space-x-2">
                   <input
                     type="text"
                     placeholder="Type meeting note..."
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border rounded-xl text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-slate-850 dark:text-slate-105"
+                    className="flex-1 px-3 py-2 bg-card dark:bg-card border rounded-xl text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-foreground dark:text-foreground"
                   />
-                  <button type="submit" className="p-2 bg-primary text-white rounded-xl shadow-md shrink-0">
+                  <button type="submit" className="p-2 bg-primary text-primary-foreground rounded-xl shadow-md shrink-0">
                     <Send className="h-3.5 w-3.5" />
                   </button>
                 </form>
@@ -3469,28 +3469,28 @@ export default function MeetingsPage() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
             style={{ top: `${96 + i * 168}px` }}
-            className="fixed right-6 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-2xl w-80 space-y-4 text-left"
+            className="fixed right-6 z-50 bg-card dark:bg-card border border-border dark:border-border p-5 rounded-3xl shadow-2xl w-80 space-y-4 text-left"
           >
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-primary/10 dark:bg-primary/20 text-primary rounded-full flex items-center justify-center font-bold text-sm">
                 {req.name.split(' ').map((n: string) => n[0]).join('')}
               </div>
               <div>
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">{req.name}</h4>
-                <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-0.5">Wants to join this video meeting</p>
+                <h4 className="text-xs font-black text-foreground dark:text-foreground">{req.name}</h4>
+                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground mt-0.5">Wants to join this video meeting</p>
               </div>
             </div>
             
             <div className="flex items-center space-x-2.5">
               <button
                 onClick={() => handleAdmitRequest(req.id, true)}
-                className="flex-1 py-2 bg-primary hover:bg-primary-dark text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-sm shadow-primary/10"
+                className="flex-1 py-2 bg-primary hover:bg-primary-dark text-primary-foreground font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-sm shadow-primary/10"
               >
                 Accept
               </button>
               <button
                 onClick={() => handleAdmitRequest(req.id, false)}
-                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all"
+                className="flex-1 py-2 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card text-muted-foreground dark:text-foreground font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all"
               >
                 Cancel
               </button>
@@ -3508,28 +3508,28 @@ export default function MeetingsPage() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
             style={{ top: `${96 + (joinRequests.length + i) * 168}px` }}
-            className="fixed right-6 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-2xl w-80 space-y-4 text-left"
+            className="fixed right-6 z-50 bg-card dark:bg-card border border-border dark:border-border p-5 rounded-3xl shadow-2xl w-80 space-y-4 text-left"
           >
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center">
                 <Monitor className="h-4.5 w-4.5" />
               </div>
               <div>
-                <h4 className="text-xs font-black text-slate-800 dark:text-slate-100">{req.guestName}</h4>
-                <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-0.5">Wants to share their screen</p>
+                <h4 className="text-xs font-black text-foreground dark:text-foreground">{req.guestName}</h4>
+                <p className="text-[10px] text-muted-foreground dark:text-muted-foreground mt-0.5">Wants to share their screen</p>
               </div>
             </div>
 
             <div className="flex items-center space-x-2.5">
               <button
                 onClick={() => handleScreenSharePermissionDecision(req, true)}
-                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-sm shadow-emerald-500/10"
+                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-foreground font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-sm shadow-emerald-500/10"
               >
                 Allow
               </button>
               <button
                 onClick={() => handleScreenSharePermissionDecision(req, false)}
-                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-300 font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all"
+                className="flex-1 py-2 bg-muted hover:bg-secondary dark:bg-card dark:hover:bg-card text-muted-foreground dark:text-foreground font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all"
               >
                 Deny
               </button>
@@ -3546,11 +3546,11 @@ export default function MeetingsPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl w-full max-w-sm space-y-6 shadow-2xl relative text-center"
+              className="bg-card dark:bg-card border border-border dark:border-border p-6 rounded-3xl w-full max-w-sm space-y-6 shadow-2xl relative text-center"
             >
               <button 
                 onClick={() => setShowEndMeetingModal(false)} 
-                className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+                className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -3560,8 +3560,8 @@ export default function MeetingsPage() {
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-lg font-bold text-slate-850 dark:text-slate-100">End meeting?</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                <h3 className="text-lg font-bold text-foreground dark:text-foreground">End meeting?</h3>
+                <p className="text-xs text-muted-foreground dark:text-muted-foreground leading-relaxed">
                   You are the host. Would you like to end the call for everyone or just leave the call?
                 </p>
               </div>
@@ -3572,7 +3572,7 @@ export default function MeetingsPage() {
                     setShowEndMeetingModal(false);
                     handleDisconnect(true);
                   }}
-                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-red-600/20 transition-all"
+                  className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-foreground font-semibold text-xs rounded-xl shadow-md shadow-red-600/20 transition-all"
                 >
                   End call for everyone
                 </button>
@@ -3582,7 +3582,7 @@ export default function MeetingsPage() {
                     setShowEndMeetingModal(false);
                     handleDisconnect(false);
                   }}
-                  className="w-full py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-350 font-semibold text-xs rounded-xl transition-all"
+                  className="w-full py-2.5 border border-border dark:border-border hover:bg-muted dark:hover:bg-card text-foreground dark:text-foreground font-semibold text-xs rounded-xl transition-all"
                 >
                   Just leave
                 </button>
@@ -3600,15 +3600,15 @@ export default function MeetingsPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-left"
+              className="bg-card dark:bg-card border border-border dark:border-border p-6 rounded-3xl w-full max-w-sm space-y-4 shadow-2xl relative text-left"
             >
               <button
                 onClick={() => setShowCreatePollModal(false)}
-                className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+                className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
               >
                 <X className="h-4 w-4" />
               </button>
-              <h3 className="text-sm font-bold text-slate-850 dark:text-slate-100 flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-foreground dark:text-foreground flex items-center gap-1.5">
                 <BarChart3 className="h-4 w-4 text-primary" /> Create a poll
               </h3>
               <input
@@ -3616,7 +3616,7 @@ export default function MeetingsPage() {
                 value={pollQuestion}
                 onChange={(e) => setPollQuestion(e.target.value)}
                 placeholder="Ask a question..."
-                className="w-full bg-slate-50 dark:bg-slate-850 border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full bg-muted dark:bg-card border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <div className="space-y-2">
                 {pollOptions.map((opt, i) => (
@@ -3626,12 +3626,12 @@ export default function MeetingsPage() {
                       value={opt}
                       onChange={(e) => setPollOptions(prev => prev.map((o, idx) => idx === i ? e.target.value : o))}
                       placeholder={`Option ${i + 1}`}
-                      className="flex-1 bg-slate-50 dark:bg-slate-850 border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="flex-1 bg-muted dark:bg-card border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                     {pollOptions.length > 2 && (
                       <button
                         onClick={() => setPollOptions(prev => prev.filter((_, idx) => idx !== i))}
-                        className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg"
+                        className="p-1.5 text-muted-foreground hover:text-red-600 rounded-lg"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -3649,7 +3649,7 @@ export default function MeetingsPage() {
               </div>
               <button
                 onClick={handleCreatePoll}
-                className="w-full py-2.5 bg-primary hover:bg-primary-dark text-white font-semibold text-xs rounded-xl transition-all"
+                className="w-full py-2.5 bg-primary hover:bg-primary-dark text-primary-foreground font-semibold text-xs rounded-xl transition-all"
               >
                 Launch poll
               </button>
@@ -3665,19 +3665,19 @@ export default function MeetingsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 left-6 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-2xl w-80 space-y-3 text-left"
+            className="fixed bottom-24 left-6 z-50 bg-card dark:bg-card border border-border dark:border-border p-4 rounded-2xl shadow-2xl w-80 space-y-3 text-left"
           >
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-black text-primary uppercase tracking-wider flex items-center gap-1">
                 <BarChart3 className="h-3 w-3" /> Poll · {activePoll.byName}
               </span>
               {canModerate && (
-                <button onClick={handleEndPoll} className="text-[9px] font-bold text-slate-400 hover:text-red-600">
+                <button onClick={handleEndPoll} className="text-[9px] font-bold text-muted-foreground hover:text-red-600">
                   End poll
                 </button>
               )}
             </div>
-            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{activePoll.question}</p>
+            <p className="text-xs font-bold text-foreground dark:text-foreground">{activePoll.question}</p>
             <div className="space-y-1.5">
               {activePoll.options.map((opt, i) => {
                 const count = pollResults?.counts[i] || 0;
@@ -3688,20 +3688,20 @@ export default function MeetingsPage() {
                   <button
                     key={i}
                     onClick={() => handleVotePoll(i)}
-                    className={`w-full text-left rounded-xl border px-2.5 py-2 relative overflow-hidden transition-all ${isMine ? 'border-primary' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'}`}
+                    className={`w-full text-left rounded-xl border px-2.5 py-2 relative overflow-hidden transition-all ${isMine ? 'border-primary' : 'border-border dark:border-border hover:border-primary/50'}`}
                   >
                     <div className="absolute inset-y-0 left-0 bg-primary/10 transition-all" style={{ width: `${pct}%` }} />
                     <div className="relative flex items-center justify-between text-[11px]">
-                      <span className={`font-semibold ${isMine ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>
+                      <span className={`font-semibold ${isMine ? 'text-primary' : 'text-foreground dark:text-foreground'}`}>
                         {isMine && <Check className="inline h-3 w-3 mr-1" />}{opt}
                       </span>
-                      <span className="font-bold text-slate-450">{pct}%</span>
+                      <span className="font-bold text-muted-foreground">{pct}%</span>
                     </div>
                   </button>
                 );
               })}
             </div>
-            <p className="text-[9px] text-slate-400 text-right">{pollResults?.totalVotes || 0} vote{(pollResults?.totalVotes || 0) === 1 ? '' : 's'}</p>
+            <p className="text-[9px] text-muted-foreground text-right">{pollResults?.totalVotes || 0} vote{(pollResults?.totalVotes || 0) === 1 ? '' : 's'}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -3715,25 +3715,25 @@ export default function MeetingsPage() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl w-full max-w-xs space-y-4 shadow-2xl relative text-left"
+              className="bg-card dark:bg-card border border-border dark:border-border p-6 rounded-3xl w-full max-w-xs space-y-4 shadow-2xl relative text-left"
             >
               <button
                 onClick={() => setShowKeyboardShortcuts(false)}
-                className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1.5 rounded-lg"
+                className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1.5 rounded-lg"
               >
                 <X className="h-4 w-4" />
               </button>
-              <h3 className="text-sm font-bold text-slate-850 dark:text-slate-100 flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-foreground dark:text-foreground flex items-center gap-1.5">
                 <Keyboard className="h-4 w-4 text-primary" /> Keyboard shortcuts
               </h3>
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Toggle microphone</span>
-                  <kbd className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md font-mono text-[10px]">Ctrl/⌘ + D</kbd>
+                  <span className="text-muted-foreground">Toggle microphone</span>
+                  <kbd className="px-2 py-0.5 bg-muted dark:bg-card rounded-md font-mono text-[10px]">Ctrl/⌘ + D</kbd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Toggle camera</span>
-                  <kbd className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md font-mono text-[10px]">Ctrl/⌘ + E</kbd>
+                  <span className="text-muted-foreground">Toggle camera</span>
+                  <kbd className="px-2 py-0.5 bg-muted dark:bg-card rounded-md font-mono text-[10px]">Ctrl/⌘ + E</kbd>
                 </div>
               </div>
             </motion.div>

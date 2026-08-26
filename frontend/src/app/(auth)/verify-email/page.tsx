@@ -59,7 +59,7 @@ function VerifyEmailForm() {
       <div className="flex flex-col items-center space-y-2 text-center">
         <Link href="/" className="flex items-center space-x-2 text-2xl font-bold tracking-tight mb-2">
           {orgSettings.logoUrl ? (
-            <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-8 w-8 rounded object-contain" />
+            <img src={orgSettings.logoUrl} alt={orgSettings.orgName} className="h-8 w-8 rounded-full object-cover" />
           ) : (
             <Layers className="h-8 w-8 text-primary" />
           )}

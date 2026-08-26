@@ -19,7 +19,7 @@ export function SessionWarningModal({
       aria-labelledby="session-warning-title"
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
     >
-      <div className="bg-white dark:bg-slate-900 border border-border p-6 rounded-3xl w-full max-w-sm space-y-5 shadow-2xl relative text-center">
+      <div className="bg-card dark:bg-card border border-border p-6 rounded-3xl w-full max-w-sm space-y-5 shadow-2xl relative text-center">
         <div className="p-3 bg-amber-500/10 w-fit mx-auto rounded-full text-amber-500">
           <Clock className="h-8 w-8 animate-pulse" />
         </div>

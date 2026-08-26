@@ -34,45 +34,45 @@ export function CreateAnnouncementModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-xs p-4">
-      <div className="bg-white dark:bg-slate-900 border p-6 rounded-3xl w-full max-w-lg space-y-5 shadow-2xl relative">
-        <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 p-1 rounded-lg">
+      <div className="bg-card dark:bg-card border p-6 rounded-3xl w-full max-w-lg space-y-5 shadow-2xl relative">
+        <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-muted-foreground hover:bg-muted dark:hover:bg-card p-1 rounded-lg">
           <X className="h-5 w-5" />
         </button>
         <div className="space-y-1">
           <h3 className="font-bold text-lg">Publish Company Notice</h3>
-          <p className="text-xs text-slate-400">Post announcements or department memos to all employees.</p>
+          <p className="text-xs text-muted-foreground">Post announcements or department memos to all employees.</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4 text-xs font-semibold">
           <div className="space-y-2">
-            <label className="text-slate-400 uppercase text-[10px]">Notice Title</label>
+            <label className="text-muted-foreground uppercase text-[10px]">Notice Title</label>
             <input
               type="text"
               required
               placeholder="e.g. Q3 Launch Event Details"
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+              className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-slate-400 uppercase text-[10px]">Notice Content</label>
+            <label className="text-muted-foreground uppercase text-[10px]">Notice Content</label>
             <textarea
               required
               placeholder="Write the details here..."
               value={content}
               onChange={(e) => onContentChange(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none h-28 resize-none"
+              className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none h-28 resize-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Notice Priority</label>
+              <label className="text-muted-foreground uppercase text-[10px]">Notice Priority</label>
               <select
                 value={priority}
                 onChange={(e) => onPriorityChange(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
               >
                 <option value="LOW">Low</option>
                 <option value="NORMAL">Normal</option>
@@ -82,12 +82,12 @@ export function CreateAnnouncementModal({
             </div>
 
             <div className="space-y-2">
-              <label className="text-slate-400 uppercase text-[10px]">Notice Expiry Date</label>
+              <label className="text-muted-foreground uppercase text-[10px]">Notice Expiry Date</label>
               <input
                 type="date"
                 value={expiry}
                 onChange={(e) => onExpiryChange(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border bg-slate-50 dark:bg-slate-800 focus:outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
               />
             </div>
           </div>
@@ -102,7 +102,7 @@ export function CreateAnnouncementModal({
             <span className="text-xs text-foreground font-semibold">Pin notice to the top of the bulletin feed</span>
           </label>
 
-          <button type="submit" className="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-md">
+          <button type="submit" className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold shadow-md">
             Publish Bulletin
           </button>
         </form>
