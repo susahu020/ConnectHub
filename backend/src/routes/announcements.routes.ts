@@ -2,12 +2,13 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
 import { checkPermission } from '../middleware/rbac.middleware';
 import { validate } from '../middleware/validation.middleware';
-import { createAnnouncementSchema } from '../utils/validation';
+import { createAnnouncementSchema, updateAnnouncementSchema } from '../utils/validation';
 import {
   createAnnouncement,
   getAnnouncements,
   getAnnouncementDetails,
   getAnnouncementViewers,
+  updateAnnouncement,
   deleteAnnouncement,
   likeAnnouncement,
   addComment,
@@ -23,6 +24,7 @@ router.post('/announcements', authenticate as any, checkPermission('Announcement
 router.get('/announcements', authenticate as any, getAnnouncements as any);
 router.get('/announcements/:id', authenticate as any, getAnnouncementDetails as any);
 router.get('/announcements/:id/views', authenticate as any, getAnnouncementViewers as any);
+router.put('/announcements/:id', authenticate as any, checkPermission('Announcements', 'Update'), validate(updateAnnouncementSchema), updateAnnouncement as any);
 router.delete('/announcements/:id', authenticate as any, checkPermission('Announcements', 'Delete'), deleteAnnouncement as any);
 router.post('/announcements/:id/like', authenticate as any, likeAnnouncement as any);
 router.post('/announcements/:id/comment', authenticate as any, addComment as any);

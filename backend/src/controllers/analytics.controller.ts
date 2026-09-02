@@ -11,10 +11,48 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
       return;
     }
 
+    // Date-range filter: previously every metric here was an all-time
+    // total with no way to narrow the window, and the one exception (the
+    // chat-volume chart) was hardcoded to a fixed trailing 7 days with no
+    // way to widen it either. ?range= accepts '7d' | '30d' | '90d' | 'all'
+    // (default 'all', matching the original always-all-time behavior for
+    // anyone who doesn't pass it).
+    const rangeParam = (req.query.range as string) || 'all';
+    const RANGE_DAYS: Record<string, number | null> = { '7d': 7, '30d': 30, '90d': 90, all: null };
+    const rangeDays = RANGE_DAYS[rangeParam] ?? null;
+    const rangeStart = rangeDays !== null ? new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000) : null;
+    // Applied to any query below filtering by `createdAt` — spread this
+    // into a `where` clause; it's `{}` for 'all', so it's a safe no-op.
+    const dateWhere = rangeStart ? { createdAt: { gte: rangeStart } } : {};
+
+    // Department scoping: a Manager previously saw the exact same
+    // company-wide numbers an Admin did, with no way to see just their
+    // own team's picture. Admins still see everything; a Manager without
+    // a department assigned falls back to company-wide too (there's
+    // nothing sensible to scope to otherwise) rather than showing empty
+    // charts, which would look like a bug rather than an edge case.
+    const isScopedManager = role === 'MANAGER' && !!req.user?.departmentId;
+    let deptUserIds: string[] | null = null;
+    if (isScopedManager) {
+      const deptUsers = await prisma.user.findMany({
+        where: { departmentId: req.user!.departmentId! },
+        select: { id: true },
+      });
+      deptUserIds = deptUsers.map((u: { id: string }) => u.id);
+    }
+    // Spread into a `where` clause on whichever field identifies the
+    // "actor" for that table (senderId, uploaderId, userId, hostId,
+    // assigneeId...) — `{}` when not scoped, so it's a safe no-op for
+    // Admins and for Managers with no department.
+    const scopeWhere = (field: string) => (deptUserIds ? { [field]: { in: deptUserIds } } : {});
+
     // 1. ACTIVE USERS
-    const totalUsers = await prisma.user.count();
+    const totalUsers = await prisma.user.count({
+      where: isScopedManager ? { departmentId: req.user!.departmentId! } : undefined,
+    });
     const userStatuses = await prisma.user.groupBy({
       by: ['status'],
+      where: isScopedManager ? { departmentId: req.user!.departmentId! } : undefined,
       _count: { _all: true }
     });
 
@@ -33,24 +71,33 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
       }
     });
 
-    const activeSocketConnections = Array.from(activeConnections.values()).reduce((sum, list) => sum + list.length, 0);
-    const activeSocketUsers = activeConnections.size;
+    const relevantConnectionEntries = isScopedManager
+      ? Array.from(activeConnections.entries()).filter(([userId]) => deptUserIds!.includes(userId))
+      : Array.from(activeConnections.entries());
+    const activeSocketConnections = relevantConnectionEntries.reduce((sum, [, list]) => sum + list.length, 0);
+    const activeSocketUsers = relevantConnectionEntries.length;
 
-    // 2. CHAT ANALYTICS (Last 7 Days) & Response Time
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // 2. CHAT ANALYTICS & Response Time
+    // The daily chart's own window is separate from the overall ?range=
+    // filter above: charting 90 individual daily bars would be unreadable,
+    // so this is capped at the last 30 days of daily granularity even when
+    // a wider range (or 'all') is selected — the summary numbers above the
+    // chart (totalMessages) still honor the full selected range.
+    const chartDays = Math.min(rangeDays ?? 30, 30);
+    const chartWindowStart = new Date();
+    chartWindowStart.setDate(chartWindowStart.getDate() - (chartDays - 1));
 
     const [totalMessages, totalChannels, recentMessages] = await prisma.$transaction([
-      prisma.message.count(),
-      prisma.group.count(),
+      prisma.message.count({ where: { ...dateWhere, ...scopeWhere('senderId') } }),
+      prisma.group.count(isScopedManager ? { where: { createdById: { in: deptUserIds! } } } : undefined),
       prisma.message.findMany({
-        where: { createdAt: { gte: sevenDaysAgo } },
+        where: { createdAt: { gte: chartWindowStart }, ...scopeWhere('senderId') },
         select: { createdAt: true }
       })
     ]);
 
     const messageCountsByDay: Record<string, number> = {};
-    for (let i = 6; i >= 0; i--) {
+    for (let i = chartDays - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       messageCountsByDay[d.toISOString().slice(0, 10)] = 0;
@@ -77,7 +124,16 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
     // unrelated conversations that happened to land next to each other in
     // time, not an actual reply.
     const recentDirectMessages = await prisma.message.findMany({
-      where: { groupId: null, createdAt: { gte: sevenDaysAgo } },
+      where: {
+        groupId: null,
+        // Uses the overall selected range when one is set, falling back
+        // to the original trailing-7-day default for 'all' — scanning
+        // literally every direct message ever sent for this metric isn't
+        // worth it, and 7 days was already this metric's own established
+        // default before ?range= existed.
+        createdAt: { gte: rangeStart || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        ...(deptUserIds ? { senderId: { in: deptUserIds } } : {}),
+      },
       orderBy: { createdAt: 'asc' },
       take: 2000,
       select: { senderId: true, receiverId: true, createdAt: true }
@@ -114,17 +170,24 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
       ? parseFloat((totalResponseTimeMs / (1000 * 60 * responseCount)).toFixed(1))
       : 0;
 
-    // 3. DEPARTMENT PRODUCTIVITY
+    // 3. DEPARTMENT PRODUCTIVITY — a Manager only ever sees their own
+    // department's row here (there's only one department to compare
+    // against themselves, but keeping the same list shape means the
+    // frontend doesn't need a separate code path for the scoped view).
     const departments = await prisma.department.findMany({
+      where: isScopedManager ? { id: req.user!.departmentId! } : undefined,
       include: {
         employees: { select: { id: true } },
-        tasks: { select: { id: true, status: true } },
+        tasks: { select: { id: true, status: true, createdAt: true } },
       }
     });
     const departmentStats = departments.map(dept => {
+      const tasksInRange = rangeStart
+        ? dept.tasks.filter((t: { createdAt: Date }) => t.createdAt >= rangeStart)
+        : dept.tasks;
       const totalMembers = dept.employees.length;
-      const totalTasks = dept.tasks.length;
-      const completedTasks = dept.tasks.filter(t => t.status === 'COMPLETED').length;
+      const totalTasks = tasksInRange.length;
+      const completedTasks = tasksInRange.filter(t => t.status === 'COMPLETED').length;
       const pendingTasks = totalTasks - completedTasks;
       const completionRate = totalTasks > 0 ? parseFloat(((completedTasks / totalTasks) * 100).toFixed(1)) : 0;
       return {
@@ -139,13 +202,23 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
     });
 
     // 4. TASK COMPLETION & Resolution Time
-    const totalTasks = await prisma.task.count();
+    // Scoped by assignee's department — an unassigned task won't show up
+    // in a Manager's scoped view even if it was created within their
+    // team, since there's no assignee to check against. A more complete
+    // scoping (creator's department OR assignee's department OR the
+    // task's project's department) would close that gap but adds real
+    // complexity for a fairly narrow edge case; noting it here rather
+    // than building it out in this pass.
+    const taskWhere = { ...dateWhere, ...scopeWhere('assigneeId') };
+    const totalTasks = await prisma.task.count({ where: taskWhere });
     const taskStatusGroups = await prisma.task.groupBy({
       by: ['status'],
+      where: taskWhere,
       _count: { _all: true }
     });
     const taskPriorityGroups = await prisma.task.groupBy({
       by: ['priority'],
+      where: taskWhere,
       _count: { _all: true }
     });
 
@@ -178,7 +251,7 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
 
     // Calculate Task Resolution Time (creation to completion hours)
     const completedTasksList = await prisma.task.findMany({
-      where: { status: 'COMPLETED' },
+      where: { status: 'COMPLETED', ...taskWhere },
       select: { createdAt: true, updatedAt: true }
     });
     let totalResolutionTimeMs = 0;
@@ -190,15 +263,16 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
       : 0;
 
     // 5. FILE USAGE
-    const totalFiles = await prisma.file.count({ where: { isDeleted: false } });
+    const fileWhere = { isDeleted: false, ...dateWhere, ...scopeWhere('uploaderId') };
+    const totalFiles = await prisma.file.count({ where: fileWhere });
     const fileStorageSum = await prisma.file.aggregate({
-      where: { isDeleted: false },
+      where: fileWhere,
       _sum: { size: true }
     });
     const totalStorageBytes = fileStorageSum._sum.size || 0;
 
     const files = await prisma.file.findMany({
-      where: { isDeleted: false },
+      where: fileWhere,
       select: { fileType: true, size: true }
     });
 
@@ -232,16 +306,21 @@ export const getAnalyticsStats = async (req: AuthenticatedRequest, res: Response
 
     // 6. EMPLOYEE ENGAGEMENT COMPOSITE SCORE
     const [totalKudos, totalComments, totalActivityLogs, totalMeetings] = await prisma.$transaction([
-      prisma.recognition.count(),
-      prisma.taskComment.count(),
-      prisma.activityLog.count(),
-      prisma.meeting.count()
+      prisma.recognition.count({ where: { ...dateWhere, ...scopeWhere('senderId') } }),
+      prisma.taskComment.count({ where: { ...dateWhere, ...scopeWhere('userId') } }),
+      prisma.activityLog.count({ where: { ...dateWhere, ...scopeWhere('userId') } }),
+      prisma.meeting.count({ where: { ...dateWhere, ...scopeWhere('hostId') } })
     ]);
     const engagementScore = totalUsers > 0
       ? Math.min(100, Math.round(((totalKudos * 5 + totalComments * 2 + totalActivityLogs + totalMeetings * 3) / totalUsers)))
       : 0;
 
     res.status(200).json({
+      meta: {
+        range: rangeParam,
+        scopedToDepartment: isScopedManager,
+        departmentId: isScopedManager ? req.user!.departmentId : null,
+      },
       activeUsers: {
         totalUsers,
         statusCounts,

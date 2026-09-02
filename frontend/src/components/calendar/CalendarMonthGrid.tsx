@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
 interface HoverInfo {
   events: any[];
@@ -22,6 +22,7 @@ export function CalendarMonthGrid({
   onNextMonth,
   onToday,
   onSelectEvent,
+  onQuickCreate,
 }: {
   year: number;
   month: number;
@@ -31,6 +32,11 @@ export function CalendarMonthGrid({
   onNextMonth: () => void;
   onToday: () => void;
   onSelectEvent: (event: any) => void;
+  /** Called with the clicked day cell's date — see calendar/page.tsx's
+   *  QuickCreateEventModal for what happens next. Previously there was no
+   *  way to create anything from the calendar itself; you had to go to
+   *  Tasks or Meetings and come back. */
+  onQuickCreate: (date: Date) => void;
 }) {
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
 
@@ -77,7 +83,7 @@ export function CalendarMonthGrid({
           return (
             <div
               key={`day-${day}`}
-              className={`h-28 p-2 rounded-2xl border border-border dark:border-border flex flex-col justify-between transition-all hover:border-primary/50 dark:hover:border-primary/50 hover:shadow-md ${
+              className={`h-28 p-2 rounded-2xl border border-border dark:border-border flex flex-col justify-between transition-all hover:border-primary/50 dark:hover:border-primary/50 hover:shadow-md group relative ${
                 isToday ? 'bg-primary/5 border-primary/20 dark:border-primary/30' : 'bg-transparent'
               }`}
             >
@@ -89,11 +95,21 @@ export function CalendarMonthGrid({
                 >
                   {day}
                 </span>
-                {dayEvents.length > 0 && (
-                  <span className="text-[9px] bg-muted dark:bg-card px-1.5 py-0.5 rounded font-black text-muted-foreground">
-                    {dayEvents.length} items
-                  </span>
-                )}
+                <div className="flex items-center gap-1">
+                  {dayEvents.length > 0 && (
+                    <span className="text-[9px] bg-muted dark:bg-card px-1.5 py-0.5 rounded font-black text-muted-foreground">
+                      {dayEvents.length} items
+                    </span>
+                  )}
+                  <button
+                    onClick={() => onQuickCreate(new Date(year, month, day))}
+                    aria-label={`Create a task or meeting on ${MONTH_NAMES[month]} ${day}`}
+                    title="New task or meeting"
+                    className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity h-4 w-4 rounded flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 shrink-0"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-1 mt-1.5 pr-0.5 scrollbar-none text-[9px] leading-tight text-left">

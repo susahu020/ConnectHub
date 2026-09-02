@@ -117,6 +117,9 @@ function WikiContent() {
       router.push(`/wiki?id=${data.id}`);
       toast.success('Document created!');
     },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Could not create document.');
+    },
   });
 
   const updateMutation = useMutation({
@@ -126,6 +129,9 @@ function WikiContent() {
       queryClient.invalidateQueries({ queryKey: ['wiki-page-details', selectedPageId] });
       setIsEditing(false);
       toast.success('Document saved successfully!');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Could not save document.');
     },
   });
 
@@ -168,11 +174,21 @@ function WikiContent() {
       category = 'Policy';
     }
 
+    // Mirrors wiki.controller.ts's canCreateOrPublishWikiPage: when the
+    // workspace restricts publishing to Managers/Admins, a non-moderator
+    // creating a new page here would otherwise hit a 403 immediately on
+    // the very first save. Defaulting to a draft instead means they land
+    // straight in the editor and can keep working — a moderator can
+    // publish it later, or they can un-toggle it if they turn out to have
+    // publish rights after all (e.g. their role changed).
+    const isModerator = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+    const canPublish = !orgSettings.wikiRestrictedPublishing || isModerator;
+
     createMutation.mutate({
       title,
       content,
       category,
-      isPublished: true,
+      isPublished: canPublish,
     });
     setCreateMenuOpen(false);
   };

@@ -7,6 +7,8 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { createNotification } from '../services/notification.service';
 import { getOrganizationSettings } from '../services/organization.service';
 import { emitDataUpdate } from '../utils/realtime';
+import { scanBuffer } from '../services/malwareScan.service';
+import { extractText } from '../services/ocr.service';
 
 export const uploadFile = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -658,17 +660,44 @@ export const scanFile = async (req: AuthenticatedRequest, res: Response, next: N
       res.status(404).json({ message: 'File not found.' });
       return;
     }
-    
-    // Simulate ClamAV malware scanner
-    const report = {
-      scannedAt: new Date(),
-      status: 'CLEAN',
-      engine: 'ClamAV 1.3.0',
-      fileSize: file.size,
-      threatsFound: 0,
-      hashSignature: require('crypto').createHash('sha256').update(file.name + file.id).digest('hex'),
-      details: 'No malware signatures matched. Safe for workspace download.'
-    };
+
+    // file.url is always a plain HTTP(S) URL — either Cloudinary's or this
+    // server's own /uploads/ static route (see uploadFile above) — so it
+    // can be fetched the same way regardless of which storage backend is
+    // active.
+    let report;
+    try {
+      const fileResponse = await fetch(file.url);
+      if (!fileResponse.ok) {
+        throw new Error(`Could not fetch file for scanning (HTTP ${fileResponse.status})`);
+      }
+      const buffer = Buffer.from(await fileResponse.arrayBuffer());
+      const scanResult = await scanBuffer(buffer);
+      report = {
+        scannedAt: scanResult.scannedAt,
+        status: scanResult.status,
+        simulated: scanResult.simulated,
+        engine: scanResult.engine,
+        fileSize: file.size,
+        threatsFound: scanResult.threatsFound,
+        threatName: scanResult.threatName,
+        details: scanResult.details,
+      };
+    } catch (fetchErr) {
+      // Couldn't even retrieve the bytes to scan — this must never be
+      // reported as CLEAN (that would be worse than not scanning at all).
+      console.error(`scanFile: failed to fetch file ${id} for scanning:`, fetchErr);
+      report = {
+        scannedAt: new Date(),
+        status: 'ERROR',
+        simulated: false,
+        engine: 'N/A',
+        fileSize: file.size,
+        threatsFound: 0,
+        details: 'The file could not be retrieved for scanning. Treat as unscanned.',
+      };
+    }
+
     res.json(report);
   } catch (error) {
     next(error);
@@ -688,25 +717,51 @@ export const ocrFile = async (req: AuthenticatedRequest, res: Response, next: Ne
     }
 
     const ext = path.extname(file.name).toUpperCase().replace('.', '');
-    let extractedText = '';
-    
-    if (['PNG', 'JPEG', 'JPG', 'PDF'].includes(ext)) {
-      extractedText = `--- OPTICAL CHARACTER RECOGNITION (OCR) REPORT ---\n` +
-        `File: ${file.name}\n` +
-        `Extracted At: ${new Date().toLocaleString()}\n` +
-        `Confidence Score: 98.4%\n` +
-        `---------------------------------------------\n` +
-        `CONNECTHUB ENTERPRISE WORKSPACE SERVICES\n` +
-        `This document was parsed by our OCR scanner. \n` +
-        `Metadata detected: Title="${file.name}", Size="${file.size} bytes".\n` +
-        `Content Sample:\n` +
-        `- HR Policy Onboarding Guidelines\n` +
-        `- Operational Procedures & Compliance Handbook\n` +
-        `- System configuration variables, database adapters.\n`;
-    } else {
-      extractedText = `OCR is only supported for image formats (PNG, JPEG, JPG) and PDF documents. The current file format is: ${ext}`;
+
+    if (!['PNG', 'JPEG', 'JPG', 'PDF'].includes(ext)) {
+      res.json({
+        simulated: false,
+        text: `OCR is only supported for image formats (PNG, JPEG, JPG) and PDF documents. The current file format is: ${ext}`,
+        confidence: null,
+      });
+      return;
     }
-    res.json({ text: extractedText });
+
+    let buffer: Buffer;
+    try {
+      const fileResponse = await fetch(file.url);
+      if (!fileResponse.ok) {
+        throw new Error(`Could not fetch file for OCR (HTTP ${fileResponse.status})`);
+      }
+      buffer = Buffer.from(await fileResponse.arrayBuffer());
+    } catch (fetchErr) {
+      console.error(`ocrFile: failed to fetch file ${id}:`, fetchErr);
+      res.json({
+        simulated: false,
+        text: 'The file could not be retrieved for OCR processing.',
+        confidence: null,
+      });
+      return;
+    }
+
+    const ocrResult = await extractText(buffer, ext);
+
+    if (ocrResult.simulated) {
+      // Previously this branch returned fabricated extracted text (a fixed
+      // "HR Policy Onboarding Guidelines..." sample) regardless of the
+      // file's actual content — see ocr.service.ts for why a real engine
+      // isn't wired in here yet. This is the honest replacement: say
+      // plainly that no text was extracted, rather than making something
+      // up.
+      res.json({
+        simulated: true,
+        text: 'OCR is not configured for this deployment (set OCR_ENGINE to enable real text extraction). No text was extracted from this file.',
+        confidence: null,
+      });
+      return;
+    }
+
+    res.json(ocrResult);
   } catch (error) {
     next(error);
   }

@@ -13,6 +13,8 @@ import {
   leaveGroup,
   deleteGroup,
   updateGroup,
+  archiveGroup,
+  unarchiveGroup,
 } from '../controllers/group.controller';
 
 const router = Router();
@@ -27,6 +29,8 @@ router.get('/groups/:id/messages', authenticate as any, getGroupMessages as any)
 router.post('/groups/:id/member', authenticate as any, addMember as any);
 router.delete('/groups/:id/member', authenticate as any, removeMember as any);
 router.post('/groups/:id/leave', authenticate as any, leaveGroup as any);
+router.post('/groups/:id/archive', authenticate as any, archiveGroup as any);
+router.post('/groups/:id/unarchive', authenticate as any, unarchiveGroup as any);
 router.delete('/groups/:id', authenticate as any, deleteGroup as any);
 router.put('/groups/:id', authenticate as any, updateGroup as any);
 

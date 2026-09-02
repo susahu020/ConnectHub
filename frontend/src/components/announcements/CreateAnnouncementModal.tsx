@@ -14,7 +14,15 @@ export function CreateAnnouncementModal({
   onExpiryChange,
   pinned,
   onPinnedChange,
+  scheduledFor,
+  onScheduledForChange,
+  departmentId,
+  onDepartmentIdChange,
+  departments,
   onSubmit,
+  heading = 'Publish Company Notice',
+  description = 'Post announcements or department memos to all employees.',
+  submitLabel = 'Publish Bulletin',
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,7 +36,20 @@ export function CreateAnnouncementModal({
   onExpiryChange: (v: string) => void;
   pinned: boolean;
   onPinnedChange: (v: boolean) => void;
+  /** datetime-local string, or '' for "publish immediately". */
+  scheduledFor: string;
+  onScheduledForChange: (v: string) => void;
+  /** '' means "all employees" (no department scoping). */
+  departmentId: string;
+  onDepartmentIdChange: (v: string) => void;
+  departments: { id: string; name: string }[];
   onSubmit: (e: React.FormEvent) => void;
+  /** Lets this same modal double as the "edit announcement" form — see
+   *  announcements/page.tsx, which reuses it for both create and update
+   *  rather than shipping a near-duplicate component. */
+  heading?: string;
+  description?: string;
+  submitLabel?: string;
 }) {
   if (!open) return null;
 
@@ -39,8 +60,8 @@ export function CreateAnnouncementModal({
           <X className="h-5 w-5" />
         </button>
         <div className="space-y-1">
-          <h3 className="font-bold text-lg">Publish Company Notice</h3>
-          <p className="text-xs text-muted-foreground">Post announcements or department memos to all employees.</p>
+          <h3 className="font-bold text-lg">{heading}</h3>
+          <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4 text-xs font-semibold">
           <div className="space-y-2">
@@ -92,6 +113,37 @@ export function CreateAnnouncementModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-muted-foreground uppercase text-[10px]">Audience</label>
+              <select
+                value={departmentId}
+                onChange={(e) => onDepartmentIdChange(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
+              >
+                <option value="">All Employees</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name} only</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-muted-foreground uppercase text-[10px]">Publish At (optional)</label>
+              <input
+                type="datetime-local"
+                value={scheduledFor}
+                onChange={(e) => onScheduledForChange(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none"
+              />
+            </div>
+          </div>
+          {scheduledFor && (
+            <p className="text-[10px] text-muted-foreground -mt-2 normal-case">
+              This notice will stay hidden from your audience — visible only to you — until the scheduled time.
+            </p>
+          )}
+
           <label className="flex items-center space-x-2.5 p-1 cursor-pointer">
             <input
               type="checkbox"
@@ -103,7 +155,7 @@ export function CreateAnnouncementModal({
           </label>
 
           <button type="submit" className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-bold shadow-md">
-            Publish Bulletin
+            {submitLabel}
           </button>
         </form>
       </div>

@@ -3,6 +3,7 @@ import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { createManyNotifications } from '../services/notification.service';
 import { emitDataUpdate } from '../utils/realtime';
+import { hasPermission } from '../services/rbac.service';
 
 export const createGroup = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -74,7 +75,15 @@ export const createGroup = async (req: AuthenticatedRequest, res: Response, next
 
 export const getGroups = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
+    // Archived channels are hidden from the default list (same idea as an
+    // email archive — out of the way, but not deleted, so message history
+    // is preserved and it can be restored). Pass ?archived=true to fetch
+    // the archived list instead, e.g. for a dedicated "Archived Channels"
+    // view.
+    const wantArchived = req.query.archived === 'true';
+
     const groups = await prisma.group.findMany({
+      where: { isArchived: wantArchived },
       include: {
         members: {
           include: {
@@ -303,8 +312,19 @@ export const deleteGroup = async (req: AuthenticatedRequest, res: Response, next
       return;
     }
 
-    if (group.createdById !== userId) {
-      res.status(403).json({ message: 'Only the channel creator can delete this channel.' });
+    // Previously only the exact creator could delete a channel — meaning if
+    // that person left the org or was deactivated, the channel became
+    // permanently undeletable by anyone, including a global Admin. Now also
+    // allows a global Admin, or anyone whose role/custom role has been
+    // explicitly granted Groups:Delete (the seeded "Manager" role already
+    // grants this — see prisma/seed.ts — so this makes that grant actually
+    // do something instead of being silently unused).
+    const isCreator = group.createdById === userId;
+    const isGlobalAdmin = req.user?.role === 'ADMIN';
+    const hasDeletePermission = isCreator || isGlobalAdmin || (await hasPermission(userId, 'Groups', 'Delete'));
+
+    if (!hasDeletePermission) {
+      res.status(403).json({ message: 'Only the channel creator, an administrator, or a role with Groups:Delete permission can delete this channel.' });
       return;
     }
 
@@ -314,6 +334,86 @@ export const deleteGroup = async (req: AuthenticatedRequest, res: Response, next
 
     emitDataUpdate(req, 'groups');
     res.status(200).json({ message: 'Channel deleted successfully.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Soft-remove a channel: hides it from the default channel list while
+// keeping its message history, members, and files intact — unlike
+// deleteGroup, this is reversible via unarchiveGroup. Uses the same
+// authorization tier as delete (creator, global Admin, or a role granted
+// Groups:Archive) since archiving is a less destructive but still
+// channel-management action.
+export const archiveGroup = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: groupId } = req.params;
+    const userId = req.user?.id!;
+
+    const group = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!group) {
+      res.status(404).json({ message: 'Channel not found.' });
+      return;
+    }
+
+    if (group.isArchived) {
+      res.status(400).json({ message: 'This channel is already archived.' });
+      return;
+    }
+
+    const isCreator = group.createdById === userId;
+    const isGlobalAdmin = req.user?.role === 'ADMIN';
+    const canArchive = isCreator || isGlobalAdmin || (await hasPermission(userId, 'Groups', 'Archive'));
+
+    if (!canArchive) {
+      res.status(403).json({ message: 'Only the channel creator, an administrator, or a role with Groups:Archive permission can archive this channel.' });
+      return;
+    }
+
+    const updated = await prisma.group.update({
+      where: { id: groupId },
+      data: { isArchived: true, archivedAt: new Date() },
+    });
+
+    emitDataUpdate(req, 'groups');
+    res.status(200).json({ group: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const unarchiveGroup = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id: groupId } = req.params;
+    const userId = req.user?.id!;
+
+    const group = await prisma.group.findUnique({ where: { id: groupId } });
+    if (!group) {
+      res.status(404).json({ message: 'Channel not found.' });
+      return;
+    }
+
+    if (!group.isArchived) {
+      res.status(400).json({ message: 'This channel is not archived.' });
+      return;
+    }
+
+    const isCreator = group.createdById === userId;
+    const isGlobalAdmin = req.user?.role === 'ADMIN';
+    const canArchive = isCreator || isGlobalAdmin || (await hasPermission(userId, 'Groups', 'Archive'));
+
+    if (!canArchive) {
+      res.status(403).json({ message: 'Only the channel creator, an administrator, or a role with Groups:Archive permission can restore this channel.' });
+      return;
+    }
+
+    const updated = await prisma.group.update({
+      where: { id: groupId },
+      data: { isArchived: false, archivedAt: null },
+    });
+
+    emitDataUpdate(req, 'groups');
+    res.status(200).json({ group: updated });
   } catch (error) {
     next(error);
   }
@@ -333,16 +433,21 @@ export const updateGroup = async (req: AuthenticatedRequest, res: Response, next
 
     // If the group is a broadcast channel, then only an administrator can change or update the profile
     if (group.isBroadcast) {
-      if (req.user?.role !== 'ADMIN') {
-        res.status(403).json({ message: 'Forbidden. Only an administrator can update the profile of a broadcast channel.' });
+      const isGlobalAdmin = req.user?.role === 'ADMIN';
+      const canManage = isGlobalAdmin || (await hasPermission(userId, 'Groups', 'Update'));
+      if (!canManage) {
+        res.status(403).json({ message: 'Forbidden. Only an administrator or a role with Groups:Update permission can update the profile of a broadcast channel.' });
         return;
       }
     }
 
     // Only the channel creator or an administrator can toggle the broadcast channels option
     if (isBroadcast !== undefined && isBroadcast !== group.isBroadcast) {
-      if (group.createdById !== userId && req.user?.role !== 'ADMIN') {
-        res.status(403).json({ message: 'Forbidden. Only the channel creator or an administrator can change broadcast status.' });
+      const isCreator = group.createdById === userId;
+      const isGlobalAdmin = req.user?.role === 'ADMIN';
+      const canToggle = isCreator || isGlobalAdmin || (await hasPermission(userId, 'Groups', 'Update'));
+      if (!canToggle) {
+        res.status(403).json({ message: 'Forbidden. Only the channel creator, an administrator, or a role with Groups:Update permission can change broadcast status.' });
         return;
       }
     }

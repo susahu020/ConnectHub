@@ -12,6 +12,9 @@ import { api } from '../../../services/api';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
 import { passwordZodSchema, PASSWORD_HINT } from '../../../lib/passwordPolicy';
 import AuthBrandPanel from '../../../components/auth/AuthBrandPanel';
+import { PasswordStrengthMeter } from '../../../components/auth/PasswordStrengthMeter';
+import { useRetryCountdown } from '../../../hooks/useRetryCountdown';
+import { RetryCountdownBanner } from '../../../components/auth/RetryCountdownBanner';
 
 const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -37,11 +40,13 @@ function RegisterForm() {
   const [verifyingToken, setVerifyingToken] = useState(false);
   const [invitedEmail, setInvitedEmail] = useState('');
   const [invitedRole, setInvitedRole] = useState<'ADMIN' | 'MANAGER' | 'EMPLOYEE'>('EMPLOYEE');
+  const registerRetry = useRetryCountdown();
 
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -97,6 +102,9 @@ function RegisterForm() {
         router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
       }
     } catch (error: any) {
+      if (error.retryAfterSeconds) {
+        registerRetry.start(error.retryAfterSeconds);
+      }
       toast.error(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
@@ -344,12 +352,14 @@ function RegisterForm() {
               ) : (
                 <p className="text-[11px] text-muted-foreground">{PASSWORD_HINT}</p>
               )}
+              <PasswordStrengthMeter password={watch('password') || ''} />
             </div>
           </div>
 
+          <RetryCountdownBanner secondsLeft={registerRetry.secondsLeft} />
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || registerRetry.isBlocked}
             className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50 mt-4"
           >
             {loading ? (
@@ -357,6 +367,8 @@ function RegisterForm() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Registering Account...</span>
               </>
+            ) : registerRetry.isBlocked ? (
+              <span>Try again in {registerRetry.secondsLeft}s</span>
             ) : (
               <span>Register Workspace Profile</span>
             )}

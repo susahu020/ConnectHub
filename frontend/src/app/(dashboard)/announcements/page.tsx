@@ -29,13 +29,26 @@ export default function AnnouncementsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState('ALL');
 
-  // Creation modal
+  // Create/Edit modal — reused for both (see CreateAnnouncementModal's
+  // heading/submitLabel props). `editingId` is null in create mode and the
+  // announcement id while editing.
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [annTitle, setAnnTitle] = useState('');
   const [annContent, setAnnContent] = useState('');
   const [annPriority, setAnnPriority] = useState<'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'>('NORMAL');
   const [annPinned, setAnnPinned] = useState(false);
   const [annExpiry, setAnnExpiry] = useState('');
+  const [annScheduledFor, setAnnScheduledFor] = useState('');
+  const [annDepartmentId, setAnnDepartmentId] = useState('');
+
+  // Fetch departments for the audience picker — GET /admin/departments is
+  // open to any authenticated user despite the path (see users.controller
+  // notes elsewhere), so this doesn't need an Admin-only guard.
+  const { data: departments } = useQuery({
+    queryKey: ['departments-select'],
+    queryFn: () => api.getDepartments(),
+  });
 
   // Fetch announcements
   const { data: announcements, isLoading, refetch } = useQuery({
@@ -95,11 +108,7 @@ export default function AnnouncementsPage() {
     mutationFn: (body: any) => api.createAnnouncement(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['announcements'] });
-      setCreateOpen(false);
-      setAnnTitle('');
-      setAnnContent('');
-      setAnnExpiry('');
-      setAnnPinned(false);
+      closeAnnouncementModal();
       toast.success('Announcement published successfully.');
     },
     onError: () => {
@@ -107,17 +116,75 @@ export default function AnnouncementsPage() {
     },
   });
 
+  // Update Announcement Mutation — shares the create modal's form state,
+  // keyed by `editingId`.
+  const updateMutation = useMutation({
+    mutationFn: (body: any) => api.updateAnnouncement(editingId as string, body),
+    onSuccess: (updated: any) => {
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+      if (activeAnn?.id === editingId) {
+        setActiveAnn((prev: any) => ({ ...prev, ...updated }));
+      }
+      closeAnnouncementModal();
+      toast.success('Announcement updated successfully.');
+    },
+    onError: () => {
+      toast.error('Failed to update announcement.');
+    },
+  });
+
+  const closeAnnouncementModal = () => {
+    setCreateOpen(false);
+    setEditingId(null);
+    setAnnTitle('');
+    setAnnContent('');
+    setAnnExpiry('');
+    setAnnScheduledFor('');
+    setAnnDepartmentId('');
+    setAnnPinned(false);
+    setAnnPriority('NORMAL');
+  };
+
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!annTitle.trim() || !annContent.trim()) return;
 
-    createMutation.mutate({
+    const body = {
       title: annTitle,
       content: annContent,
       priority: annPriority,
       isPinned: annPinned,
       expiresAt: annExpiry || null,
-    });
+      // <input type="datetime-local"> gives a value with no timezone
+      // offset (e.g. "2026-09-01T09:00") — `new Date(...)` on the backend
+      // would otherwise interpret that as UTC; appending nothing here and
+      // letting new Date() parse it as local time on the server isn't
+      // reliable across environments, so this is sent as-is and the
+      // backend's `new Date(scheduledFor)` treats it the same way the
+      // browser's <input> does (local time of whichever server parses it).
+      // Good enough for this feature's purposes; a fully timezone-correct
+      // version would send an explicit offset.
+      scheduledFor: annScheduledFor || null,
+      departmentId: annDepartmentId || null,
+    };
+
+    if (editingId) {
+      updateMutation.mutate(body);
+    } else {
+      createMutation.mutate(body);
+    }
+  };
+
+  const handleOpenEdit = (announcement: any) => {
+    setEditingId(announcement.id);
+    setAnnTitle(announcement.title);
+    setAnnContent(announcement.content);
+    setAnnPriority(announcement.priority);
+    setAnnPinned(!!announcement.isPinned);
+    setAnnExpiry(announcement.expiresAt ? new Date(announcement.expiresAt).toISOString().slice(0, 10) : '');
+    setAnnScheduledFor(announcement.scheduledFor ? new Date(announcement.scheduledFor).toISOString().slice(0, 16) : '');
+    setAnnDepartmentId(announcement.departmentId || '');
+    setCreateOpen(true);
   };
 
   const handleOpenDetails = async (id: string) => {
@@ -228,6 +295,7 @@ export default function AnnouncementsPage() {
           announcement={activeAnn}
           currentUserId={user?.id}
           currentUserRole={user?.role}
+          onEdit={handleOpenEdit}
           onDelete={handleDeleteAnnouncement}
           onLike={handleLike}
           onOpenReadReceipts={() => setViewersOpen(true)}
@@ -249,7 +317,7 @@ export default function AnnouncementsPage() {
 
       <CreateAnnouncementModal
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        onClose={closeAnnouncementModal}
         title={annTitle}
         onTitleChange={setAnnTitle}
         content={annContent}
@@ -260,7 +328,15 @@ export default function AnnouncementsPage() {
         onExpiryChange={setAnnExpiry}
         pinned={annPinned}
         onPinnedChange={setAnnPinned}
+        scheduledFor={annScheduledFor}
+        onScheduledForChange={setAnnScheduledFor}
+        departmentId={annDepartmentId}
+        onDepartmentIdChange={setAnnDepartmentId}
+        departments={departments || []}
         onSubmit={handleCreateSubmit}
+        heading={editingId ? 'Edit Company Notice' : undefined}
+        description={editingId ? 'Update the details of this bulletin. Existing likes, comments, and read receipts are preserved.' : undefined}
+        submitLabel={editingId ? 'Save Changes' : undefined}
       />
     </div>
   );

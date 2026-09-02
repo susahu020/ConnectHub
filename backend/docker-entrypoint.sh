@@ -50,7 +50,42 @@ run_as_app_user() {
 
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
   echo "Found prisma/migrations - applying versioned migrations with 'prisma migrate deploy'."
-  run_as_app_user npx prisma migrate deploy
+  set +e
+  MIGRATE_OUTPUT=$(run_as_app_user npx prisma migrate deploy 2>&1)
+  MIGRATE_STATUS=$?
+  set -e
+  echo "$MIGRATE_OUTPUT"
+
+  if [ $MIGRATE_STATUS -ne 0 ] && echo "$MIGRATE_OUTPUT" | grep -q "P3005"; then
+    # P3005 = "the database schema is not empty" with no migration history
+    # to reconcile it against. This is the expected, one-time transition
+    # for anyone who already had a running local (or otherwise pre-existing)
+    # database from *before* this project had a prisma/migrations directory
+    # at all - every earlier boot went through the `db push` branch below
+    # instead, which syncs schema.prisma directly and keeps no migration
+    # history. That means the schema already on disk is the *current*
+    # schema.prisma already applied - so the correct fix is to record every
+    # migration as already-applied (Prisma's own documented "baseline an
+    # existing database" procedure: https://pris.ly/d/migrate-baseline),
+    # not to error out or to blow the database away.
+    echo ""
+    echo "Detected an existing database with no migration history (P3005)."
+    echo "   Baselining it: marking every migration in prisma/migrations as"
+    echo "   already-applied, since this database's schema already reflects"
+    echo "   the current schema.prisma from a prior 'prisma db push' boot."
+    for dir in prisma/migrations/*/; do
+      name=$(basename "$dir")
+      echo "   -> resolving $name as applied"
+      run_as_app_user npx prisma migrate resolve --applied "$name"
+    done
+    echo "Retrying 'prisma migrate deploy' now that the baseline is recorded..."
+    run_as_app_user npx prisma migrate deploy
+  elif [ $MIGRATE_STATUS -ne 0 ]; then
+    # Any other migrate failure is a real problem (a bad migration, a
+    # genuine connectivity issue, etc.) - surface it and stop, same as
+    # `set -e` would have done before this block existed.
+    exit $MIGRATE_STATUS
+  fi
 else
   if [ "$NODE_ENV" = "production" ]; then
     echo "WARNING: No prisma/migrations directory found, but NODE_ENV=production."

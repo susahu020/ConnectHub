@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Building2,
   ShieldCheck,
+  BookOpen,
   Save,
   Upload,
   Send,
@@ -81,6 +82,7 @@ export default function OrganizationSettingsPage() {
   const [allowedDomainsInput, setAllowedDomainsInput] = useState('');
   const [ssoGoogleEnabled, setSsoGoogleEnabled] = useState(true);
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [wikiRestrictedPublishing, setWikiRestrictedPublishing] = useState(false);
   const [recycleBinRetentionDays, setRecycleBinRetentionDays] = useState('');
 
   useEffect(() => {
@@ -103,6 +105,7 @@ export default function OrganizationSettingsPage() {
       setAllowedDomainsInput((orgSettingsData.allowedDomains || []).join(', '));
       setSsoGoogleEnabled(orgSettingsData.ssoGoogleEnabled !== false);
       setMfaRequired(orgSettingsData.mfaRequired === true);
+      setWikiRestrictedPublishing(orgSettingsData.wikiRestrictedPublishing === true);
       setRecycleBinRetentionDays(orgSettingsData.recycleBinRetentionDays ? String(orgSettingsData.recycleBinRetentionDays) : '');
     }
   }, [orgSettingsData]);
@@ -127,7 +130,7 @@ export default function OrganizationSettingsPage() {
       .split(',')
       .map((d) => d.trim())
       .filter(Boolean);
-    updateOrgSettingsMutation.mutate({ ...orgForm, allowedDomains, ssoGoogleEnabled, mfaRequired, recycleBinRetentionDays: recycleBinRetentionDays.trim() === '' ? null : Number(recycleBinRetentionDays) });
+    updateOrgSettingsMutation.mutate({ ...orgForm, allowedDomains, ssoGoogleEnabled, mfaRequired, wikiRestrictedPublishing, recycleBinRetentionDays: recycleBinRetentionDays.trim() === '' ? null : Number(recycleBinRetentionDays) });
   };
 
   const sendTestAlertMutation = useMutation({
@@ -537,6 +540,31 @@ export default function OrganizationSettingsPage() {
                   When on, every user must set up 2FA before they can use the rest of the app. Anyone without it
                   enabled yet is limited to the 2FA setup screen the next time they load a page — nobody is signed
                   out or locked out immediately when you turn this on.
+                </p>
+              </div>
+
+              <div className="space-y-3 border rounded-2xl p-5 bg-muted/40 dark:bg-card/30">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-2 font-bold text-xs text-foreground">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    <span>Restrict Wiki Publishing</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={wikiRestrictedPublishing}
+                    aria-label="Restrict wiki publishing to Managers and Admins"
+                    onClick={() => setWikiRestrictedPublishing(!wikiRestrictedPublishing)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${wikiRestrictedPublishing ? 'bg-primary' : 'bg-secondary dark:bg-card'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${wikiRestrictedPublishing ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground -mt-1">
+                  Off (default): the Company Wiki stays open and collaborative — any employee can create and
+                  publish pages, like Confluence or Notion. On: only Managers and Admins can create or publish
+                  pages; everyone can still read them, and a non-Manager can still save work as a private draft
+                  for a moderator to review and publish.
                 </p>
               </div>
 

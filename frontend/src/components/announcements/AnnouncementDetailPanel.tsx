@@ -1,11 +1,12 @@
 import React from 'react';
-import { Trash2, Heart, Eye, Users, MessageSquare, Megaphone } from 'lucide-react';
+import { Trash2, Pencil, Heart, Eye, Users, MessageSquare, Megaphone } from 'lucide-react';
 import { getPriorityBadge } from './announcementHelpers';
 
 export function AnnouncementDetailPanel({
   announcement,
   currentUserId,
   currentUserRole,
+  onEdit,
   onDelete,
   onLike,
   onOpenReadReceipts,
@@ -17,6 +18,7 @@ export function AnnouncementDetailPanel({
   announcement: any | null;
   currentUserId?: string;
   currentUserRole?: string;
+  onEdit: (announcement: any) => void;
   onDelete: (id: string) => void;
   onLike: (id: string) => void;
   onOpenReadReceipts: () => void;
@@ -42,22 +44,44 @@ export function AnnouncementDetailPanel({
       <div className="space-y-6">
         <div className="space-y-2 border-b pb-3 relative text-left">
           <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border uppercase tracking-wider ${getPriorityBadge(announcement.priority)}`}>
-              {announcement.priority}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded border uppercase tracking-wider ${getPriorityBadge(announcement.priority)}`}>
+                {announcement.priority}
+              </span>
+              {announcement.scheduledFor && new Date(announcement.scheduledFor).getTime() > Date.now() && (
+                <span
+                  className="text-[10px] font-extrabold px-1.5 py-0.5 rounded border uppercase tracking-wider bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-500 dark:border-amber-950"
+                  title={`Only visible to you until ${new Date(announcement.scheduledFor).toLocaleString()}`}
+                >
+                  Scheduled
+                </span>
+              )}
+            </div>
             {canManage && (
-              <button
-                onClick={() => onDelete(announcement.id)}
-                className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-all"
-                title="Delete Bulletin Notice"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => onEdit(announcement)}
+                  className="p-1 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                  title="Edit Bulletin Notice"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => onDelete(announcement.id)}
+                  className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-all"
+                  title="Delete Bulletin Notice"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             )}
           </div>
           <h3 className="font-extrabold text-base leading-snug">{announcement.title}</h3>
           <p className="text-[10px] text-muted-foreground">
             Published by {announcement.creator.firstName} • {new Date(announcement.createdAt).toLocaleString()}
+            {announcement.updatedAt && announcement.updatedAt !== announcement.createdAt && (
+              <span className="italic"> • edited {new Date(announcement.updatedAt).toLocaleString()}</span>
+            )}
           </p>
         </div>
 

@@ -28,6 +28,10 @@ export interface OrganizationSettings {
   mfaRequired: boolean;
   // Days before a soft-deleted file/folder is auto-purged. Null = forever.
   recycleBinRetentionDays: number | null;
+  // When true, only Managers/Admins may create or publish wiki pages —
+  // see wiki.controller.ts's canCreateOrPublishWikiPage. Everyone can
+  // still read published pages either way.
+  wikiRestrictedPublishing: boolean;
   // Computed server-side — true only when the server has real Google OAuth
   // credentials configured AND the admin hasn't turned it off.
   ssoGoogleAvailable: boolean;
@@ -61,6 +65,7 @@ export const DEFAULT_ORG_SETTINGS: OrganizationSettings = {
   duplicateLoginPolicy: 'SINGLE_SESSION',
   mfaRequired: false,
   recycleBinRetentionDays: null,
+  wikiRestrictedPublishing: false,
   ssoGoogleAvailable: false,
   ssoGoogleUsingDemoCredentials: false,
   // Defaults to false (not true) while loading — safer to briefly hide the

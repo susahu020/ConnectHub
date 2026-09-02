@@ -6,10 +6,14 @@ export function PrivacyDataCard({
   exportingData,
   onExportData,
   onOpenDeleteAccount,
+  hidePhoneInDirectory,
+  onHidePhoneInDirectoryChange,
 }: {
   exportingData: boolean;
   onExportData: () => void;
   onOpenDeleteAccount: () => void;
+  hidePhoneInDirectory: boolean;
+  onHidePhoneInDirectoryChange: (value: boolean) => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -17,6 +21,26 @@ export function PrivacyDataCard({
       <div className="border-b pb-3 flex items-center space-x-2">
         <ShieldCheck className="h-5 w-5 text-primary" />
         <h3 className="font-bold text-sm">{t('settings.privacy.title')}</h3>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 p-4 border rounded-xl bg-muted/40 dark:bg-card/30">
+        <div>
+          <p className="font-bold text-xs text-foreground">Hide My Phone Number in Directory</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal max-w-md">
+            When on, colleagues browsing the company directory won&apos;t see your phone number. It still
+            appears on your own view of your profile.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={hidePhoneInDirectory}
+          aria-label="Hide my phone number in the company directory"
+          onClick={() => onHidePhoneInDirectoryChange(!hidePhoneInDirectory)}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${hidePhoneInDirectory ? 'bg-primary' : 'bg-secondary dark:bg-card'}`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${hidePhoneInDirectory ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
       </div>
 
       <div className="flex items-start justify-between gap-4 p-4 border rounded-xl bg-muted/40 dark:bg-card/30">

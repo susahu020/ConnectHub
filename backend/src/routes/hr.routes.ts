@@ -21,6 +21,8 @@ import {
   getPayslips,
   generatePayslip,
   updatePayslipStatus,
+  getEmployeeBaseSalary,
+  setEmployeeBaseSalary,
   getShifts,
   createShift,
   getShiftAssignments,
@@ -83,6 +85,8 @@ router.get('/hr/payslips', authenticate as any, getPayslips as any);
 router.post('/hr/payslips', authenticate as any, authorize(['ADMIN']), generatePayslip as any);
 router.put('/hr/payslips/:id/status', authenticate as any, authorize(['ADMIN']), updatePayslipStatus as any);
 router.delete('/hr/payslips/:id', authenticate as any, authorize(['ADMIN']), deletePayslip as any);
+router.get('/hr/employees/:id/base-salary', authenticate as any, authorize(['ADMIN']), getEmployeeBaseSalary as any);
+router.put('/hr/employees/:id/base-salary', authenticate as any, authorize(['ADMIN']), setEmployeeBaseSalary as any);
 
 // Shifts
 router.get('/hr/shifts', authenticate as any, getShifts as any);

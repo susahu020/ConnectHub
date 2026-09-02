@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { sendEmail } from '../config/mailer';
@@ -34,8 +34,7 @@ import {
   notifyIfNewDevice
 } from '../services/session.service';
 
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456';
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'default-local-jwt-refresh-secret-123456';
+import { ACCESS_SECRET, REFRESH_SECRET } from '../config/jwtSecrets';
 
 // Options for the HttpOnly refresh-token cookie. This was previously always
 // `sameSite: 'lax'`, which quietly breaks the moment the frontend and
@@ -266,9 +265,18 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     // A. Check Lockout Status
     const lockoutEndTime = await checkFailedLoginLockout(email);
     if (lockoutEndTime) {
-      const minutesLeft = Math.ceil((lockoutEndTime.getTime() - Date.now()) / 60000);
+      const retryAfterSeconds = Math.max(1, Math.ceil((lockoutEndTime.getTime() - Date.now()) / 1000));
+      const minutesLeft = Math.ceil(retryAfterSeconds / 60);
+      res.setHeader('Retry-After', retryAfterSeconds);
       res.status(423).json({
         message: `Account temporarily locked due to excessive failed attempts. Please try again in ${minutesLeft} minute(s).`,
+        // Machine-readable pair (code + exact seconds) alongside the
+        // human-readable message above, matching the shape the IP-level
+        // rate limiter already returns (see middleware/rateLimiter.ts) —
+        // lets the frontend render a live countdown instead of just
+        // displaying the static "N minute(s)" string once and going stale.
+        code: 'ACCOUNT_LOCKED',
+        retryAfterSeconds,
       });
       return;
     }

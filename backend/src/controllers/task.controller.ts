@@ -115,6 +115,10 @@ export const getTasks = async (req: AuthenticatedRequest, res: Response, next: N
       include: {
         assignee: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, designation: true } },
         creator: { select: { id: true, firstName: true, lastName: true } },
+        // Needed for the cross-project "My Tasks" view (tasks/page.tsx),
+        // which queries by assigneeId with no projectId filter and needs
+        // to show which project each result belongs to.
+        project: { select: { id: true, name: true } },
         attachments: { include: { file: true } },
         subtasks: true,
         dependencies: { include: { dependsOnTask: true } },
@@ -404,6 +408,10 @@ export const addTaskComment = async (req: AuthenticatedRequest, res: Response, n
       res.status(404).json({ message: 'Task not found.' });
       return;
     }
+    if (!canParticipateInTask(task, userId, req.user?.role)) {
+      res.status(403).json({ message: 'You do not have permission to comment on this task.' });
+      return;
+    }
 
     const comment = await prisma.taskComment.create({
       data: {
@@ -573,6 +581,20 @@ async function checkCyclicDependency(taskId: string, targetDependsOnId: string):
 // should be gated the same way updateTask itself already is.
 const canManageTask = (task: { assigneeId: string | null; creatorId: string }, userId: string, role?: string) =>
   isManagerOrAdmin(role) || task.assigneeId === userId || task.creatorId === userId;
+
+// Comments and time logs are lower-stakes than editing a task's structure
+// (subtasks, dependencies — gated by canManageTask above), so this is
+// deliberately a bit broader: it also covers anyone explicitly watching
+// the task, not just its assignee/creator. Previously addTaskComment and
+// logTaskTime had no check at all — any authenticated user in the org
+// could comment on or log time against a task in a project they had
+// nothing to do with, which was inconsistent with every other task
+// mutation endpoint.
+const canParticipateInTask = (
+  task: { assigneeId: string | null; creatorId: string; watcherIds?: string[] },
+  userId: string,
+  role?: string
+) => canManageTask(task, userId, role) || !!task.watcherIds?.includes(userId);
 
 /**
  * Create a subtask checklist item.

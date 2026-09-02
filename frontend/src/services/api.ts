@@ -148,7 +148,25 @@ async function request<T = any>(
     if (data.code === 'MFA_SETUP_REQUIRED') {
       redirectToMfaSetup();
     }
-    throw Object.assign(new Error(data.message || 'Something went wrong'), { code: data.code });
+    // Rate limiting (429, e.g. authRateLimiter) and account lockout (423,
+    // see auth.controller.ts's login) both return a `retryAfterSeconds`
+    // field in the body; 429 responses also carry it as the standard
+    // Retry-After header. Prefer the body value (it's always present when
+    // the backend sends one) and fall back to the header so a live
+    // countdown can be shown to the user instead of a message that goes
+    // stale the instant it renders.
+    const headerRetryAfter = response.headers.get('Retry-After');
+    const retryAfterSeconds =
+      typeof data.retryAfterSeconds === 'number'
+        ? data.retryAfterSeconds
+        : headerRetryAfter
+        ? parseInt(headerRetryAfter, 10)
+        : undefined;
+    throw Object.assign(new Error(data.message || 'Something went wrong'), {
+      code: data.code,
+      status: response.status,
+      retryAfterSeconds,
+    });
   }
 
   return data as T;
@@ -313,7 +331,7 @@ export const api = {
   clearChat: (body: { contactId?: string; groupId?: string }) => request('/chats/clear', 'POST', body),
 
   // Groups
-  getGroups: () => request('/groups'),
+  getGroups: (archived?: boolean) => request(`/groups${archived ? '?archived=true' : ''}`),
   getGroupDetails: (id: string) => request(`/groups/${id}`),
   getGroupMessages: (groupId: string, cursor?: string) => 
     request(`/groups/${groupId}/messages${cursor ? `?cursor=${cursor}` : ''}`),
@@ -322,6 +340,8 @@ export const api = {
   addMember: (groupId: string, userId: string) => request(`/groups/${groupId}/member`, 'POST', { userId }),
   removeMember: (groupId: string, userId: string) => request(`/groups/${groupId}/member`, 'DELETE', { userId }),
   leaveGroup: (groupId: string) => request(`/groups/${groupId}/leave`, 'POST'),
+  archiveGroup: (groupId: string) => request(`/groups/${groupId}/archive`, 'POST'),
+  unarchiveGroup: (groupId: string) => request(`/groups/${groupId}/unarchive`, 'POST'),
   deleteGroup: (groupId: string) => request(`/groups/${groupId}`, 'DELETE'),
 
   // Tasks
@@ -346,6 +366,7 @@ export const api = {
   getAnnouncementDetails: (id: string) => request(`/announcements/${id}`),
   getAnnouncementViewers: (id: string) => request(`/announcements/${id}/views`),
   createAnnouncement: (body: any) => request('/announcements', 'POST', body),
+  updateAnnouncement: (id: string, body: any) => request(`/announcements/${id}`, 'PUT', body),
   deleteAnnouncement: (id: string) => request(`/announcements/${id}`, 'DELETE'),
   likeAnnouncement: (id: string) => request(`/announcements/${id}/like`, 'POST'),
   addAnnouncementComment: (id: string, content: string) => request(`/announcements/${id}/comment`, 'POST', { content }),
@@ -517,10 +538,13 @@ export const api = {
     request(`/hr/expenses/${id}/status`, 'PUT', body),
 
   getPayslips: () => request('/hr/payslips'),
-  generatePayslip: (body: { employeeId: string; month: number; year: number; basicSalary: number; allowances?: number; deductions?: number; notes?: string; fileUrl?: string }) => 
+  generatePayslip: (body: { employeeId: string; month: number; year: number; basicSalary: number; allowances?: number; deductions?: number; notes?: string; fileUrl?: string; updateStoredSalary?: boolean }) => 
     request('/hr/payslips', 'POST', body),
   updatePayslipStatus: (id: string, status: 'PAID' | 'UNPAID' | 'DRAFT') => 
     request(`/hr/payslips/${id}/status`, 'PUT', { status }),
+  getEmployeeBaseSalary: (employeeId: string) => request(`/hr/employees/${employeeId}/base-salary`),
+  setEmployeeBaseSalary: (employeeId: string, baseSalary: number | null) =>
+    request(`/hr/employees/${employeeId}/base-salary`, 'PUT', { baseSalary }),
 
   getShifts: () => request('/hr/shifts'),
   createShift: (body: { name: string; startTime: string; endTime: string; color?: string; description?: string }) => 
@@ -550,7 +574,7 @@ export const api = {
   deleteShiftAssignment: (id: string) => request(`/hr/shifts/assignments/${id}`, 'DELETE'),
   deleteShift: (id: string) => request(`/hr/shifts/${id}`, 'DELETE'),
   deleteRecognition: (id: string) => request(`/hr/recognitions/${id}`, 'DELETE'),
-  getAnalytics: () => request('/analytics'),
+  getAnalytics: (range?: string) => request(`/analytics${range ? `?range=${range}` : ''}`),
   getOrgChart: () => request('/users/org-chart'),
   getCelebrations: () => request('/hr/celebrations'),
   getMyWishes: () => request('/hr/my-wishes'),

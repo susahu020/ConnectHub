@@ -243,6 +243,9 @@ export const getDirectory = async (req: AuthenticatedRequest, res: Response, nex
           department: {
             select: { id: true, name: true },
           },
+          settings: {
+            select: { hidePhoneInDirectory: true },
+          },
         },
         orderBy: { firstName: 'asc' },
         take: parsedLimit,
@@ -252,10 +255,19 @@ export const getDirectory = async (req: AuthenticatedRequest, res: Response, nex
     ]);
 
     const maskedUsers = users.map((u: any) => {
-      if (u.status === 'INVISIBLE') {
-        return { ...u, status: 'OFFLINE' };
+      const { settings, ...rest } = u;
+      // Respects each user's own directory-privacy choice (see
+      // UserSettings.hidePhoneInDirectory) — everyone but the user
+      // themselves gets their phone omitted if they've opted out. The
+      // viewer's own entry (if they appear in these results) still shows
+      // their own number, same as before.
+      if (settings?.hidePhoneInDirectory && rest.id !== req.user?.id) {
+        rest.phone = null;
       }
-      return u;
+      if (rest.status === 'INVISIBLE') {
+        return { ...rest, status: 'OFFLINE' };
+      }
+      return rest;
     });
 
     res.status(200).json({
@@ -375,7 +387,7 @@ export const getDashboardStats = async (req: AuthenticatedRequest, res: Response
 export const updateSettings = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { theme, language, pushEnabled, emailEnabled, desktopEnabled, notificationPreferences } = req.body;
+    const { theme, language, pushEnabled, emailEnabled, desktopEnabled, notificationPreferences, hidePhoneInDirectory } = req.body;
 
     // Loose shape check only — this is a per-category { inApp?, email? }
     // map the user controls entirely for themselves, so there's nothing to
@@ -394,6 +406,7 @@ export const updateSettings = async (req: AuthenticatedRequest, res: Response, n
         emailEnabled: emailEnabled !== undefined ? emailEnabled : undefined,
         desktopEnabled: desktopEnabled !== undefined ? desktopEnabled : undefined,
         notificationPreferences: notificationPreferences !== undefined ? notificationPreferences : undefined,
+        hidePhoneInDirectory: hidePhoneInDirectory !== undefined ? !!hidePhoneInDirectory : undefined,
       },
     });
 
@@ -598,6 +611,7 @@ export const getProfileById = async (req: AuthenticatedRequest, res: Response, n
     if (!isSelf && !isPrivileged) {
       delete (safeUser as any).emergencyContact;
       delete (safeUser as any).birthday;
+      delete (safeUser as any).baseSalary;
     }
     res.status(200).json(safeUser);
   } catch (error) {

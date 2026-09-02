@@ -12,6 +12,8 @@ import { api, API_BASE_URL } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
 import AuthBrandPanel from '../../../components/auth/AuthBrandPanel';
+import { useRetryCountdown } from '../../../hooks/useRetryCountdown';
+import { RetryCountdownBanner } from '../../../components/auth/RetryCountdownBanner';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -54,6 +56,13 @@ function LoginForm() {
   const [otpCode, setOtpCode] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
 
+  // IP rate limiting (authRateLimiter, code RATE_LIMIT_EXCEEDED) and
+  // per-account lockout after repeated failed attempts (code
+  // ACCOUNT_LOCKED) both land here — one countdown covers either case
+  // since the credentials form and the OTP form are mutually exclusive
+  // steps of the same flow.
+  const loginRetry = useRetryCountdown();
+
   const {
     register,
     handleSubmit,
@@ -77,7 +86,14 @@ function LoginForm() {
         router.push(getRedirectTarget());
       }
     } catch (error: any) {
-      if (error.message.includes('not verified')) {
+      if (error.retryAfterSeconds) {
+        // RATE_LIMIT_EXCEEDED (429, too many attempts from this network) or
+        // ACCOUNT_LOCKED (423, too many failed attempts on this account) —
+        // both carry a real wait duration now, so show a live countdown
+        // instead of a toast that goes stale the moment it renders.
+        loginRetry.start(error.retryAfterSeconds);
+        toast.error(error.message || 'Too many attempts. Please wait before trying again.');
+      } else if (error.message.includes('not verified')) {
         toast.error('Account not verified. Redirecting to verification...');
         router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
       } else {
@@ -103,6 +119,9 @@ function LoginForm() {
       toast.success(`Verification successful. Welcome to ${orgSettings.orgName}!`);
       router.push(getRedirectTarget());
     } catch (error: any) {
+      if (error.retryAfterSeconds) {
+        loginRetry.start(error.retryAfterSeconds);
+      }
       toast.error(error.message || 'Invalid or expired 2FA code.');
     } finally {
       setOtpLoading(false);
@@ -180,9 +199,10 @@ function LoginForm() {
             </div>
 
             <div className="flex flex-col space-y-3">
+              <RetryCountdownBanner secondsLeft={loginRetry.secondsLeft} message="Too many verification attempts." />
               <button
                 type="submit"
-                disabled={otpLoading}
+                disabled={otpLoading || loginRetry.isBlocked}
                 className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
               >
                 {otpLoading ? (
@@ -190,6 +210,8 @@ function LoginForm() {
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Verifying Code...</span>
                   </>
+                ) : loginRetry.isBlocked ? (
+                  <span>Try again in {loginRetry.secondsLeft}s</span>
                 ) : (
                   <span>Verify & Sign In</span>
                 )}
@@ -278,9 +300,10 @@ function LoginForm() {
               {errors.password && <p className="text-xs font-medium text-red-500">{errors.password.message}</p>}
             </div>
 
+            <RetryCountdownBanner secondsLeft={loginRetry.secondsLeft} />
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loginRetry.isBlocked}
               className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               {loading ? (
@@ -288,6 +311,8 @@ function LoginForm() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Signing In...</span>
                 </>
+              ) : loginRetry.isBlocked ? (
+                <span>Try again in {loginRetry.secondsLeft}s</span>
               ) : (
                 <span>Sign In</span>
               )}

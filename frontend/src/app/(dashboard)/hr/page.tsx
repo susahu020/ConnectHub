@@ -600,7 +600,8 @@ export default function HRPortal() {
           const allowances = parseFloat((target as any).allowances.value || '0');
           const deductions = parseFloat((target as any).deductions.value || '0');
           const notes = (target as any).notes.value;
-          generatePayslipMutation.mutate({ employeeId, month, year, basicSalary, allowances, deductions, notes });
+          const updateStoredSalary = (target as any).updateStoredSalary.checked;
+          generatePayslipMutation.mutate({ employeeId, month, year, basicSalary, allowances, deductions, notes, updateStoredSalary });
         }}
       />
 

@@ -1664,6 +1664,7 @@ export default function MeetingsPage() {
       recorder.onstop = () => {
         const blob = new Blob(recordingChunks.current, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
+        const fileName = `Meeting Recording - ${meetingId} - ${new Date().toISOString().slice(0, 16).replace('T', ' ')}.webm`;
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
@@ -1683,6 +1684,27 @@ export default function MeetingsPage() {
         setMediaRecorder(null);
         setRecording(false);
         toast.success('Meeting recording finalized and downloading!');
+
+        // Previously the recording only ever went to the host's local
+        // downloads folder — anyone else who needed it had to ask the host
+        // to send it manually, and it lived nowhere the rest of the org
+        // could find it. Also persist it to the Files module so it shows
+        // up in the shared Drive, the same way a screenshot or document
+        // upload would. This is a best-effort background upload — if it
+        // fails (e.g. flaky connection right after a long call), the local
+        // download above has already succeeded, so nothing is lost, just
+        // not backed up to Files.
+        const recordingFile = new File([blob], fileName, { type: 'video/webm' });
+        const formData = new FormData();
+        formData.append('file', recordingFile);
+        api.uploadFile(formData)
+          .then(() => {
+            toast.success('Recording also saved to Files for your team.');
+          })
+          .catch((err: any) => {
+            console.error('Failed to save meeting recording to Files:', err);
+            toast.error('Recording downloaded locally, but could not be saved to Files.');
+          });
 
         if (socket) {
           // Meeting-wide notice — must reach the whole meeting, not just whichever
@@ -3105,11 +3127,16 @@ export default function MeetingsPage() {
                           <RemoteVideo stream={remoteStreams[part.socketId]} className="w-full h-full object-cover" />
                         ) : (
                           <>
-                            {/* Mock user placeholder graphic stream card */}
+                            {/* Real WebRTC stream hasn't arrived yet (still
+                                negotiating, or briefly dropped) — this used
+                                to unconditionally claim "1080p WebRTC
+                                stream" here, which is misleading exactly
+                                when it's shown: precisely the moment there
+                                is NOT yet a real stream to point to. */}
                             <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground font-black text-sm flex items-center justify-center animate-pulse">
                               {part.avatar}
                             </div>
-                            <span className="absolute bottom-2 right-2 text-[9px] text-muted-foreground font-medium">1080p WebRTC stream</span>
+                            <span className="absolute bottom-2 right-2 text-[9px] text-muted-foreground font-medium">Connecting...</span>
                           </>
                         )}
                       </div>

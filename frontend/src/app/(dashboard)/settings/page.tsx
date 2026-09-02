@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(
     user?.settings?.notificationPreferences || {}
   );
+  const [hidePhoneInDirectory, setHidePhoneInDirectory] = useState(user?.settings?.hidePhoneInDirectory ?? false);
 
   // 2FA management state
   const [twoFactorOpen, setTwoFactorOpen] = useState(false);
@@ -83,6 +84,7 @@ export default function SettingsPage() {
         emailEnabled,
         desktopEnabled,
         notificationPreferences,
+        hidePhoneInDirectory,
       });
       // Sync client side Zustand store
       updateUser({ settings: response.settings });
@@ -100,7 +102,7 @@ export default function SettingsPage() {
         setActiveTheme(theme);
       }
     }
-  }, [theme, language, pushEnabled, emailEnabled, desktopEnabled, notificationPreferences]);
+  }, [theme, language, pushEnabled, emailEnabled, desktopEnabled, notificationPreferences, hidePhoneInDirectory]);
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -335,6 +337,8 @@ export default function SettingsPage() {
             exportingData={exportingData}
             onExportData={handleExportData}
             onOpenDeleteAccount={() => setDeleteAccountOpen(true)}
+            hidePhoneInDirectory={hidePhoneInDirectory}
+            onHidePhoneInDirectoryChange={setHidePhoneInDirectory}
           />
         </div>
 

@@ -1,4 +1,4 @@
-import { canAccessPage, isModerator } from '../wiki.controller';
+import { canAccessPage, isModerator, canCreateOrPublishWikiPage } from '../wiki.controller';
 
 describe('isModerator', () => {
   it('treats ADMIN as a moderator', () => {
@@ -45,5 +45,25 @@ describe('canAccessPage', () => {
 
   it('does not let an unauthenticated/roleless caller view a draft they do not own', () => {
     expect(canAccessPage(draftPage, 'stranger', undefined)).toBe(false);
+  });
+});
+
+describe('canCreateOrPublishWikiPage', () => {
+  it('when the org setting is off, anyone can create/publish (the original, only, behavior)', () => {
+    expect(canCreateOrPublishWikiPage(false, 'EMPLOYEE', true)).toBe(true);
+    expect(canCreateOrPublishWikiPage(false, undefined, true)).toBe(true);
+  });
+
+  it('when the org setting is on, a non-moderator can still save a draft', () => {
+    expect(canCreateOrPublishWikiPage(true, 'EMPLOYEE', false)).toBe(true);
+  });
+
+  it('when the org setting is on, a non-moderator cannot publish', () => {
+    expect(canCreateOrPublishWikiPage(true, 'EMPLOYEE', true)).toBe(false);
+  });
+
+  it('when the org setting is on, a Manager or Admin can still publish', () => {
+    expect(canCreateOrPublishWikiPage(true, 'MANAGER', true)).toBe(true);
+    expect(canCreateOrPublishWikiPage(true, 'ADMIN', true)).toBe(true);
   });
 });

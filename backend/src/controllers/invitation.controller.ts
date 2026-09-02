@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { sendEmail } from '../config/mailer';

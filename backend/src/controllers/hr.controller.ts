@@ -670,7 +670,7 @@ export const generatePayslip = async (req: AuthenticatedRequest, res: Response, 
       return;
     }
 
-    const { employeeId, month, year, basicSalary, allowances, deductions, notes, fileUrl } = req.body;
+    const { employeeId, month, year, basicSalary, allowances, deductions, notes, fileUrl, updateStoredSalary } = req.body;
 
     if (!employeeId || month === undefined || year === undefined || basicSalary === undefined) {
       res.status(400).json({ message: 'employeeId, month, year, and basicSalary are required.' });
@@ -709,9 +709,86 @@ export const generatePayslip = async (req: AuthenticatedRequest, res: Response, 
       },
     });
 
+    // Optional: keep User.baseSalary in sync with what was just entered,
+    // so the *next* payslip for this employee can default to it instead
+    // of starting blank again — see getEmployeeBaseSalary/
+    // setEmployeeBaseSalary below. Opt-in (defaults to true from the
+    // frontend's checkbox) rather than automatic, since not every
+    // basicSalary entered here represents a new ongoing rate — a one-off
+    // bonus-heavy month shouldn't silently become next month's default.
+    if (updateStoredSalary !== false) {
+      await prisma.user.update({
+        where: { id: employeeId },
+        data: { baseSalary: basic },
+      });
+    }
+
     emitHRUpdate(req, 'PAYSLIP');
     logAudit(req, 'PAYSLIP_GENERATED', `Generated ${month}/${year} payslip for user ${employeeId}: basic ${basic}, allowances ${allow}, deductions ${deduct}, net ${netSalary}.`);
     res.status(201).json(payslip);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Sensitive: an employee's stored base salary is treated the same way as
+// their emergencyContact/birthday elsewhere (see user.controller.ts) —
+// Admin-only to read or write, never included in the general directory or
+// profile responses everyone else can see. Deliberately separate from the
+// general user-update endpoint rather than folded into it, so this one
+// narrow, audited, Admin-gated path is the only way this figure moves.
+export const getEmployeeBaseSalary = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      res.status(403).json({ message: 'Forbidden. Only Admins can view compensation data.' });
+      return;
+    }
+
+    const { id } = req.params;
+    const employee = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, baseSalary: true },
+    });
+    if (!employee) {
+      res.status(404).json({ message: 'Employee not found.' });
+      return;
+    }
+
+    res.status(200).json({ baseSalary: employee.baseSalary });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const setEmployeeBaseSalary = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      res.status(403).json({ message: 'Forbidden. Only Admins can update compensation data.' });
+      return;
+    }
+
+    const { id } = req.params;
+    const { baseSalary } = req.body;
+
+    if (baseSalary !== null && (typeof baseSalary !== 'number' || Number.isNaN(baseSalary) || baseSalary < 0)) {
+      res.status(400).json({ message: 'baseSalary must be a non-negative number, or null to clear it.' });
+      return;
+    }
+
+    const employee = await prisma.user.findUnique({ where: { id } });
+    if (!employee) {
+      res.status(404).json({ message: 'Employee not found.' });
+      return;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { baseSalary },
+      select: { id: true, baseSalary: true },
+    });
+
+    logAudit(req, 'BASE_SALARY_UPDATED', `Updated stored base salary for user ${id} to ${baseSalary ?? 'null'}.`);
+    res.status(200).json(updated);
   } catch (error) {
     next(error);
   }

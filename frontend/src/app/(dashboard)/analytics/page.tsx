@@ -8,7 +8,8 @@ import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AnalyticsHeader } from '../../../components/analytics/AnalyticsHeader';
+import { AnalyticsHeader, AnalyticsRange } from '../../../components/analytics/AnalyticsHeader';
+import { analyticsStatsToCsv, downloadCsv } from '../../../components/analytics/analyticsCsvExport';
 import { AnalyticsTabs, SubTabType } from '../../../components/analytics/AnalyticsTabs';
 import { OverviewTab } from '../../../components/analytics/tabs/OverviewTab';
 import { ProductivityTab } from '../../../components/analytics/tabs/ProductivityTab';
@@ -22,6 +23,7 @@ export default function AnalyticsDashboard() {
   const { user } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<SubTabType>('overview');
+  const [range, setRange] = useState<AnalyticsRange>('all');
 
   // Role Gate: restrict access to ADMIN and MANAGER
   useEffect(() => {
@@ -32,8 +34,8 @@ export default function AnalyticsDashboard() {
   }, [user, router]);
 
   const { data: stats, isLoading, error } = useQuery({
-    queryKey: ['analytics-stats'],
-    queryFn: () => api.getAnalytics(),
+    queryKey: ['analytics-stats', range],
+    queryFn: () => api.getAnalytics(range),
     enabled: !!user && (user.role === 'ADMIN' || user.role === 'MANAGER'),
     refetchInterval: 10000, // auto-refresh stats every 10 seconds
   });
@@ -59,7 +61,16 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-muted dark:bg-card">
-      <AnalyticsHeader />
+      <AnalyticsHeader
+        range={range}
+        onRangeChange={setRange}
+        scopedToDepartment={stats.meta?.scopedToDepartment}
+        onExportCsv={() => {
+          const rangeLabel = { '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', all: 'All time' }[range];
+          const csv = analyticsStatsToCsv(stats, rangeLabel);
+          downloadCsv(csv, `connecthub-analytics-${range}-${new Date().toISOString().slice(0, 10)}.csv`);
+        }}
+      />
       <AnalyticsTabs activeTab={activeTab} onChange={setActiveTab} />
 
       <div className="min-h-[450px]">

@@ -1445,7 +1445,17 @@ export default function ChatPage() {
               ) : (
                 displayedMessages.map((msg) => {
                   const self = msg.senderId === user?.id;
+                  // Delivered/read are tracked per-recipient in msg.statuses
+                  // (MessageStatus rows — see chat.controller.ts). Previously
+                  // this only ever showed "sent" (single check) or "read"
+                  // (double check), with no visual difference between a
+                  // message that's still in flight and one that has actually
+                  // reached the other person's device but hasn't been read
+                  // yet — this adds that middle state (WhatsApp-style: single
+                  // grey check = sent, double grey check = delivered, double
+                  // blue check = read).
                   const isRead = msg.statuses?.some((s: any) => s.status === 'READ');
+                  const isDelivered = isRead || msg.statuses?.some((s: any) => s.status === 'DELIVERED');
                   return (
                     <div key={msg.id} className={`flex flex-col ${self ? 'items-end' : 'items-start'} space-y-1 animate-fade-in`}>
                       
@@ -1698,6 +1708,8 @@ export default function ChatPage() {
                           <span>
                             {isRead ? (
                               <CheckCheck className="h-3.5 w-3.5 text-info" />
+                            ) : isDelivered ? (
+                              <CheckCheck className="h-3.5 w-3.5 text-muted-foreground" />
                             ) : (
                               <Check className="h-3.5 w-3.5 text-muted-foreground" />
                             )}

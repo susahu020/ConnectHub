@@ -1,6 +1,8 @@
 import React from 'react';
 import { Lock, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { PasswordStrengthMeter } from '../auth/PasswordStrengthMeter';
+import { PASSWORD_HINT } from '../../lib/passwordPolicy';
 
 export function PasswordCard({
   currentPassword,
@@ -67,6 +69,12 @@ export function PasswordCard({
             />
           </div>
         </div>
+
+        {newPassword ? (
+          <PasswordStrengthMeter password={newPassword} />
+        ) : (
+          <p className="text-[10px] font-medium text-muted-foreground normal-case">{PASSWORD_HINT}</p>
+        )}
 
         <button
           type="submit"

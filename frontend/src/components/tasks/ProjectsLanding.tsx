@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Plus, Briefcase, ArrowUpRight } from 'lucide-react';
+import { Layers, Plus, Briefcase, ArrowUpRight, ListChecks } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export function ProjectsLanding({
@@ -8,12 +8,16 @@ export function ProjectsLanding({
   isWritePermitted,
   onSelectProject,
   onCreateProject,
+  onSelectMyTasks,
 }: {
   projects: any[] | undefined;
   loadingProjects: boolean;
   isWritePermitted: boolean;
   onSelectProject: (proj: any) => void;
   onCreateProject: () => void;
+  /** Opens the cross-project "My Tasks" queue — optional so this component
+   *  still works if a caller doesn't wire it up. */
+  onSelectMyTasks?: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -30,15 +34,26 @@ export function ProjectsLanding({
             {t('tasks.projectsSubtitle')}
           </p>
         </div>
-        {isWritePermitted && (
-          <button
-            onClick={onCreateProject}
-            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5 shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-            <span>{t('tasks.createProject')}</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {onSelectMyTasks && (
+            <button
+              onClick={onSelectMyTasks}
+              className="px-4 py-2.5 border rounded-xl text-xs font-bold hover:bg-muted dark:hover:bg-card transition-all flex items-center space-x-1.5"
+            >
+              <ListChecks className="h-4 w-4 text-primary" />
+              <span>My Tasks</span>
+            </button>
+          )}
+          {isWritePermitted && (
+            <button
+              onClick={onCreateProject}
+              className="px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary/95 transition-all shadow-md flex items-center space-x-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              <span>{t('tasks.createProject')}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {loadingProjects ? (

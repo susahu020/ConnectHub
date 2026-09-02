@@ -11,6 +11,7 @@ import { Layers, Loader2, Eye, EyeOff } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
 import { passwordZodSchema, PASSWORD_HINT } from '../../../lib/passwordPolicy';
+import { PasswordStrengthMeter } from '../../../components/auth/PasswordStrengthMeter';
 
 const resetPasswordSchema = z.object({
   password: passwordZodSchema,
@@ -43,6 +44,7 @@ function ResetPasswordForm() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
@@ -114,6 +116,7 @@ function ResetPasswordForm() {
           ) : (
             <p className="text-[11px] text-muted-foreground">{PASSWORD_HINT}</p>
           )}
+          <PasswordStrengthMeter password={watch('password') || ''} />
         </div>
 
         <div className="space-y-2">

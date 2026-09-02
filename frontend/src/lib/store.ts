@@ -28,6 +28,7 @@ interface User {
     emailEnabled: boolean;
     desktopEnabled: boolean;
     notificationPreferences?: NotificationPreferences;
+    hidePhoneInDirectory?: boolean;
   };
 }
 

@@ -4,6 +4,7 @@ import prisma from '../config/db';
 import { User } from '@prisma/client';
 import { getCachedSession, cacheSession } from '../services/session.service';
 import { getOrganizationSettings } from '../services/organization.service';
+import { ACCESS_SECRET } from '../config/jwtSecrets';
 
 // Endpoints that must stay reachable for a user who hasn't set up 2FA yet
 // even when the organization requires it — otherwise a user with MFA_SETUP_
@@ -52,10 +53,7 @@ export const authenticate = async (
     }
 
     // A. Decode and verify Access Token signature
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456'
-    ) as {
+    const decoded = jwt.verify(token, ACCESS_SECRET) as {
       id: string;
       email: string;
       sessionId: string;
@@ -209,10 +207,7 @@ export const optionalAuthenticate = async (
       return;
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456'
-    ) as { id: string; email: string; sessionId: string };
+    const decoded = jwt.verify(token, ACCESS_SECRET) as { id: string; email: string; sessionId: string };
 
     if (!decoded.sessionId) {
       next();

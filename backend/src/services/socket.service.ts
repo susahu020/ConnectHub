@@ -3,8 +3,7 @@ import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import prisma from '../config/db';
-
-const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456';
+import { ACCESS_SECRET } from '../config/jwtSecrets';
 
 // Store online sockets (userId -> Socket IDs list)
 export const activeConnections = new Map<string, string[]>();

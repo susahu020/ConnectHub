@@ -7,12 +7,15 @@ import { createManyNotifications } from '../services/notification.service';
 export const createAnnouncement = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const creatorId = req.user?.id!;
-    const { title, content, priority, isPinned, expiresAt, departmentId, imageUrl, pdfUrl } = req.body;
+    const { title, content, priority, isPinned, expiresAt, scheduledFor, departmentId, imageUrl, pdfUrl } = req.body;
 
     if (req.user?.role !== 'ADMIN' && req.user?.role !== 'MANAGER') {
       res.status(403).json({ message: 'Forbidden. Only Admins and Managers can make announcements.' });
       return;
     }
+
+    const scheduledForDate = scheduledFor ? new Date(scheduledFor) : null;
+    const isScheduledForFuture = !!scheduledForDate && scheduledForDate.getTime() > Date.now();
 
     const announcement = await prisma.announcement.create({
       data: {
@@ -21,6 +24,7 @@ export const createAnnouncement = async (req: AuthenticatedRequest, res: Respons
         priority: priority || 'NORMAL',
         isPinned: isPinned || false,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
+        scheduledFor: scheduledForDate,
         createdById: creatorId,
         departmentId: departmentId || null,
         imageUrl: imageUrl || null,
@@ -32,27 +36,38 @@ export const createAnnouncement = async (req: AuthenticatedRequest, res: Respons
       },
     });
 
-    // Notify users (Real-time and Email preferences integrated)
-    const employees = await prisma.user.findMany({
-      where: {
-        departmentId: departmentId || undefined,
-        id: { not: creatorId },
-      },
-      select: { id: true },
-    });
+    // Notify users (Real-time and Email preferences integrated). Skipped
+    // for a future-scheduled announcement — notifying everyone now, ahead
+    // of getAnnouncements actually making it visible to them, would both
+    // spoil and confuse (a notification linking to something they can't
+    // open yet). There's no delayed-job/cron infrastructure in this app
+    // to fire the notification at the scheduled time instead, so for now
+    // people simply see it in their feed once it goes live rather than
+    // getting a push notification at that exact moment — a real gap
+    // (documented as a "pending" item) but a safer default than the
+    // alternative of an immediately-spoiling notification.
+    if (!isScheduledForFuture) {
+      const employees = await prisma.user.findMany({
+        where: {
+          departmentId: departmentId || undefined,
+          id: { not: creatorId },
+        },
+        select: { id: true },
+      });
 
-    const io = req.app.get('io');
-    await createManyNotifications({
-      notifications: employees.map((emp) => ({
-        userId: emp.id,
-        title: `Announcement: ${title}`,
-        message: `${req.user?.firstName} posted a new announcement: "${title}"`,
-        type: 'ANNOUNCEMENT',
-        relatedId: announcement.id,
-        emailFeature: 'ANNOUNCEMENT' as any,
-      })),
-      io,
-    });
+      const io = req.app.get('io');
+      await createManyNotifications({
+        notifications: employees.map((emp) => ({
+          userId: emp.id,
+          title: `Announcement: ${title}`,
+          message: `${req.user?.firstName} posted a new announcement: "${title}"`,
+          type: 'ANNOUNCEMENT',
+          relatedId: announcement.id,
+          emailFeature: 'ANNOUNCEMENT' as any,
+        })),
+        io,
+      });
+    }
 
     // Log Activity
     await prisma.activityLog.create({
@@ -73,6 +88,8 @@ export const createAnnouncement = async (req: AuthenticatedRequest, res: Respons
 export const getAnnouncements = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { departmentId, priority, pinnedOnly } = req.query;
+    const userId = req.user?.id;
+    const isModerator = req.user?.role === 'ADMIN' || req.user?.role === 'MANAGER';
 
     const whereClause: any = {
       AND: [
@@ -80,6 +97,19 @@ export const getAnnouncements = async (req: AuthenticatedRequest, res: Response,
           OR: [
             { expiresAt: null },
             { expiresAt: { gte: new Date() } },
+          ],
+        },
+        // A scheduled (future-dated) announcement is only visible to its
+        // creator or an Admin ahead of time — so the person who scheduled
+        // it can confirm/preview it, and an Admin can audit what's queued
+        // up — everyone else sees it once scheduledFor passes, exactly
+        // like a null scheduledFor (publish immediately) always has.
+        {
+          OR: [
+            { scheduledFor: null },
+            { scheduledFor: { lte: new Date() } },
+            { createdById: userId },
+            ...(req.user?.role === 'ADMIN' ? [{}] : []),
           ],
         },
       ],
@@ -270,6 +300,56 @@ export const deleteAnnouncement = async (req: AuthenticatedRequest, res: Respons
 
     emitDataUpdate(req, 'announcements');
     res.status(200).json({ message: 'Announcement deleted successfully.', announcementId: id });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Previously there was no way to fix a typo or update details on a posted
+// announcement short of deleting it and posting a new one — which also
+// throws away its read-receipt history (AnnouncementView rows) and its
+// likes/comments. Mirrors deleteAnnouncement's authorization (creator or
+// Admin), and is additionally gated at the route level by
+// checkPermission('Announcements', 'Update') so an org can grant a
+// non-admin custom role edit rights without also granting delete.
+export const updateAnnouncement = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id!;
+    const { title, content, priority, isPinned, expiresAt, scheduledFor, departmentId, imageUrl, pdfUrl } = req.body;
+
+    const announcement = await prisma.announcement.findUnique({ where: { id } });
+    if (!announcement) {
+      res.status(404).json({ message: 'Announcement not found.' });
+      return;
+    }
+
+    if (req.user?.role !== 'ADMIN' && announcement.createdById !== userId) {
+      res.status(403).json({ message: 'Forbidden. Only the creator or an Admin can edit announcements.' });
+      return;
+    }
+
+    const updated = await prisma.announcement.update({
+      where: { id },
+      data: {
+        title: title !== undefined ? title : undefined,
+        content: content !== undefined ? content : undefined,
+        priority: priority !== undefined ? priority : undefined,
+        isPinned: isPinned !== undefined ? !!isPinned : undefined,
+        expiresAt: expiresAt !== undefined ? (expiresAt ? new Date(expiresAt) : null) : undefined,
+        scheduledFor: scheduledFor !== undefined ? (scheduledFor ? new Date(scheduledFor) : null) : undefined,
+        departmentId: departmentId !== undefined ? departmentId : undefined,
+        imageUrl: imageUrl !== undefined ? imageUrl : undefined,
+        pdfUrl: pdfUrl !== undefined ? pdfUrl : undefined,
+      },
+      include: {
+        creator: { select: { id: true, firstName: true, lastName: true, role: true } },
+        department: { select: { id: true, name: true } },
+      },
+    });
+
+    emitDataUpdate(req, 'announcements');
+    res.status(200).json({ announcement: updated });
   } catch (error) {
     next(error);
   }

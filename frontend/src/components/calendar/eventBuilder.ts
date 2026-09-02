@@ -1,27 +1,5 @@
 import { Compass, Trello, Video, Gift, Clock } from 'lucide-react';
 
-// Deterministic pseudo-random birthday derived from userId (no real birthday data in this demo dataset)
-export function getColleagueBirthday(userId: string) {
-  let hash = 0;
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const month = Math.abs(hash % 12);
-  const day = Math.abs((hash >> 3) % 28) + 1;
-  return { month, day };
-}
-
-// Deterministic pseudo-random leave window derived from userId, only surfaced when status is ON_LEAVE
-export function getColleagueLeave(userId: string) {
-  let hash = 0;
-  for (let i = 0; i < userId.length; i++) {
-    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const startDay = Math.abs(hash % 20) + 1;
-  const duration = Math.abs((hash >> 2) % 6) + 3; // 3 to 8 days
-  return { startDay, endDay: startDay + duration };
-}
-
 export interface CalendarFilters {
   company: boolean;
   team: boolean;
@@ -38,7 +16,8 @@ export function getEventsForDay({
   announcements,
   tasks,
   meetings,
-  colleagues,
+  birthdays,
+  leaves,
 }: {
   year: number;
   month: number;
@@ -47,7 +26,16 @@ export function getEventsForDay({
   announcements: any[];
   tasks: any[];
   meetings: any[];
-  colleagues: any[];
+  /** From GET /hr/celebrations — real birthdays, only ever populated for
+   *  the *current* calendar month (see calendar/page.tsx for why). */
+  birthdays: any[];
+  /** From GET /hr/leaves — real leave requests, already scoped to what
+   *  the current user is allowed to see (their own, or their team's if
+   *  they're a Manager/Admin — see hr.controller.ts's getLeaves). Every
+   *  status is included here; callers should already have filtered to
+   *  APPROVED only, since a pending or rejected request isn't a real
+   *  "out of office" fact yet. */
+  leaves: any[];
 }) {
   const dayEvents: any[] = [];
 
@@ -114,39 +102,41 @@ export function getEventsForDay({
   }
 
   if (filters.birthday) {
-    colleagues.forEach((u: any) => {
-      const bday = getColleagueBirthday(u.id);
-      if (bday.month === month && bday.day === day) {
+    birthdays.forEach((b: any) => {
+      const bDate = new Date(b.date);
+      if (bDate.getMonth() === month && bDate.getDate() === day) {
         dayEvents.push({
-          id: `bday-${u.id}`,
+          id: `bday-${b.id}`,
           type: 'birthday',
-          title: `🎂 Birthday: ${u.firstName} ${u.lastName}`,
-          description: `Wish ${u.firstName} ${u.lastName} (${u.designation || 'Teammate'}) a wonderful birthday!`,
+          title: `🎂 Birthday: ${b.firstName} ${b.lastName}`,
+          description: `Wish ${b.firstName} ${b.lastName} (${b.designation || 'Teammate'}) a wonderful birthday!`,
           color: 'bg-pink-500 text-white',
           dotColor: 'bg-pink-500',
           icon: Gift,
-          meta: `Department: ${u.department?.name || 'General Org'}`,
+          meta: `${b.designation || 'Teammate'}`,
         });
       }
     });
   }
 
   if (filters.leave) {
-    colleagues.forEach((u: any) => {
-      if (u.status === 'ON_LEAVE') {
-        const leave = getColleagueLeave(u.id);
-        if (day >= leave.startDay && day <= leave.endDay) {
-          dayEvents.push({
-            id: `leave-${u.id}-${day}`,
-            type: 'leave',
-            title: `🏖️ Out of Office: ${u.firstName}`,
-            description: `${u.firstName} ${u.lastName} is currently on leave.`,
-            color: 'bg-amber-500 text-white',
-            dotColor: 'bg-amber-500',
-            icon: Clock,
-            meta: `Role: ${u.role} • Status: On Leave`,
-          });
-        }
+    const thisDay = new Date(year, month, day);
+    leaves.forEach((l: any) => {
+      if (l.status !== 'APPROVED') return;
+      const start = new Date(l.startDate);
+      const end = new Date(l.endDate);
+      if (thisDay >= new Date(start.getFullYear(), start.getMonth(), start.getDate()) &&
+          thisDay <= new Date(end.getFullYear(), end.getMonth(), end.getDate())) {
+        dayEvents.push({
+          id: `leave-${l.id}`,
+          type: 'leave',
+          title: `🏖️ Out of Office: ${l.user?.firstName || 'Teammate'}`,
+          description: `${l.user?.firstName || ''} ${l.user?.lastName || ''} is on ${l.leaveType?.toLowerCase() || ''} leave.`,
+          color: 'bg-amber-500 text-white',
+          dotColor: 'bg-amber-500',
+          icon: Clock,
+          meta: `${l.leaveType || 'Leave'} • ${new Date(l.startDate).toLocaleDateString()} - ${new Date(l.endDate).toLocaleDateString()}`,
+        });
       }
     });
   }

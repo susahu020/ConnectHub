@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../config/db';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { invalidateEmailFeatureSettingsCache, buildNotificationEmail, isEmailFeatureEnabled, EmailFeatureKey } from '../services/notification.service';
 import { buildBirthdayEmailHtml } from '../services/birthday.service';

@@ -95,6 +95,15 @@ model User {
   officeLocation   String?
   emergencyContact String?
   birthday         DateTime?
+  // Current base salary for payroll — deliberately as sensitive as
+  // emergencyContact/birthday above: only an Admin can read or set it
+  // (see hr.controller.ts's getEmployeeBaseSalary/setEmployeeBaseSalary),
+  // and it's never included in the general directory/profile responses
+  // everyone else can see. Exists so payslip generation can default to a
+  // stored figure instead of an Admin re-typing the same salary from
+  // scratch every pay cycle (see GeneratePayslipModal.tsx) — it's still
+  // editable per-payslip for raises/bonuses/one-off adjustments.
+  baseSalary       Float?
   timezone         String               @default("UTC")
   workingHours     String?
   managerId        String?
@@ -258,6 +267,8 @@ model Group {
   description  String?
   type         GroupType     @default(CUSTOM)
   isBroadcast  Boolean       @default(false)
+  isArchived   Boolean       @default(false)
+  archivedAt   DateTime?
   avatarUrl    String?
   createdById  String
   creator      User          @relation("GroupCreator", fields: [createdById], references: [id])
@@ -410,6 +421,13 @@ model Announcement {
   priority     Priority              @default(NORMAL)
   isPinned     Boolean               @default(false)
   expiresAt    DateTime?
+  // When set to a future time, the announcement is hidden from everyone
+  // except its creator/an Admin (who see it with a "Scheduled" indicator
+  // so they can confirm it before it goes live) until that time passes —
+  // mirrors how expiresAt already works, just at the other end of the
+  // announcement's visible window. Null means "publish immediately", which
+  // preserves the original always-instant behavior.
+  scheduledFor DateTime?
   createdById  String
   creator      User                  @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Cascade)
   departmentId String?
@@ -699,6 +717,13 @@ model UserSettings {
   // defaults to on so existing users see no behavior change. See
   // services/notification.service.ts's resolveNotificationPreference().
   notificationPreferences Json?
+  // Directory privacy: when true, this user's phone number is omitted
+  // from GET /users/directory results for everyone except themselves and
+  // Admins — previously there was no way to opt out at all, and every
+  // colleague's phone number was visible to the whole company by default.
+  // Defaults to false (visible) to match the existing behavior for
+  // anyone who hasn't touched this setting.
+  hidePhoneInDirectory    Boolean @default(false)
 }
 
 // Singleton table (a single row) holding admin-controlled, per-feature
@@ -779,6 +804,15 @@ model OrganizationSettings {
   // Enforced lazily in getRecycleBin (file.controller.ts), same pattern as
   // the time-bound role expiry check in auth.middleware.ts.
   recycleBinRetentionDays Int?
+  // Governs who may create/publish wiki pages — see wiki.controller.ts.
+  // false (default): the current "Confluence/Notion-style" open model —
+  // any authenticated employee can create pages and edit published ones.
+  // true: only Managers/Admins (or a custom role with the wiki content
+  // permission) may create or publish pages; everyone can still read.
+  // Added because the open model was previously the *only* option — an
+  // org that wanted a locked-down, editorially-controlled wiki had no way
+  // to configure that.
+  wikiRestrictedPublishing Boolean @default(false)
   updatedAt            DateTime @updatedAt
   updatedById          String?
 }

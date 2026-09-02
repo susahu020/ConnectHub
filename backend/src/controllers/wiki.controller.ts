@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import prisma from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { emitDataUpdate } from '../utils/realtime';
+import { getOrganizationSettings } from '../services/organization.service';
 
 // An unpublished (draft) page is only visible to its author and admins/managers
 // (content moderators) — everyone else should not be able to list it, open it
@@ -10,6 +11,21 @@ import { emitDataUpdate } from '../utils/realtime';
 // __tests__/wikiAccess.test.ts — instead of only being reachable through a
 // full HTTP request against a live database.
 export const isModerator = (role?: string) => role === 'ADMIN' || role === 'MANAGER';
+
+// Whether the current user may create a page or publish one, given the
+// org's OrganizationSettings.wikiRestrictedPublishing toggle. When that
+// toggle is off (the default, and previously the *only* behavior), the
+// wiki stays fully open/collaborative — anyone can create and publish.
+// When on, only a moderator (Manager/Admin) can create or publish; a
+// non-moderator can still save a page as a draft (isPublished: false),
+// since drafts are private to their author anyway and restricting draft
+// creation wouldn't serve the "editorial control over what goes live"
+// goal this setting exists for.
+export const canCreateOrPublishWikiPage = (
+  wikiRestrictedPublishing: boolean,
+  role: string | undefined,
+  isPublished: boolean
+) => !wikiRestrictedPublishing || !isPublished || isModerator(role);
 
 export const canAccessPage = (page: { isPublished: boolean; authorId: string }, userId: string, role?: string) =>
   page.isPublished || page.authorId === userId || isModerator(role);
@@ -132,13 +148,21 @@ export const createWikiPage = async (req: AuthenticatedRequest, res: Response, n
       return res.status(400).json({ message: 'Title and content are required.' });
     }
 
+    const willPublish = isPublished === undefined ? true : !!isPublished;
+    const orgSettings = await getOrganizationSettings();
+    if (!canCreateOrPublishWikiPage(orgSettings.wikiRestrictedPublishing, req.user?.role, willPublish)) {
+      return res.status(403).json({
+        message: 'This workspace restricts publishing to Managers and Admins. You can still save this page as a draft.',
+      });
+    }
+
     const page = await prisma.wikiPage.create({
       data: {
         title,
         content,
         category: category || 'General',
         authorId,
-        isPublished: isPublished === undefined ? true : !!isPublished,
+        isPublished: willPublish,
       },
     });
 
@@ -172,13 +196,27 @@ export const updateWikiPage = async (req: AuthenticatedRequest, res: Response, n
       return res.status(403).json({ message: 'This page is still a draft — only its author and admins can edit it.' });
     }
 
+    const willPublish = isPublished !== undefined ? !!isPublished : page.isPublished;
+    // Only re-check the restricted-publishing setting when this edit would
+    // actually publish/keep-published the page — an author tightening up
+    // their own still-unpublished draft shouldn't be blocked by a setting
+    // that's only about what's allowed to go live.
+    if (willPublish) {
+      const orgSettings = await getOrganizationSettings();
+      if (!canCreateOrPublishWikiPage(orgSettings.wikiRestrictedPublishing, req.user?.role, true)) {
+        return res.status(403).json({
+          message: 'This workspace restricts publishing to Managers and Admins. You can still save this page as a draft.',
+        });
+      }
+    }
+
     const updated = await prisma.wikiPage.update({
       where: { id },
       data: {
         title: title !== undefined ? title : page.title,
         content: content !== undefined ? content : page.content,
         category: category !== undefined ? category : page.category,
-        isPublished: isPublished !== undefined ? !!isPublished : page.isPublished,
+        isPublished: willPublish,
       },
     });
 
@@ -236,7 +274,7 @@ export const rollbackWikiPage = async (req: AuthenticatedRequest, res: Response,
       return res.status(403).json({ message: 'This page is still a draft — only its author and admins can roll it back.' });
     }
 
-    const versionRecord = page.versions.find(v => v.id === versionId);
+    const versionRecord = page.versions.find((v: { id: string }) => v.id === versionId);
     if (!versionRecord) {
       return res.status(404).json({ message: 'Version record not found.' });
     }

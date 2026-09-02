@@ -9,6 +9,8 @@ import { toast } from 'react-hot-toast';
 import { Layers, Loader2, Mail } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useOrganizationSettings } from '../../../hooks/useOrganizationSettings';
+import { useRetryCountdown } from '../../../hooks/useRetryCountdown';
+import { RetryCountdownBanner } from '../../../components/auth/RetryCountdownBanner';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -20,6 +22,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { settings: orgSettings } = useOrganizationSettings();
+  const forgotRetry = useRetryCountdown();
 
   const {
     register,
@@ -36,6 +39,9 @@ export default function ForgotPasswordPage() {
       setSubmitted(true);
       toast.success('Password reset link dispatched!');
     } catch (error: any) {
+      if (error.retryAfterSeconds) {
+        forgotRetry.start(error.retryAfterSeconds);
+      }
       toast.error(error.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
@@ -97,9 +103,10 @@ export default function ForgotPasswordPage() {
               {errors.email && <p className="text-xs font-medium text-red-500">{errors.email.message}</p>}
             </div>
 
+            <RetryCountdownBanner secondsLeft={forgotRetry.secondsLeft} />
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || forgotRetry.isBlocked}
               className="w-full py-3 px-4 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/95 transition-all shadow-md flex items-center justify-center space-x-2 disabled:opacity-50"
             >
               {loading ? (
@@ -107,6 +114,8 @@ export default function ForgotPasswordPage() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Sending Link...</span>
                 </>
+              ) : forgotRetry.isBlocked ? (
+                <span>Try again in {forgotRetry.secondsLeft}s</span>
               ) : (
                 <span>Request Reset Link</span>
               )}

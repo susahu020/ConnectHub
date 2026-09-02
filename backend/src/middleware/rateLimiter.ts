@@ -26,11 +26,19 @@ const makeRateLimiter = (opts: { keyPrefix: string; limit: number; windowSeconds
           await redis.expire(key, windowSeconds);
         }
 
+        // TTL of the counter key tells us exactly how many seconds are left
+        // in the current window — used below for the Retry-After header so
+        // the client can show a live "try again in Ns" countdown instead of
+        // a static message it has no way to know the real duration of.
+        const ttlSeconds = await redis.ttl(key);
+        const retryAfterSeconds = ttlSeconds > 0 ? ttlSeconds : windowSeconds;
+
         res.setHeader('X-RateLimit-Limit', limit);
         res.setHeader('X-RateLimit-Remaining', Math.max(0, limit - requests));
 
         if (requests > limit) {
-          res.status(429).json({ message, code: 'RATE_LIMIT_EXCEEDED' });
+          res.setHeader('Retry-After', retryAfterSeconds);
+          res.status(429).json({ message, code: 'RATE_LIMIT_EXCEEDED', retryAfterSeconds });
           return;
         }
         next();
@@ -56,7 +64,9 @@ const makeRateLimiter = (opts: { keyPrefix: string; limit: number; windowSeconds
       res.setHeader('X-RateLimit-Remaining', Math.max(0, limit - clientData.count));
 
       if (clientData.count > limit) {
-        res.status(429).json({ message, code: 'RATE_LIMIT_EXCEEDED' });
+        const retryAfterSeconds = Math.max(1, Math.ceil((clientData.resetTime - now) / 1000));
+        res.setHeader('Retry-After', retryAfterSeconds);
+        res.status(429).json({ message, code: 'RATE_LIMIT_EXCEEDED', retryAfterSeconds });
         return;
       }
       next();

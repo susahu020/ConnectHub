@@ -49,16 +49,21 @@ import { useConfirm } from '../../../context/ConfirmContext';
 
 const MODULES = ['Dashboard', 'Users', 'Groups', 'Announcements', 'Tasks', 'Files', 'Messages', 'Notifications', 'Reports', 'Admin', 'Analytics', 'Settings'];
 const ACTIONS = ['Create', 'Read', 'Update', 'Delete', 'Export', 'Import', 'Approve', 'Assign', 'Archive', 'Publish'];
-// Module/action cells that an actual `checkPermission(module, action)` call
-// somewhere in the API currently enforces (see backend/src/routes/*.ts).
-// Every other cell in the matrix is real data — an admin can toggle it and
-// it's saved — but today nothing reads it, so toggling it has no effect on
-// what the role can actually do. Surfaced in the UI so that isn't a surprise.
+// Module/action cells with a real effect on what a custom role can do —
+// either a route-level `checkPermission(module, action)` gate, or (for
+// Groups:Update/Delete) an in-controller `hasPermission()` check applied
+// *in addition to* the existing creator/admin ownership rules, so granting
+// it extends what a role can manage without narrowing what an owner could
+// already do to their own content. See backend/src/routes/*.ts and
+// group.controller.ts. Every other cell in the matrix is real data — an
+// admin can toggle it and it's saved — but nothing reads it yet, so
+// toggling it has no effect on what the role can actually do. Surfaced in
+// the UI so that isn't a surprise.
 const ENFORCED_PERMISSIONS = new Set([
   'Tasks:Create', 'Tasks:Update', 'Tasks:Delete',
   'Files:Create', 'Files:Update', 'Files:Delete',
-  'Groups:Create',
-  'Announcements:Create', 'Announcements:Delete',
+  'Groups:Create', 'Groups:Update', 'Groups:Delete',
+  'Announcements:Create', 'Announcements:Update', 'Announcements:Delete',
   'Users:Update',
   'Reports:Export',
 ]);

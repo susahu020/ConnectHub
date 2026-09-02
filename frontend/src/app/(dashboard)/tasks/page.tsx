@@ -103,8 +103,25 @@ export default function TasksPage() {
     enabled: !!selectedProject,
   });
 
+  // "My Tasks": a cross-project queue of everything assigned to the current
+  // user, since the Kanban/List/etc. views above are otherwise always
+  // scoped to one project at a time — there was previously no way to see
+  // your own tasks across the whole workspace without opening every
+  // project individually. Reuses the same getTasks endpoint (already
+  // supports assigneeId filtering with no projectId) and the same
+  // Kanban/List/Calendar/Gantt/Timeline view components below.
+  const [myTasksMode, setMyTasksMode] = useState(false);
+  const { data: myTasks, isLoading: loadingMyTasks } = useQuery({
+    queryKey: ['tasks', 'mine', user?.id],
+    queryFn: () => api.getTasks(`assigneeId=${user?.id}`),
+    enabled: myTasksMode && !!user?.id,
+  });
+
+  const activeTasks = myTasksMode ? myTasks : tasks;
+  const activeLoadingTasks = myTasksMode ? loadingMyTasks : loadingTasks;
+
   // Filter tasks based on Search input and dropdown status filters
-  const filteredTasks = tasks?.filter((t: any) => {
+  const filteredTasks = activeTasks?.filter((t: any) => {
     const matchesSearch =
       !searchQuery.trim() ||
       t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -306,6 +323,7 @@ export default function TasksPage() {
     mutationFn: ({ id, body }: { id: string; body: any }) => api.updateTask(id, body),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', selectedProject?.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'mine', user?.id] });
       if (selectedTask && selectedTask.id === data.id) {
         handleOpenTaskDetail(data.id);
       }
@@ -318,6 +336,7 @@ export default function TasksPage() {
     mutationFn: (body: any) => api.createTask(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', selectedProject?.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'mine', user?.id] });
       setCreateModalOpen(false);
       setTaskTitle('');
       setTaskDesc('');
@@ -502,29 +521,58 @@ export default function TasksPage() {
 
   return (
     <>
-      {!selectedProject ? (
+      {!selectedProject && !myTasksMode ? (
         <ProjectsLanding
           projects={projects}
           loadingProjects={loadingProjects}
           isWritePermitted={isWritePermitted}
           onSelectProject={setSelectedProject}
           onCreateProject={() => setProjectModalOpen(true)}
+          onSelectMyTasks={() => setMyTasksMode(true)}
         />
       ) : (
         <div className="space-y-6">
-          <WorkspaceToolbar
-            projects={projects}
-            loadingProjects={loadingProjects}
-            selectedProject={selectedProject}
-            onSelectProject={setSelectedProject}
-            onBackToProjects={() => setSelectedProject(null)}
-            isWritePermitted={isWritePermitted}
-            onCreateProject={() => setProjectModalOpen(true)}
-            onOpenProjectSettings={() => setProjectSettingsOpen(true)}
-            viewMode={viewMode}
-            onChangeViewMode={setViewMode}
-            onAddTask={() => setCreateModalOpen(true)}
-          />
+          {myTasksMode ? (
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <button
+                  onClick={() => setMyTasksMode(false)}
+                  className="text-xs font-semibold text-muted-foreground hover:text-primary flex items-center gap-1 mb-1"
+                >
+                  ← Back to Projects
+                </button>
+                <h2 className="text-lg font-bold">My Tasks</h2>
+                <p className="text-xs text-muted-foreground">Everything assigned to you, across every project.</p>
+              </div>
+              <div className="flex items-center gap-1.5 bg-muted dark:bg-card border rounded-xl p-1">
+                {(['KANBAN', 'LIST', 'CALENDAR', 'GANTT', 'TIMELINE'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${
+                      viewMode === mode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-secondary dark:hover:bg-card'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <WorkspaceToolbar
+              projects={projects}
+              loadingProjects={loadingProjects}
+              selectedProject={selectedProject}
+              onSelectProject={setSelectedProject}
+              onBackToProjects={() => setSelectedProject(null)}
+              isWritePermitted={isWritePermitted}
+              onCreateProject={() => setProjectModalOpen(true)}
+              onOpenProjectSettings={() => setProjectSettingsOpen(true)}
+              viewMode={viewMode}
+              onChangeViewMode={setViewMode}
+              onAddTask={() => setCreateModalOpen(true)}
+            />
+          )}
 
           <MetricsBar filteredTasks={filteredTasks} />
 
@@ -542,7 +590,7 @@ export default function TasksPage() {
 
           {viewMode === 'KANBAN' && (
             <KanbanView
-              loadingTasks={loadingTasks}
+              loadingTasks={activeLoadingTasks}
               filteredTasks={filteredTasks}
               onOpenTaskDetail={handleOpenTaskDetail}
               onDragStart={handleDragStart}
@@ -552,7 +600,7 @@ export default function TasksPage() {
           )}
 
           {viewMode === 'LIST' && (
-            <ListView loadingTasks={loadingTasks} filteredTasks={filteredTasks} onOpenTaskDetail={handleOpenTaskDetail} />
+            <ListView loadingTasks={activeLoadingTasks} filteredTasks={filteredTasks} onOpenTaskDetail={handleOpenTaskDetail} />
           )}
 
           {viewMode === 'CALENDAR' && (
@@ -571,7 +619,7 @@ export default function TasksPage() {
               currentDate={currentDate}
               ganttDaysCount={ganttDaysCount}
               ganttDaysArray={ganttDaysArray}
-              loadingTasks={loadingTasks}
+              loadingTasks={activeLoadingTasks}
               filteredTasks={filteredTasks}
               collapsedSections={collapsedGanttSections}
               onToggleSection={(status) =>

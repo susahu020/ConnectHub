@@ -84,7 +84,15 @@ export default function FilesPage() {
     try {
       const report = await api.scanFile(id);
       setScanReport(report);
-      toast.success('Virus scan completed. File is secure.');
+      if (report.status === 'INFECTED') {
+        toast.error(`Threat detected: ${report.threatName || 'unknown'}. Do not download this file.`);
+      } else if (report.status === 'ERROR') {
+        toast.error('Scan could not be completed. Treat this file as unscanned.');
+      } else if (report.simulated) {
+        toast('Demo scan completed — no real scanner is configured.', { icon: '🧪' });
+      } else {
+        toast.success('Virus scan completed. File is secure.');
+      }
     } catch (err) {
       toast.error('Virus scan request failed');
     } finally {
@@ -98,7 +106,11 @@ export default function FilesPage() {
     try {
       const result = await api.ocrFile(id);
       setOcrText(result.text);
-      toast.success('OCR Text extraction completed.');
+      if (result.simulated) {
+        toast('OCR is not configured for this workspace.', { icon: '🧪' });
+      } else {
+        toast.success('OCR text extraction completed.');
+      }
     } catch (err) {
       toast.error('OCR processing failed');
     } finally {

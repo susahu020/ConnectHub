@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ImageCropperModal from '../../../components/ImageCropperModal';
+import { ArchivedChannelsModal } from '../../../components/groups/ArchivedChannelsModal';
 import { 
   Send, 
   Paperclip, 
@@ -24,6 +25,7 @@ import {
   BarChart3,
   Edit3,
   Trash2,
+  Archive,
   Check,
   CheckCheck,
   FileImage,
@@ -79,6 +81,16 @@ export default function GroupsPage() {
 
   // Group Create Modal
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [archivedModalOpen, setArchivedModalOpen] = useState(false);
+
+  // Archived channels — only fetched once the "Archived Channels" modal is
+  // opened, since most sessions never need this list.
+  const { data: archivedGroups, isLoading: loadingArchivedGroups, refetch: refetchArchivedGroups } = useQuery({
+    queryKey: ['groups', 'archived'],
+    queryFn: () => api.getGroups(true),
+    enabled: archivedModalOpen,
+  });
+
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [newGroupType, setNewGroupType] = useState<'DEPARTMENT' | 'PROJECT' | 'CUSTOM'>('CUSTOM');
@@ -320,6 +332,38 @@ export default function GroupsPage() {
       setActiveGroup(null);
     } catch (err) {
       toast.error('Could not delete channel.');
+    }
+  };
+
+  // Archiving hides the channel from the default list while keeping its
+  // message history intact — the reversible alternative to permanently
+  // deleting a channel that's gone quiet but might still be needed later.
+  const handleArchiveGroup = async () => {
+    if (!activeGroup) return;
+    if (!await confirm({
+      title: 'Archive Channel',
+      message: 'This channel will move to your Archived Channels list. Its message history is kept, and any member with permission can restore it later.',
+      confirmText: 'Archive Channel',
+      type: 'info',
+    })) return;
+    try {
+      await api.archiveGroup(activeGroup.id);
+      toast.success('Channel archived.');
+      refetchGroups();
+      setActiveGroup(null);
+    } catch (err) {
+      toast.error('Could not archive channel.');
+    }
+  };
+
+  const handleUnarchiveGroup = async (groupId: string) => {
+    try {
+      await api.unarchiveGroup(groupId);
+      toast.success('Channel restored.');
+      refetchGroups();
+      refetchArchivedGroups();
+    } catch (err) {
+      toast.error('Could not restore channel.');
     }
   };
 
@@ -928,14 +972,23 @@ export default function GroupsPage() {
       <aside className={`w-full md:w-80 border-r flex flex-col shrink-0 bg-muted/50 dark:bg-card/50 ${activeGroup ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b flex items-center justify-between">
           <h3 className="font-bold text-base">Channel Directory</h3>
-          {can('Groups', 'Create') && (
+          <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setCreateModalOpen(true)}
-              className="p-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 transition-all shadow-sm"
+              onClick={() => setArchivedModalOpen(true)}
+              className="p-1.5 border rounded-lg text-muted-foreground hover:bg-muted dark:hover:bg-card transition-all shadow-sm"
+              title="Archived Channels"
             >
-              <Plus className="h-4 w-4" />
+              <Archive className="h-4 w-4" />
             </button>
-          )}
+            {can('Groups', 'Create') && (
+              <button
+                onClick={() => setCreateModalOpen(true)}
+                className="p-1.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/95 transition-all shadow-sm"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Channels Sidebar Search Bar */}
@@ -1229,7 +1282,16 @@ export default function GroupsPage() {
                         <span>Edit Channel</span>
                       </button>
                     )}
-                    {activeGroup.createdById === user?.id && (
+                    {(activeGroup.createdById === user?.id || user?.role === 'ADMIN') && (
+                      <button
+                        onClick={handleArchiveGroup}
+                        className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card text-foreground dark:text-foreground flex items-center space-x-1.5 font-bold"
+                      >
+                        <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>Archive Channel</span>
+                      </button>
+                    )}
+                    {(activeGroup.createdById === user?.id || user?.role === 'ADMIN') && (
                       <button
                         onClick={handleDeleteGroup}
                         className="w-full text-left px-3 py-1.5 hover:bg-muted dark:hover:bg-card text-red-650 flex items-center space-x-1.5 font-bold"
@@ -2920,6 +2982,13 @@ export default function GroupsPage() {
           </div>
         </div>
       )}
+      <ArchivedChannelsModal
+        open={archivedModalOpen}
+        onClose={() => setArchivedModalOpen(false)}
+        loading={loadingArchivedGroups}
+        channels={archivedGroups || []}
+        onRestore={handleUnarchiveGroup}
+      />
       <ImageCropperModal
         isOpen={cropperOpen}
         imageSrc={cropperImageSrc}

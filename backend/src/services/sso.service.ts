@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { getOrganizationSettings } from './organization.service';
+import { ACCESS_SECRET } from '../config/jwtSecrets';
 
 /**
  * Google OAuth 2.0 (OIDC) SSO — the first identity provider, per the
@@ -21,7 +22,7 @@ import { getOrganizationSettings } from './organization.service';
  * additional on/off switch on top of these being configured at all.
  */
 
-const STATE_SECRET = process.env.JWT_ACCESS_SECRET || 'default-local-jwt-access-secret-123456';
+const STATE_SECRET = ACCESS_SECRET;
 
 export const isGoogleSsoConfigured = (): boolean =>
   !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REDIRECT_URI);

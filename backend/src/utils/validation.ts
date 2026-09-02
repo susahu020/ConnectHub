@@ -102,7 +102,25 @@ export const createAnnouncementSchema = z.object({
     priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional(),
     isPinned: z.boolean().optional(),
     expiresAt: z.string().optional().nullable(),
+    scheduledFor: z.string().optional().nullable(),
     departmentId: z.string().optional().nullable(),
+  }),
+});
+
+// Same shape as create, but every field is optional — a PUT only needs to
+// send what changed, and we don't want to force the client to re-submit
+// title/content just to toggle isPinned.
+export const updateAnnouncementSchema = z.object({
+  body: z.object({
+    title: z.string().min(1, 'Title cannot be empty').optional(),
+    content: z.string().min(1, 'Content cannot be empty').optional(),
+    priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']).optional(),
+    isPinned: z.boolean().optional(),
+    expiresAt: z.string().optional().nullable(),
+    scheduledFor: z.string().optional().nullable(),
+    departmentId: z.string().optional().nullable(),
+    imageUrl: z.string().optional().nullable(),
+    pdfUrl: z.string().optional().nullable(),
   }),
 });
 
