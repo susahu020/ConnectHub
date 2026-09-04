@@ -31,7 +31,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
-    "nodemailer": "^6.9.13",
+    "nodemailer": "^9.1.1",
     "socket.io": "^4.7.5",
     "zod": "^3.22.4"
   },
@@ -44,7 +44,7 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.12.7",
-    "@types/nodemailer": "^6.4.14",
+    "@types/nodemailer": "^8.0.1",
     "@types/supertest": "^6.0.2",
     "jest": "^29.7.0",
     "nodemon": "^3.1.0",
@@ -53,5 +53,8 @@
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   }
 }

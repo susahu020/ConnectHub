@@ -36,7 +36,7 @@ export function ProfileHeader({
   onCoverChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onEditProfile: () => void;
   onStartChat: () => void;
-  completion: { score: number };
+  completion: { score: number; missing?: string[] };
 }) {
   return (
     <div className="bg-card dark:bg-card border dark:border-border rounded-3xl overflow-hidden shadow-sm relative group">
@@ -144,21 +144,40 @@ export function ProfileHeader({
       </div>
 
       {isOwnProfile && completion.score < 100 && (
-        <div className="px-6 md:px-8 pb-6 flex flex-col md:flex-row md:items-center gap-3 border-t dark:border-border pt-5">
-          <div className="flex-1 space-y-1">
-            <p className="text-xs font-bold text-foreground dark:text-foreground">Profile Completion: {completion.score}%</p>
-            <p className="text-[10px] text-muted-foreground">
-              {completion.score < 100
-                ? 'Complete your profile to help teammates find and connect with you.'
-                : 'Your workspace profile is fully completed!'}
-            </p>
+        <div className="px-6 md:px-8 pb-6 flex flex-col gap-3 border-t dark:border-border pt-5">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            <div className="flex-1 space-y-1">
+              <p className="text-xs font-bold text-foreground dark:text-foreground">Profile Completion: {completion.score}%</p>
+              <p className="text-[10px] text-muted-foreground">
+                {completion.score < 100
+                  ? 'Complete your profile to help teammates find and connect with you.'
+                  : 'Your workspace profile is fully completed!'}
+              </p>
+            </div>
+            <div className="w-full md:w-64 bg-secondary dark:bg-card h-2.5 rounded-full overflow-hidden shrink-0">
+              <div
+                className="bg-gradient-to-r from-primary to-warm h-full rounded-full transition-all duration-500"
+                style={{ width: `${completion.score}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full md:w-64 bg-secondary dark:bg-card h-2.5 rounded-full overflow-hidden shrink-0">
-            <div
-              className="bg-gradient-to-r from-primary to-warm h-full rounded-full transition-all duration-500"
-              style={{ width: `${completion.score}%` }}
-            />
-          </div>
+          {/* The score itself was already shown, but there was no way to
+              tell WHICH fields were missing without guessing — this was
+              already computed (getCompletionStats' `missing` array) and
+              simply never passed down or rendered. */}
+          {completion.missing && completion.missing.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mr-0.5">Still missing:</span>
+              {completion.missing.map((item) => (
+                <span
+                  key={item}
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted dark:bg-card border border-border dark:border-border text-muted-foreground"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -2,6 +2,53 @@ import prisma from '../config/db';
 import { createNotification } from './notification.service';
 import { sendEmail } from '../config/mailer';
 
+// Two condition formats are supported, for backward compatibility:
+//   1. Legacy flat format: { key: value, key2: value2 } — every key must
+//      equal the payload's value for that key (AND-only, exact equality
+//      only). Existing workflows saved before the format below existed
+//      still work exactly as they did.
+//   2. Rule-group format: { logic: 'ALL' | 'ANY', rules: [{ field,
+//      operator, value }] } — supports AND (`ALL`) or OR (`ANY`)
+//      combination, and operators beyond plain equality (equals,
+//      not_equals, contains, greater_than, less_than). This is what the
+//      condition builder UI now writes; the old format is still read
+//      correctly for anything created before this existed.
+//
+// Exported as a standalone function (rather than kept as a private class
+// method) specifically so it has direct unit test coverage — see
+// __tests__/automation.service.test.ts — instead of only being reachable
+// through AutomationService.trigger()'s full DB-backed flow.
+export function conditionsMatch(conditions: any, payload: any): boolean {
+  if (!conditions || typeof conditions !== 'object') return true;
+
+  if (Array.isArray(conditions.rules)) {
+    const rules: Array<{ field: string; operator: string; value: any }> = conditions.rules;
+    if (rules.length === 0) return true;
+    const logic = conditions.logic === 'ANY' ? 'ANY' : 'ALL';
+    const evalRule = (rule: { field: string; operator: string; value: any }): boolean => {
+      const actual = payload?.[rule.field];
+      switch (rule.operator) {
+        case 'not_equals':
+          return actual !== rule.value;
+        case 'contains':
+          return typeof actual === 'string' && actual.includes(String(rule.value));
+        case 'greater_than':
+          return typeof actual === 'number' && actual > Number(rule.value);
+        case 'less_than':
+          return typeof actual === 'number' && actual < Number(rule.value);
+        case 'equals':
+        default:
+          return actual === rule.value;
+      }
+    };
+    return logic === 'ANY' ? rules.some(evalRule) : rules.every(evalRule);
+  }
+
+  const keys = Object.keys(conditions);
+  if (keys.length === 0) return true;
+  return keys.every((key) => payload?.[key] === conditions[key]);
+}
+
 export class AutomationService {
   /**
    * Triggers a workflow event
@@ -22,7 +69,7 @@ export class AutomationService {
       });
 
       for (const flow of activeWorkflows) {
-        if (!this.conditionsMatch(flow.conditions, payload)) {
+        if (!conditionsMatch(flow.conditions, payload)) {
           console.log(`[Automation] Skipping "${flow.name}" — conditions did not match payload.`);
           continue;
         }
@@ -55,17 +102,6 @@ export class AutomationService {
     } catch (error) {
       console.error('[Automation] Trigger execution failed:', error);
     }
-  }
-
-  // A rule's `conditions` is a flat key/value object. Every key present
-  // must match the same key in the trigger's payload exactly; an absent
-  // or empty conditions object always matches (org-wide rule, current
-  // default behavior). Payload keys the rule doesn't mention are ignored.
-  private static conditionsMatch(conditions: any, payload: any): boolean {
-    if (!conditions || typeof conditions !== 'object') return true;
-    const keys = Object.keys(conditions);
-    if (keys.length === 0) return true;
-    return keys.every((key) => payload?.[key] === conditions[key]);
   }
 
   // Records each execution attempt so admins can see, from the UI, whether

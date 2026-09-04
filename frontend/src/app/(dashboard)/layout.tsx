@@ -460,6 +460,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const searchCategories: SearchCategory[] = [
     {
       label: 'Teammates',
+      categoryKey: 'users',
       items: matchedUsers.map((item: any) => ({
         id: item.id,
         href: `/chat?contactId=${item.id}&name=${encodeURIComponent(item.firstName + ' ' + item.lastName)}&status=${item.status}`,
@@ -474,6 +475,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       label: 'Channels',
+      categoryKey: 'groups',
       items: matchedGroups.map((item: any) => ({
         id: item.id,
         href: '/groups',
@@ -484,6 +486,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       label: 'Teams',
+      categoryKey: 'teams',
       items: matchedTeams.map((item: any) => ({
         id: item.id,
         href: '/directory',
@@ -494,6 +497,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       label: 'Tasks',
+      categoryKey: 'tasks',
       items: matchedTasks.map((item: any) => ({
         id: item.id,
         href: '/tasks',
@@ -504,6 +508,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       label: 'Announcements',
+      categoryKey: 'announcements',
       items: matchedAnnouncements.map((item: any) => ({
         id: item.id,
         href: '/announcements',
@@ -514,6 +519,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       label: 'Chat Messages',
+      categoryKey: 'messages',
       items: matchedMessages.map((item: any) => ({
         id: item.id,
         href: '/chat',
@@ -524,6 +530,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       label: 'Files & Documents',
+      categoryKey: 'files',
       items: matchedFiles.map((item: any) => ({
         id: item.id,
         href: '/files',
@@ -534,6 +541,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       label: 'Knowledge Base',
+      categoryKey: 'wikiPages',
       items: matchedWikiPages.map((item: any) => ({
         id: item.id,
         href: `/wiki?id=${item.id}`,
@@ -544,6 +552,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       label: 'Departments',
+      categoryKey: 'departments',
       items: matchedDepartments.map((item: any) => ({
         id: item.id,
         href: '/directory',

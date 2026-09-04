@@ -25,11 +25,40 @@ import {
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
+import { ConditionRuleBuilder, ConditionRule } from '../../../components/workflows/ConditionRuleBuilder';
+import { RunHistoryModal } from '../../../components/workflows/RunHistoryModal';
+
+// Available condition fields per trigger — matches the payload each
+// controller actually sends into AutomationService.trigger() (see
+// task.controller.ts, invitation.controller.ts, file.controller.ts,
+// hr.controller.ts). A field not in this payload will just never match
+// anything, so this list is deliberately kept in sync with those call
+// sites rather than guessed.
+const TRIGGER_FIELDS: Record<string, { value: string; label: string }[]> = {
+  TASK_COMPLETED: [
+    { value: 'taskTitle', label: 'Task Title' },
+    { value: 'assigneeId', label: 'Assignee ID' },
+  ],
+  EMPLOYEE_JOINED: [
+    { value: 'firstName', label: 'First Name' },
+    { value: 'lastName', label: 'Last Name' },
+    { value: 'email', label: 'Email' },
+  ],
+  DOCUMENT_UPLOADED: [
+    { value: 'fileName', label: 'File Name' },
+    { value: 'uploaderId', label: 'Uploader ID' },
+    { value: 'departmentId', label: 'Department ID' },
+  ],
+  LEAVE_REQUESTED: [
+    { value: 'leaveType', label: 'Leave Type' },
+    { value: 'requesterId', label: 'Requester ID' },
+  ],
+};
 
 // Small "last run" indicator for a single workflow card. Kept as its own
 // component so each card's run history is its own query (cheap, and
 // avoids re-fetching all cards' runs whenever one workflow changes).
-function LastRunBadge({ workflowId }: { workflowId: string }) {
+function LastRunBadge({ workflowId, onClick }: { workflowId: string; onClick: () => void }) {
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ['workflow-runs', workflowId],
     queryFn: () => api.getWorkflowRuns(workflowId),
@@ -47,13 +76,15 @@ function LastRunBadge({ workflowId }: { workflowId: string }) {
   const isSuccess = lastRun.status === 'SUCCESS';
 
   return (
-    <span
-      className={`text-[8px] font-bold flex items-center gap-1 ${isSuccess ? 'text-emerald-500' : 'text-rose-500'}`}
-      title={isSuccess ? undefined : lastRun.error || 'Run failed'}
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-[8px] font-bold flex items-center gap-1 hover:underline ${isSuccess ? 'text-emerald-500' : 'text-rose-500'}`}
+      title={`View full run history${!isSuccess && lastRun.error ? ` — last error: ${lastRun.error}` : ''}`}
     >
       {isSuccess ? <CheckCircle className="h-2.5 w-2.5" /> : <XCircle className="h-2.5 w-2.5" />}
       Last run {new Date(lastRun.ranAt).toLocaleString()}
-    </span>
+    </button>
   );
 }
 
@@ -62,12 +93,15 @@ export default function WorkflowsPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [historyWorkflow, setHistoryWorkflow] = useState<{ id: string; name: string } | null>(null);
   
   // Form State
   const [flowName, setFlowName] = useState('');
   const [flowTrigger, setFlowTrigger] = useState('TASK_COMPLETED');
   const [flowAction, setFlowAction] = useState('NOTIFY_MANAGER');
   const [flowDepartmentId, setFlowDepartmentId] = useState('');
+  const [conditionRules, setConditionRules] = useState<ConditionRule[]>([]);
+  const [conditionLogic, setConditionLogic] = useState<'ALL' | 'ANY'>('ALL');
 
   // Only DOCUMENT_UPLOADED carries a departmentId-bearing payload today
   // (the uploader's own department) — scoping other triggers by department
@@ -102,6 +136,8 @@ export default function WorkflowsPage() {
       setCreateModalOpen(false);
       setFlowName('');
       setFlowDepartmentId('');
+      setConditionRules([]);
+      setConditionLogic('ALL');
       toast.success('Workflow automation created!');
     },
     onError: (err: any) => {
@@ -136,12 +172,29 @@ export default function WorkflowsPage() {
       toast.error('Workflow name is required');
       return;
     }
+    // Combine the department shortcut (if set) with any custom rules into
+    // one condition set. A department-only selection keeps writing the
+    // simple legacy format (unchanged behavior); anything with custom
+    // rules writes the new {logic, rules} format, folding the department
+    // choice in as just another rule so it isn't lost.
+    const deptRule: ConditionRule[] = supportsDepartmentCondition && flowDepartmentId
+      ? [{ field: 'departmentId', operator: 'equals', value: flowDepartmentId }]
+      : [];
+    const allRules = [...deptRule, ...conditionRules].filter((r) => r.field && r.value.trim());
+
+    let conditions: any = undefined;
+    if (allRules.length === 1 && allRules[0].operator === 'equals') {
+      conditions = { [allRules[0].field]: allRules[0].value };
+    } else if (allRules.length > 1) {
+      conditions = { logic: conditionLogic, rules: allRules };
+    }
+
     createMutation.mutate({
       name: flowName,
       trigger: flowTrigger,
       action: flowAction,
       isActive: true,
-      conditions: supportsDepartmentCondition && flowDepartmentId ? { departmentId: flowDepartmentId } : undefined,
+      conditions,
     });
   };
 
@@ -284,7 +337,7 @@ export default function WorkflowsPage() {
 
               {/* Card Footer Delete Button */}
               <div className="flex items-center justify-between border-t dark:border-border pt-3">
-                <LastRunBadge workflowId={flow.id} />
+                <LastRunBadge workflowId={flow.id} onClick={() => setHistoryWorkflow({ id: flow.id, name: flow.name })} />
                 <button
                   onClick={() => {
                     if (confirm('Delete this workflow automation permanently?')) {
@@ -334,7 +387,7 @@ export default function WorkflowsPage() {
                 <label className="text-muted-foreground uppercase text-[9px] tracking-wider">When (Event Trigger)</label>
                 <select
                   value={flowTrigger}
-                  onChange={(e) => { setFlowTrigger(e.target.value); setFlowDepartmentId(''); }}
+                  onChange={(e) => { setFlowTrigger(e.target.value); setFlowDepartmentId(''); setConditionRules([]); }}
                   className="w-full px-4 py-2.5 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs font-bold"
                 >
                   <option value="TASK_COMPLETED">When Task status becomes COMPLETED</option>
@@ -375,6 +428,14 @@ export default function WorkflowsPage() {
                 </div>
               )}
 
+              <ConditionRuleBuilder
+                availableFields={TRIGGER_FIELDS[flowTrigger] || []}
+                logic={conditionLogic}
+                onLogicChange={setConditionLogic}
+                rules={conditionRules}
+                onRulesChange={setConditionRules}
+              />
+
 
               <button
                 type="submit"
@@ -386,6 +447,14 @@ export default function WorkflowsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {historyWorkflow && (
+        <RunHistoryModal
+          workflowId={historyWorkflow.id}
+          workflowName={historyWorkflow.name}
+          onClose={() => setHistoryWorkflow(null)}
+        />
       )}
     </div>
   );

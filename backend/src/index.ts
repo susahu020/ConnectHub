@@ -21,6 +21,7 @@ import { runDailyBirthdayCheck } from './services/birthday.service';
 import { trackRequest } from './utils/errorTracker';
 import { registerJob, recordJobRun } from './utils/jobHealth';
 import { getSystemHealth } from './services/health.service';
+import { getPublicStatus } from './controllers/status.controller';
 import { checkAndAlert } from './services/alerting.service';
 
 const app = express();
@@ -160,10 +161,25 @@ app.use('/uploads', express.static(uploadDir));
 // API Routes
 app.use('/api/v1', apiRoutes);
 
-// Health Check
+// Health Check — fast liveness probe for orchestrators (Docker/K8s). Does
+// NOT check the database/Redis/etc, deliberately: an orchestrator needs
+// to tell "process crashed" apart from "process running but a dependency
+// is down", and a check that depends on the DB can't make that
+// distinction.
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', uptime: process.uptime() });
 });
+
+// Public status page — unauthenticated, unlike the full admin System
+// Health tab (GET /api/v1/admin/system-health). Previously the only
+// place any real health information (DB/Redis/SMTP/storage/job
+// heartbeats) was visible anywhere in the app was that admin-only tab —
+// standard practice for anything calling itself enterprise-grade is to
+// also have a public "is it just me or is it down" page. Reuses the same
+// underlying checks as the admin view (see status.controller.ts) but
+// strips out latency numbers, error messages, and business metrics
+// before it leaves the server.
+app.get('/status', getPublicStatus as any);
 
 // Error handling middleware
 app.use(errorHandler as any);

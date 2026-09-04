@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Menu, Search, XCircle, Sun, Moon, Bell } from 'lucide-react';
+import { Menu, Search, XCircle, Sun, Moon, Bell, ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { HighlightMatch } from '../search/HighlightMatch';
 
 export interface SearchResultItem {
   id: string;
@@ -16,6 +17,11 @@ export interface SearchResultItem {
 export interface SearchCategory {
   label: string;
   items: SearchResultItem[];
+  /** The raw backend category key ('users', 'tasks', etc.) — when set and
+   *  this category hit its 5-item preview cap, a "See all results" link
+   *  to the full paginated /search page is shown. Omit for categories
+   *  that don't have a dedicated view-all destination. */
+  categoryKey?: string;
 }
 
 export interface NotificationItem {
@@ -136,15 +142,25 @@ export function TopBar({
                             </div>
                             <div className="min-w-0 flex-1 text-left">
                               <p className="text-[13px] font-semibold text-foreground truncate leading-tight">
-                                {item.title}
+                                <HighlightMatch text={item.title} query={searchQuery} />
                               </p>
                               <p className="text-[11px] text-muted-foreground truncate leading-tight mt-0.5">
-                                {item.subtitle}
+                                <HighlightMatch text={item.subtitle} query={searchQuery} />
                               </p>
                             </div>
                           </Link>
                         ))}
                       </div>
+                      {category.categoryKey && category.items.length >= 5 && (
+                        <Link
+                          href={`/search?q=${encodeURIComponent(searchQuery)}&category=${category.categoryKey}`}
+                          onClick={onSearchClose}
+                          className="flex items-center gap-1 px-1.5 py-1 text-[11px] font-bold text-primary hover:underline"
+                        >
+                          See all results for &ldquo;{searchQuery}&rdquo; in {category.label}
+                          <ArrowRight className="h-3 w-3" />
+                        </Link>
+                      )}
                     </div>
                   )
               )}

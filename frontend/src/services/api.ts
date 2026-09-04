@@ -575,6 +575,8 @@ export const api = {
   deleteShift: (id: string) => request(`/hr/shifts/${id}`, 'DELETE'),
   deleteRecognition: (id: string) => request(`/hr/recognitions/${id}`, 'DELETE'),
   getAnalytics: (range?: string) => request(`/analytics${range ? `?range=${range}` : ''}`),
+  searchCategory: (q: string, category: string, page: number = 1) =>
+    request(`/search/category?q=${encodeURIComponent(q)}&category=${category}&page=${page}`),
   getOrgChart: () => request('/users/org-chart'),
   getCelebrations: () => request('/hr/celebrations'),
   getMyWishes: () => request('/hr/my-wishes'),

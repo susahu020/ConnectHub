@@ -47,7 +47,15 @@ import { useAuthStore } from '../../../lib/store';
 import { toast } from 'react-hot-toast';
 import { useConfirm } from '../../../context/ConfirmContext';
 
-const MODULES = ['Dashboard', 'Users', 'Groups', 'Announcements', 'Tasks', 'Files', 'Messages', 'Notifications', 'Reports', 'Admin', 'Analytics', 'Settings'];
+// 'Notifications' was removed from this list — see the comment on
+// ENFORCED_PERMISSIONS below. Unlike every other module here, there's no
+// coherent notion of a role *granting* access to notifications in the
+// first place: they're inherently personal (a user's own feed), not
+// something one role could plausibly restrict another role from seeing
+// on someone else's behalf. Keeping it in the matrix as "not yet
+// enforced" (like the other unenforced cells) would have implied it's a
+// planned feature rather than a category error in the matrix itself.
+const MODULES = ['Dashboard', 'Users', 'Groups', 'Announcements', 'Tasks', 'Files', 'Messages', 'Reports', 'Admin', 'Analytics', 'Settings'];
 const ACTIONS = ['Create', 'Read', 'Update', 'Delete', 'Export', 'Import', 'Approve', 'Assign', 'Archive', 'Publish'];
 // Module/action cells with a real effect on what a custom role can do —
 // either a route-level `checkPermission(module, action)` gate, or (for
