@@ -180,6 +180,10 @@ export default function AdminPage() {
   const [editManagerId, setEditManagerId] = useState('');
   const [editDepartmentId, setEditDepartmentId] = useState('');
   const [editJoiningDate, setEditJoiningDate] = useState('');
+  const [editProbationEndDate, setEditProbationEndDate] = useState('');
+  const [editBasicSalary, setEditBasicSalary] = useState('');
+  const [editHraAmount, setEditHraAmount] = useState('');
+  const [editOtherAllowances, setEditOtherAllowances] = useState('');
 
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [selectedPasswordUser, setSelectedPasswordUser] = useState<any>(null);
@@ -677,6 +681,30 @@ export default function AdminPage() {
         departmentId: editDepartmentId || null,
         joiningDate: editJoiningDate || null
       });
+      // Separate endpoint (see hr.controller.ts's setEmployeeProbation) —
+      // it resets the reminder-dedup flag as part of the update, which is
+      // HR-specific behavior that doesn't belong in the general profile
+      // update above. Only called when the field actually changed, so
+      // editing unrelated fields doesn't pointlessly reset someone's
+      // reminder window.
+      const previousProbationDate = selectedEditUser.probationEndDate ? String(selectedEditUser.probationEndDate).split('T')[0] : '';
+      if (editProbationEndDate !== previousProbationDate) {
+        await api.setEmployeeProbation(selectedEditUser.id, editProbationEndDate || null);
+      }
+      // Same "only call when it actually changed" reasoning as probation
+      // above — this hits a separate compensation endpoint
+      // (setEmployeeBaseSalary in hr.controller.ts), not the general
+      // profile update.
+      const previousBasic = selectedEditUser.baseSalary != null ? String(selectedEditUser.baseSalary) : '';
+      const previousHra = selectedEditUser.hraAmount != null ? String(selectedEditUser.hraAmount) : '';
+      const previousOther = selectedEditUser.otherAllowancesAmount != null ? String(selectedEditUser.otherAllowancesAmount) : '';
+      if (editBasicSalary !== previousBasic || editHraAmount !== previousHra || editOtherAllowances !== previousOther) {
+        await api.setEmployeeBaseSalary(selectedEditUser.id, {
+          baseSalary: editBasicSalary.trim() === '' ? null : Number(editBasicSalary),
+          hraAmount: editHraAmount.trim() === '' ? null : Number(editHraAmount),
+          otherAllowancesAmount: editOtherAllowances.trim() === '' ? null : Number(editOtherAllowances),
+        });
+      }
       toast.success('User details updated successfully.');
       setEditUserOpen(false);
       setSelectedEditUser(null);
@@ -940,6 +968,10 @@ export default function AdminPage() {
                             setEditManagerId(u.managerId || '');
                             setEditDepartmentId(u.departmentId || '');
                             setEditJoiningDate(u.joiningDate ? String(u.joiningDate).split('T')[0] : '');
+                            setEditProbationEndDate(u.probationEndDate ? String(u.probationEndDate).split('T')[0] : '');
+                            setEditBasicSalary(u.baseSalary != null ? String(u.baseSalary) : '');
+                            setEditHraAmount(u.hraAmount != null ? String(u.hraAmount) : '');
+                            setEditOtherAllowances(u.otherAllowancesAmount != null ? String(u.otherAllowancesAmount) : '');
                             setEditUserOpen(true);
                           }}
                           className="text-[10px] font-bold px-2.5 py-1 border border-border dark:border-border rounded-lg hover:bg-muted dark:hover:bg-card transition-all text-muted-foreground dark:text-foreground"
@@ -2185,6 +2217,58 @@ export default function AdminPage() {
                   className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs"
                   id="edit-joining-date-input"
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground uppercase text-[10px]">Probation End Date</label>
+                <input
+                  type="date"
+                  value={editProbationEndDate}
+                  onChange={(e) => setEditProbationEndDate(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs"
+                  id="edit-probation-end-date-input"
+                />
+                <p className="text-[9px] text-muted-foreground">Their manager gets a one-time reminder 7 days before this date.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-muted-foreground uppercase text-[10px]">Compensation ($/month)</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-muted-foreground">Basic</label>
+                    <input
+                      type="number" min={0} step="0.01" placeholder="0.00"
+                      value={editBasicSalary}
+                      onChange={(e) => setEditBasicSalary(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs"
+                      id="edit-basic-salary-input"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-muted-foreground">HRA</label>
+                    <input
+                      type="number" min={0} step="0.01" placeholder="0.00"
+                      value={editHraAmount}
+                      onChange={(e) => setEditHraAmount(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs"
+                      id="edit-hra-amount-input"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-muted-foreground">Other</label>
+                    <input
+                      type="number" min={0} step="0.01" placeholder="0.00"
+                      value={editOtherAllowances}
+                      onChange={(e) => setEditOtherAllowances(e.target.value)}
+                      className="w-full px-2.5 py-2 rounded-xl border bg-muted dark:bg-card focus:outline-none text-xs"
+                      id="edit-other-allowances-input"
+                    />
+                  </div>
+                </div>
+                <p className="text-[9px] text-muted-foreground">
+                  Basic is what attendance/leave proration and payslip generation use. HRA and Other are fixed
+                  monthly amounts suggested into a payslip's Allowances as-is (not reduced for absences).
+                </p>
               </div>
 
               <button 

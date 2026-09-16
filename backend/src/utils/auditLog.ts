@@ -30,7 +30,7 @@ export const logAudit = (
         userAgent: (req.headers?.['user-agent'] as string) || null,
       },
     })
-    .catch((err) => {
+    .catch((err: unknown) => {
       console.error(`Audit log write failed for action "${action}":`, err);
     });
 };

@@ -259,8 +259,17 @@ export default function TasksPage() {
     try {
       const task = await api.getTaskDetails(id);
       setSelectedTask(task);
-    } catch (err) {
-      toast.error('Failed to load task details.');
+    } catch (err: any) {
+      // 403 = task exists but this user isn't its assignee/creator/watcher/
+      // project teammate (or, for managers, in-department) — distinct from
+      // a generic load failure so people aren't left thinking it's a bug.
+      if (err?.status === 403) {
+        toast.error("You don't have access to this task. Only the assignee, creator, watchers, and project teammates can view it.");
+      } else if (err?.status === 404) {
+        toast.error('This task no longer exists.');
+      } else {
+        toast.error('Failed to load task details.');
+      }
     }
   };
 
@@ -284,12 +293,18 @@ export default function TasksPage() {
       try {
         const task = await api.getTaskDetails(selectedTask.id);
         setSelectedTask(task);
-      } catch (err) {
-        // Most likely the task (or its parent project) was just deleted by
-        // someone else — close the drawer instead of leaving it open on
-        // data that no longer exists.
+      } catch (err: any) {
+        // Close the drawer instead of leaving it open on stale data. Most
+        // often the task (or its parent project) was just deleted by
+        // someone else (404); a 403 here means someone else's edit — a
+        // reassignment, a watcher removal, a project-team change — just
+        // revoked this viewer's access while they had it open.
         setSelectedTask(null);
-        toast.error('This task is no longer available.');
+        if (err?.status === 403) {
+          toast.error('You no longer have access to this task.');
+        } else {
+          toast.error('This task is no longer available.');
+        }
       }
     };
 
@@ -632,7 +647,7 @@ export default function TasksPage() {
           )}
 
           {viewMode === 'TIMELINE' && (
-            <TimelineView filteredTasks={filteredTasks} onOpenTaskDetail={setSelectedTask} />
+            <TimelineView filteredTasks={filteredTasks} onOpenTaskDetail={handleOpenTaskDetail} />
           )}
         </div>
       )}

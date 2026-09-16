@@ -52,7 +52,7 @@ export function conditionsMatch(conditions: any, payload: any): boolean {
 export class AutomationService {
   /**
    * Triggers a workflow event
-   * @param triggerName The trigger type: "TASK_COMPLETED", "EMPLOYEE_JOINED", "DOCUMENT_UPLOADED", "LEAVE_REQUESTED"
+   * @param triggerName The trigger type: "TASK_COMPLETED", "EMPLOYEE_JOINED", "DOCUMENT_UPLOADED", "LEAVE_REQUESTED", "EMPLOYEE_OFFBOARDED", "ATTENDANCE_ANOMALY_DETECTED", "REGULARIZATION_REQUESTED"
    * @param payload Context info for the trigger
    * @param io Optional Socket.IO server instance, so automation-generated
    *           notifications get the same real-time delivery as every other
@@ -83,6 +83,9 @@ export class AutomationService {
               break;
             case 'ASSIGN_ONBOARDING_TASKS':
               await this.handleAssignOnboardingTasks(payload);
+              break;
+            case 'ASSIGN_OFFBOARDING_TASKS':
+              await this.handleAssignOffboardingTasks(payload, io);
               break;
             case 'NOTIFY_TEAM':
               await this.handleNotifyTeam(payload, io);
@@ -132,42 +135,87 @@ export class AutomationService {
   }
 
   // Action: Notify Manager
-  // Handles two payload shapes: task completion ({ taskTitle, assigneeId })
-  // and leave requests ({ leaveType, requesterId }) — both just mean
-  // "tell this employee's manager something happened."
+  // Handles four payload shapes, all boiling down to "tell this employee's
+  // manager something happened": task completion ({ taskTitle, assigneeId }),
+  // leave requests ({ leaveType, requesterId }), offboarding
+  // ({ offboardedUserId }), and attendance anomalies ({ employeeId,
+  // anomalies }). Resolved into a single `kind` up front rather than a
+  // growing ternary chain, since a plain if/else-if reads far more clearly
+  // once there are more than two or three shapes to support.
   private static async handleNotifyManager(payload: any, io?: any): Promise<void> {
-    const { taskTitle, assigneeId, leaveType, requesterId } = payload;
-    const employeeId = assigneeId || requesterId;
-    if (!employeeId) return;
+    const { taskTitle, assigneeId, leaveType, requesterId, offboardedUserId, employeeId: anomalyEmployeeId, anomalies, regularizationDate } = payload;
+    const targetEmployeeId = assigneeId || requesterId || offboardedUserId || anomalyEmployeeId;
+    if (!targetEmployeeId) return;
+
+    // requesterId alone is ambiguous between LEAVE_REQUESTED and
+    // REGULARIZATION_REQUESTED (both use the same field name for "who
+    // asked") — regularizationDate is only ever present on the latter, so
+    // it disambiguates.
+    type NotifyKind = 'TASK_COMPLETED' | 'LEAVE_REQUEST' | 'OFFBOARDING' | 'ATTENDANCE_ANOMALY' | 'REGULARIZATION_REQUEST';
+    const kind: NotifyKind = regularizationDate
+      ? 'REGULARIZATION_REQUEST'
+      : requesterId
+      ? 'LEAVE_REQUEST'
+      : offboardedUserId
+      ? 'OFFBOARDING'
+      : anomalyEmployeeId
+      ? 'ATTENDANCE_ANOMALY'
+      : 'TASK_COMPLETED';
 
     // Find employee and their manager
     const employee = await prisma.user.findUnique({
-      where: { id: employeeId },
+      where: { id: targetEmployeeId },
       select: { firstName: true, lastName: true, managerId: true },
     });
+    if (!employee || !employee.managerId) return;
 
-    if (employee && employee.managerId) {
-      const isLeaveRequest = !!requesterId;
-      // Routed through the shared notification service so this gets the
-      // same real-time socket push and (if the admin has it enabled) email
-      // as every other notification in the app.
-      await createNotification({
-        userId: employee.managerId,
-        title: isLeaveRequest ? 'New Leave Request' : 'Task Completed by Direct Report',
-        message: isLeaveRequest
-          ? `${employee.firstName} ${employee.lastName} submitted a ${leaveType || ''} leave request awaiting your review.`
-          : `${employee.firstName} ${employee.lastName} has completed the task: "${taskTitle}".`,
-        type: isLeaveRequest ? 'REMINDER' : 'TASK_ASSIGNED',
-        emailFeature: isLeaveRequest ? undefined : 'TASK_UPDATED',
-        io,
-      });
-      console.log(`[Automation] Notified manager (${employee.managerId}) about ${isLeaveRequest ? 'leave request from' : 'task completion by'} ${employee.firstName}`);
-    }
+    const titles: Record<NotifyKind, string> = {
+      TASK_COMPLETED: 'Task Completed by Direct Report',
+      LEAVE_REQUEST: 'New Leave Request',
+      OFFBOARDING: 'Direct Report Offboarded',
+      ATTENDANCE_ANOMALY: 'Attendance Anomaly Detected',
+      REGULARIZATION_REQUEST: 'Attendance Correction Requested',
+    };
+    const anomalySummary = Array.isArray(anomalies) ? anomalies.map((a: any) => a.message).join(' ') : 'Unusual attendance this month.';
+    const regularizationDateStr = regularizationDate ? new Date(regularizationDate).toLocaleDateString() : 'a past date';
+    const messages: Record<NotifyKind, string> = {
+      TASK_COMPLETED: `${employee.firstName} ${employee.lastName} has completed the task: "${taskTitle}".`,
+      LEAVE_REQUEST: `${employee.firstName} ${employee.lastName} submitted a ${leaveType || ''} leave request awaiting your review.`,
+      OFFBOARDING: `${employee.firstName} ${employee.lastName} has been marked as offboarded. Please review their pending work, shift assignments, and access.`,
+      ATTENDANCE_ANOMALY: `${employee.firstName} ${employee.lastName}'s attendance this month needs a look: ${anomalySummary}`,
+      REGULARIZATION_REQUEST: `${employee.firstName} ${employee.lastName} requested an attendance correction for ${regularizationDateStr}.`,
+    };
+    const notificationTypes: Record<NotifyKind, 'SYSTEM' | 'REMINDER' | 'TASK_ASSIGNED'> = {
+      TASK_COMPLETED: 'TASK_ASSIGNED',
+      LEAVE_REQUEST: 'REMINDER',
+      OFFBOARDING: 'SYSTEM',
+      ATTENDANCE_ANOMALY: 'SYSTEM',
+      REGULARIZATION_REQUEST: 'REMINDER',
+    };
+
+    // Routed through the shared notification service so this gets the
+    // same real-time socket push and (if the admin has it enabled) email
+    // as every other notification in the app.
+    await createNotification({
+      userId: employee.managerId,
+      title: titles[kind],
+      message: messages[kind],
+      type: notificationTypes[kind],
+      emailFeature: kind === 'TASK_COMPLETED' ? 'TASK_UPDATED' : undefined,
+      io,
+    });
+    console.log(`[Automation] Notified manager (${employee.managerId}) — ${kind} — about ${employee.firstName} ${employee.lastName}`);
   }
 
   // Action: Assign Onboarding Tasks
+  // Every new hire gets the same baseline checklist below regardless of
+  // role. On top of that, role-specific items are appended — a Manager or
+  // Admin has genuinely different first-week responsibilities than an
+  // Employee, so treating them identically meant a new Manager's checklist
+  // said nothing about their team, and a new Admin's said nothing about
+  // the settings they now own.
   private static async handleAssignOnboardingTasks(payload: any): Promise<void> {
-    const { userId, firstName, lastName } = payload;
+    const { userId, firstName, lastName, role } = payload;
     if (!userId) return;
 
     const onboardingTasks = [
@@ -175,6 +223,18 @@ export class AutomationService {
       { title: 'Read organizational wiki guidelines', description: 'Review the Company Wiki General category to read workspace codes of conduct and compliance handbooks.' },
       { title: 'Join general org chat channels', description: 'Go to Chat -> Channels list and follow public groups to meet teammates.' },
     ];
+
+    if (role === 'MANAGER') {
+      onboardingTasks.push(
+        { title: 'Review your team roster', description: 'Go to Directory and filter by your name under Manager to see who reports to you, and introduce yourself.' },
+        { title: 'Check the Leave and Attendance approval queues', description: 'Go to HR -> Leave Requests and HR -> Attendance to see what is waiting on your review as team members request time off.' },
+      );
+    } else if (role === 'ADMIN') {
+      onboardingTasks.push(
+        { title: 'Review Organization Settings', description: 'Go to Organization -> Settings to review branding, registration, security, and payroll automation policies already configured for this workspace.' },
+        { title: 'Review configured Workflows', description: 'Go to Workflows to see what automation rules (onboarding, offboarding, notifications) are already active for the org.' },
+      );
+    }
 
     for (const t of onboardingTasks) {
       await prisma.task.create({
@@ -189,7 +249,63 @@ export class AutomationService {
         },
       });
     }
-    console.log(`[Automation] Automatically allocated onboarding tasks to new employee ${firstName} ${lastName}`);
+    console.log(`[Automation] Automatically allocated ${onboardingTasks.length} onboarding tasks (role: ${role || 'unknown'}) to new employee ${firstName} ${lastName}`);
+  }
+
+  // Action: Assign Offboarding Tasks
+  // Mirrors handleAssignOnboardingTasks, but the checklist is exit work
+  // that someone else has to do *about* the departing employee — asset
+  // return, access review, knowledge handover — so, unlike onboarding, the
+  // tasks are never assigned to the person being offboarded (their account
+  // is already deactivated and login-blocked by this point; see
+  // admin.controller.ts's toggleUserActive). Assigned to their manager
+  // when one exists, falling back to whichever admin performed the
+  // deactivation so the checklist is never silently dropped.
+  private static async handleAssignOffboardingTasks(payload: any, io?: any): Promise<void> {
+    const { offboardedUserId, firstName, lastName, managerId, triggeredById } = payload;
+    if (!offboardedUserId) return;
+
+    const assigneeId = managerId || triggeredById;
+    if (!assigneeId) {
+      console.warn('[Automation] ASSIGN_OFFBOARDING_TASKS skipped — no manager or triggering admin to assign the checklist to.');
+      return;
+    }
+
+    const displayName = `${firstName || ''} ${lastName || ''}`.trim() || 'the departing employee';
+    const offboardingTasks = [
+      { title: `Collect company assets from ${displayName}`, description: 'Retrieve laptop, access cards, and any other issued equipment before their last working day.' },
+      { title: `Review and revoke system access for ${displayName}`, description: 'Confirm their account is deactivated everywhere it should be (this app, email, third-party tools, shared drives).' },
+      { title: `Reassign ${displayName}'s open tasks and shift assignments`, description: 'Go to Tasks and Shifts to redistribute anything still assigned to them so nothing falls through.' },
+      { title: `Schedule exit interview with ${displayName}`, description: 'Cover reason for leaving, feedback, and handover status.' },
+      { title: `Process final settlement for ${displayName}`, description: 'Confirm pending leave encashment, last payslip, and any outstanding expense claims are settled.' },
+    ];
+
+    for (const t of offboardingTasks) {
+      await prisma.task.create({
+        data: {
+          title: t.title,
+          description: t.description,
+          status: 'TODO',
+          priority: 'HIGH',
+          assigneeId,
+          creatorId: assigneeId,
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        },
+      });
+    }
+
+    // Also let the assignee know right away, same as any other automation
+    // action — the tasks alone are easy to miss amid a normal task list.
+    await createNotification({
+      userId: assigneeId,
+      title: 'Offboarding Checklist Assigned',
+      message: `An exit checklist for ${displayName} has been added to your tasks.`,
+      type: 'TASK_ASSIGNED',
+      emailFeature: 'TASK_UPDATED',
+      io,
+    });
+
+    console.log(`[Automation] Assigned offboarding checklist for ${displayName} to ${assigneeId}`);
   }
 
   // Action: Notify Team
@@ -229,8 +345,8 @@ export class AutomationService {
   // where an in-app ping isn't enough (e.g. a leave request someone
   // should see even if they're not actively in the app).
   private static async handleSendEmailOnly(flow: { name: string }, payload: any): Promise<void> {
-    const { assigneeId, requesterId, uploaderId, userId } = payload;
-    const targetUserId = assigneeId || requesterId || uploaderId || userId;
+    const { assigneeId, requesterId, uploaderId, userId, offboardedUserId, employeeId } = payload;
+    const targetUserId = assigneeId || requesterId || uploaderId || userId || offboardedUserId || employeeId;
     if (!targetUserId) return;
 
     const target = await prisma.user.findUnique({

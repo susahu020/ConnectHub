@@ -135,7 +135,8 @@
       "expenses": "Expenses",
       "payslips": "Payslips",
       "shifts": "Shifts",
-      "recognition": "Recognition"
+      "recognition": "Recognition",
+      "performance": "Performance"
     },
     "attendance": {
       "punchClock": "Live Office Punch Clock",
@@ -200,9 +201,17 @@
       "action": "Action",
       "noPayslips": "No payslips available.",
       "viewDetails": "View Details",
+      "downloadPdf": "Download PDF",
       "markPaid": "Mark Paid",
       "deletePayslip": "Delete payslip",
-      "deleteConfirm": "Are you sure you want to delete this payslip?"
+      "deleteConfirm": "Are you sure you want to delete this payslip?",
+      "bulkGenerate": "Bulk Generate",
+      "bulkGenerateTitle": "Bulk Generate Payslips",
+      "bulkGenerateDescription": "Automatically calculates and generates a payslip for every active employee for the selected month, using attendance and leave records. Employees who already have a payslip for this period are skipped.",
+      "bulkGenerateConfirm": "Generate Payslips",
+      "bulkGenerating": "Generating...",
+      "bulkGenerateSummary": "{{generated}} generated, {{skipped}} skipped (already existed), {{failed}} failed",
+      "bulkGenerateEmpty": "No active employees to generate payslips for."
     },
     "shifts": {
       "heading": "Shift Calendar & Swaps",

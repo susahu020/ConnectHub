@@ -7,6 +7,11 @@ import { invalidateOrganizationSettingsCache } from '../services/organization.se
 import { isConfigured as isCloudinaryConfigured, cloudinary } from '../config/cloudinary';
 import { isGoogleSsoConfigured, isUsingTemplateDemoGoogleCredentials } from '../services/sso.service';
 import { emitDataUpdate } from '../utils/realtime';
+import { validateStatutoryDeductionPolicy } from '../services/statutoryDeductions.service';
+import { validateAttendanceAnomalyPolicy } from '../services/attendanceAnomaly.service';
+import { validateAttendanceGeofencePolicy } from '../services/geofence.service';
+import { validateLeaveAccrualPolicy } from '../services/leaveAccrual.service';
+import { validateOvertimePolicy } from '../services/overtime.service';
 
 // The set of columns an admin is allowed to update. An explicit whitelist
 // means an unexpected key in the request body (e.g. `id`, `updatedAt`) can
@@ -240,6 +245,14 @@ export const updateOrganizationSettings = async (req: AuthenticatedRequest, res:
     if (typeof req.body.mfaRequired === 'boolean') {
       updates.mfaRequired = req.body.mfaRequired;
     }
+    // Bug fix: this toggle has a working UI control (organization/settings
+    // page.tsx) and is actively read by wiki.controller.ts's
+    // canCreateOrPublishWikiPage, but was never actually persisted here —
+    // no whitelist entry and no special-cased block, so every save of this
+    // setting was silently a no-op.
+    if (typeof req.body.wikiRestrictedPublishing === 'boolean') {
+      updates.wikiRestrictedPublishing = req.body.wikiRestrictedPublishing;
+    }
     // Nullable integer — null/undefined means "keep forever" (no auto-purge).
     if (req.body.recycleBinRetentionDays !== undefined) {
       if (req.body.recycleBinRetentionDays === null || req.body.recycleBinRetentionDays === '') {
@@ -252,6 +265,102 @@ export const updateOrganizationSettings = async (req: AuthenticatedRequest, res:
         }
         updates.recycleBinRetentionDays = days;
       }
+    }
+    // Nullable float — null/undefined/empty means the two-tier expense
+    // approval feature is off (every claim stays single-approval).
+    if (req.body.expenseSecondApprovalThreshold !== undefined) {
+      if (req.body.expenseSecondApprovalThreshold === null || req.body.expenseSecondApprovalThreshold === '') {
+        updates.expenseSecondApprovalThreshold = null;
+      } else {
+        const threshold = Number(req.body.expenseSecondApprovalThreshold);
+        if (!Number.isFinite(threshold) || threshold < 0) {
+          res.status(400).json({ message: 'expenseSecondApprovalThreshold must be a non-negative number, or empty to disable two-tier approval.' });
+          return;
+        }
+        updates.expenseSecondApprovalThreshold = threshold;
+      }
+    }
+
+    // JSON policy objects — validated by their owning service module (see
+    // statutoryDeductions.service.ts / attendanceAnomaly.service.ts) rather
+    // than inline here, so the validation logic lives next to the
+    // computation logic it protects and stays covered by the same module's
+    // tests.
+    if (req.body.payrollStatutoryPolicy !== undefined) {
+      const result = validateStatutoryDeductionPolicy(req.body.payrollStatutoryPolicy);
+      if (!result.valid) {
+        res.status(400).json({ message: result.error });
+        return;
+      }
+      updates.payrollStatutoryPolicy = result.policy;
+    }
+
+    if (req.body.attendanceAnomalyPolicy !== undefined) {
+      const result = validateAttendanceAnomalyPolicy(req.body.attendanceAnomalyPolicy);
+      if (!result.valid) {
+        res.status(400).json({ message: result.error });
+        return;
+      }
+      updates.attendanceAnomalyPolicy = result.policy;
+    }
+
+    if (req.body.attendanceGeofencePolicy !== undefined) {
+      const result = validateAttendanceGeofencePolicy(req.body.attendanceGeofencePolicy);
+      if (!result.valid) {
+        res.status(400).json({ message: result.error });
+        return;
+      }
+      updates.attendanceGeofencePolicy = result.policy;
+    }
+
+    if (req.body.leaveAccrualPolicy !== undefined) {
+      const result = validateLeaveAccrualPolicy(req.body.leaveAccrualPolicy);
+      if (!result.valid) {
+        res.status(400).json({ message: result.error });
+        return;
+      }
+      updates.leaveAccrualPolicy = result.policy;
+    }
+
+    if (req.body.overtimePolicy !== undefined) {
+      const result = validateOvertimePolicy(req.body.overtimePolicy);
+      if (!result.valid) {
+        res.status(400).json({ message: result.error });
+        return;
+      }
+      updates.overtimePolicy = result.policy;
+    }
+
+    // Simple scalar attendance/leave settings — these had schema fields
+    // and were already read by clockIn/leave accrual, but had no write
+    // path here at all until now, so they were effectively DB-edit-only.
+    if (req.body.lateGraceMinutes !== undefined) {
+      const minutes = Number(req.body.lateGraceMinutes);
+      if (!Number.isInteger(minutes) || minutes < 0 || minutes > 240) {
+        res.status(400).json({ message: 'lateGraceMinutes must be a whole number of minutes between 0 and 240.' });
+        return;
+      }
+      updates.lateGraceMinutes = minutes;
+    }
+    if (req.body.halfDayThresholdHours !== undefined) {
+      const hours = Number(req.body.halfDayThresholdHours);
+      if (!Number.isFinite(hours) || hours <= 0 || hours > 24) {
+        res.status(400).json({ message: 'halfDayThresholdHours must be a number between 0 and 24.' });
+        return;
+      }
+      updates.halfDayThresholdHours = hours;
+    }
+    if (req.body.weeklyOffDays !== undefined) {
+      if (
+        !Array.isArray(req.body.weeklyOffDays) ||
+        req.body.weeklyOffDays.some((d: any) => !Number.isInteger(d) || d < 0 || d > 6)
+      ) {
+        res.status(400).json({ message: 'weeklyOffDays must be an array of whole numbers 0 (Sunday) through 6 (Saturday).' });
+        return;
+      }
+      // Dedup + sort — matches JS Date.getDay() convention (0=Sunday),
+      // same as computePayrollBreakdown's own weeklyOffDays check.
+      updates.weeklyOffDays = [...new Set(req.body.weeklyOffDays as number[])].sort((a, b) => a - b);
     }
 
     if (updates.registrationMode === 'DOMAIN_RESTRICTED') {

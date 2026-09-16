@@ -1,13 +1,15 @@
-import React from 'react';
-import { Plus, Eye, Check, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Eye, Check, Trash2, Sparkles, Download, ClipboardCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { statusBadgeClass } from '../statusBadge';
+import { ReconciliationReportModal } from '../modals/ReconciliationReportModal';
 
 export function PayslipsTab({
   payslips,
   isManager,
   isAdmin,
   onGeneratePayslip,
+  onBulkGeneratePayslips,
   onViewPayslip,
   onMarkPaid,
   onDeletePayslip,
@@ -16,23 +18,43 @@ export function PayslipsTab({
   isManager: boolean;
   isAdmin: boolean;
   onGeneratePayslip: () => void;
+  onBulkGeneratePayslips: () => void;
   onViewPayslip: (pay: any) => void;
   onMarkPaid: (id: string) => void;
   onDeletePayslip: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const [showReconciliation, setShowReconciliation] = useState(false);
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-foreground">{t('hr.payslips.heading')}</h3>
         {isAdmin && (
-          <button
-            onClick={onGeneratePayslip}
-            className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-primary-foreground bg-primary rounded-xl shadow-md hover:bg-primary-dark transition-all"
-          >
-            <Plus className="h-4 w-4" />
-            {t('hr.payslips.generate')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowReconciliation(true)}
+              className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-foreground bg-muted dark:bg-card border border-border rounded-xl hover:bg-secondary transition-all"
+              title="Review discrepancies before finalizing this month's payroll"
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              Reconciliation Report
+            </button>
+            <button
+              onClick={onBulkGeneratePayslips}
+              className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-primary bg-primary/10 border border-primary/20 rounded-xl hover:bg-primary/20 transition-all"
+              title={t('hr.payslips.bulkGenerateDescription')}
+            >
+              <Sparkles className="h-4 w-4" />
+              {t('hr.payslips.bulkGenerate')}
+            </button>
+            <button
+              onClick={onGeneratePayslip}
+              className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-black text-primary-foreground bg-primary rounded-xl shadow-md hover:bg-primary-dark transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              {t('hr.payslips.generate')}
+            </button>
+          </div>
         )}
       </div>
 
@@ -85,6 +107,17 @@ export function PayslipsTab({
                     </td>
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {pay.fileUrl && (
+                          <a
+                            href={pay.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 rounded hover:bg-muted dark:hover:bg-card text-muted-foreground"
+                            title={t('hr.payslips.downloadPdf')}
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
+                        )}
                         <button onClick={() => onViewPayslip(pay)} className="p-1 rounded hover:bg-muted dark:hover:bg-card text-muted-foreground" title={t('hr.payslips.viewDetails')}>
                           <Eye className="h-4 w-4" />
                         </button>
@@ -115,6 +148,8 @@ export function PayslipsTab({
           </table>
         </div>
       </div>
+
+      {showReconciliation && <ReconciliationReportModal onClose={() => setShowReconciliation(false)} />}
     </div>
   );
 }

@@ -18,6 +18,8 @@ import { errorHandler } from './middleware/error.middleware';
 import { securityHeaders } from './middleware/securityHeaders';
 import { createNotification } from './services/notification.service';
 import { runDailyBirthdayCheck } from './services/birthday.service';
+import { runLeaveAccrualForAllActiveEmployees } from './services/leaveAccrual.service';
+import { runProbationReminderCheck } from './services/probation.service';
 import { trackRequest } from './utils/errorTracker';
 import { registerJob, recordJobRun } from './utils/jobHealth';
 import { getSystemHealth } from './services/health.service';
@@ -321,6 +323,59 @@ setInterval(async () => {
 // before the first check (e.g. someone's birthday email would otherwise be
 // delayed by up to an hour if the server happened to restart that morning).
 runDailyBirthdayCheck(app.get('io')).catch((err) => console.error('Initial birthday check failed:', err));
+
+// Leave Accrual — daily background job (see services/leaveAccrual.service.ts).
+// Previously an employee's full annual leave quota was granted the instant
+// their balance row was first created; this instead tops every active
+// employee's balance up to whatever should have accrued by today, pro-rated
+// from their joining date. Daily rather than "once a month on the 1st"
+// because, like the birthday scanner above, this codebase has no precise
+// cron scheduler — the engine is calendar-driven and monotonic (a balance's
+// total only ever goes up), so re-running it daily (or on any other
+// cadence) is safe and simply keeps things current rather than risking a
+// missed monthly run.
+registerJob('leave-accrual', 'Leave Balance Accrual', 24 * 60 * 60 * 1000);
+setInterval(async () => {
+  const startedAt = Date.now();
+  try {
+    const result = await runLeaveAccrualForAllActiveEmployees();
+    recordJobRun(
+      'leave-accrual',
+      true,
+      Date.now() - startedAt,
+      `${result.employeesProcessed} employee(s) processed, ${result.balancesUpdated} balance(s) updated`
+    );
+  } catch (err: any) {
+    console.error('Failed to run leave accrual job:', err);
+    recordJobRun('leave-accrual', false, Date.now() - startedAt, undefined, err?.message || String(err));
+  }
+}, 24 * 60 * 60 * 1000); // Check daily
+
+// Run once at startup too, same reasoning as the birthday check above —
+// don't make a freshly restarted server wait a full day before an
+// employee's balance reflects accrual they've already earned.
+runLeaveAccrualForAllActiveEmployees().catch((err) => console.error('Initial leave accrual run failed:', err));
+
+// Probation Reminders — daily background job (see
+// services/probation.service.ts). Notifies an employee's manager once,
+// within a 7-day window before probationEndDate, rather than requiring
+// anyone to remember to check manually. Same daily-recheck reasoning as
+// the jobs above (no precise cron scheduler here) — the dedup flag on the
+// User row makes re-running safe.
+registerJob('probation-reminders', 'Probation End Reminders', 24 * 60 * 60 * 1000);
+setInterval(async () => {
+  const startedAt = Date.now();
+  try {
+    const result = await runProbationReminderCheck(app.get('io'));
+    recordJobRun('probation-reminders', true, Date.now() - startedAt, `${result.checked} candidate(s) checked, ${result.remindersSent} reminder(s) sent`);
+  } catch (err: any) {
+    console.error('Failed to run probation reminder job:', err);
+    recordJobRun('probation-reminders', false, Date.now() - startedAt, undefined, err?.message || String(err));
+  }
+}, 24 * 60 * 60 * 1000); // Check daily
+
+// Run once at startup too, same reasoning as the jobs above.
+runProbationReminderCheck(app.get('io')).catch((err) => console.error('Initial probation reminder run failed:', err));
 
 // System Health Monitor — runs the full health check every 2 minutes and
 // fires the configured alert webhook (Admin > Organization Settings) if the

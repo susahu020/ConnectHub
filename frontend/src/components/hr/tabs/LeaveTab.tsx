@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Check, X, Trash2 } from 'lucide-react';
+import { Plus, Check, X, Trash2, Paperclip } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { statusBadgeClass } from '../statusBadge';
 
@@ -78,10 +78,22 @@ export function LeaveTab({
                 </tr>
               ) : (
                 myLeaves.map((req: any) => {
-                  const days = Math.ceil((new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                  const days = req.isHalfDay
+                    ? 0.5
+                    : Math.ceil((new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
                   return (
                     <tr key={req.id} className="hover:bg-muted/50 dark:hover:bg-card/30">
-                      <td className="px-5 py-4 font-bold text-foreground dark:text-foreground">{req.leaveType}</td>
+                      <td className="px-5 py-4 font-bold text-foreground dark:text-foreground">
+                        {req.leaveType}
+                        {req.isHalfDay && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-blue-500/10 text-blue-600 border border-blue-500/20">½ Day</span>
+                        )}
+                        {req.attachmentUrl && (
+                          <a href={req.attachmentUrl} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex text-muted-foreground hover:text-primary" title="View attached document">
+                            <Paperclip className="h-3 w-3 inline" />
+                          </a>
+                        )}
+                      </td>
                       <td className="px-5 py-4 text-muted-foreground">
                         {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
                       </td>
@@ -148,7 +160,17 @@ export function LeaveTab({
                         </p>
                         <p className="text-[10px] text-muted-foreground leading-none mt-0.5">{req.user?.designation}</p>
                       </td>
-                      <td className="px-5 py-4 font-bold text-foreground dark:text-foreground">{req.leaveType}</td>
+                      <td className="px-5 py-4 font-bold text-foreground dark:text-foreground">
+                        {req.leaveType}
+                        {req.isHalfDay && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-blue-500/10 text-blue-600 border border-blue-500/20">½ Day</span>
+                        )}
+                        {req.attachmentUrl && (
+                          <a href={req.attachmentUrl} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex text-muted-foreground hover:text-primary" title="View attached document">
+                            <Paperclip className="h-3 w-3 inline" />
+                          </a>
+                        )}
+                      </td>
                       <td className="px-5 py-4 text-muted-foreground">
                         {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}
                       </td>

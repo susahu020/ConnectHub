@@ -5,7 +5,7 @@ export function TimelineView({
   onOpenTaskDetail,
 }: {
   filteredTasks: any[];
-  onOpenTaskDetail: (task: any) => void;
+  onOpenTaskDetail: (id: string) => void;
 }) {
   const sorted = [...filteredTasks].sort((a, b) => {
     const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
@@ -41,7 +41,7 @@ export function TimelineView({
                 />
 
                 <div
-                  onClick={() => onOpenTaskDetail(task)}
+                  onClick={() => onOpenTaskDetail(task.id)}
                   className="p-4 border rounded-2xl bg-muted/40 dark:bg-card/10 hover:bg-muted dark:hover:bg-card hover:shadow-xs transition-all cursor-pointer flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0"
                 >
                   <div className="space-y-1.5 max-w-lg">

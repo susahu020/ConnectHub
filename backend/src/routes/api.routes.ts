@@ -19,6 +19,7 @@ import organizationRoutes from './organization.routes';
 import wikiRoutes from './wiki.routes';
 import workflowsRoutes from './workflows.routes';
 import hrRoutes from './hr.routes';
+import performanceRoutes from './performance.routes';
 import analyticsRoutes from './analytics.routes';
 
 const router = Router();
@@ -49,6 +50,7 @@ router.use(organizationRoutes);
 router.use(wikiRoutes);
 router.use(workflowsRoutes);
 router.use(hrRoutes);
+router.use(performanceRoutes);
 router.use(analyticsRoutes);
 
 export default router;

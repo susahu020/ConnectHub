@@ -21,6 +21,7 @@ import {
   XCircle,
   CalendarClock,
   Mail,
+  AlertTriangle,
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
@@ -43,6 +44,7 @@ const TRIGGER_FIELDS: Record<string, { value: string; label: string }[]> = {
     { value: 'firstName', label: 'First Name' },
     { value: 'lastName', label: 'Last Name' },
     { value: 'email', label: 'Email' },
+    { value: 'role', label: 'Role' },
   ],
   DOCUMENT_UPLOADED: [
     { value: 'fileName', label: 'File Name' },
@@ -52,6 +54,21 @@ const TRIGGER_FIELDS: Record<string, { value: string; label: string }[]> = {
   LEAVE_REQUESTED: [
     { value: 'leaveType', label: 'Leave Type' },
     { value: 'requesterId', label: 'Requester ID' },
+  ],
+  EMPLOYEE_OFFBOARDED: [
+    { value: 'firstName', label: 'First Name' },
+    { value: 'lastName', label: 'Last Name' },
+    { value: 'managerId', label: 'Manager ID' },
+  ],
+  ATTENDANCE_ANOMALY_DETECTED: [
+    { value: 'employeeId', label: 'Employee ID' },
+    { value: 'firstName', label: 'First Name' },
+    { value: 'lastName', label: 'Last Name' },
+    { value: 'managerId', label: 'Manager ID' },
+  ],
+  REGULARIZATION_REQUESTED: [
+    { value: 'requesterId', label: 'Requester ID' },
+    { value: 'regularizationDate', label: 'Date' },
   ],
 };
 
@@ -204,6 +221,9 @@ export default function WorkflowsPage() {
       case 'EMPLOYEE_JOINED': return 'When Employee Joins (Onboarding)';
       case 'DOCUMENT_UPLOADED': return 'When Document is Uploaded';
       case 'LEAVE_REQUESTED': return 'When Leave is Requested';
+      case 'EMPLOYEE_OFFBOARDED': return 'When Employee is Offboarded';
+      case 'ATTENDANCE_ANOMALY_DETECTED': return 'When an Attendance Anomaly is Detected';
+      case 'REGULARIZATION_REQUESTED': return 'When an Attendance Correction is Requested';
       default: return trig;
     }
   };
@@ -212,6 +232,7 @@ export default function WorkflowsPage() {
     switch (act) {
       case 'NOTIFY_MANAGER': return 'Notify Manager';
       case 'ASSIGN_ONBOARDING_TASKS': return 'Assign Onboarding Checklist';
+      case 'ASSIGN_OFFBOARDING_TASKS': return 'Assign Offboarding Checklist';
       case 'NOTIFY_TEAM': return 'Notify Teammates';
       case 'SEND_EMAIL_ONLY': return 'Send Email Only';
       default: return act;
@@ -224,6 +245,9 @@ export default function WorkflowsPage() {
       case 'EMPLOYEE_JOINED': return <UserCheck className="h-5 w-5 text-info" />;
       case 'DOCUMENT_UPLOADED': return <FileText className="h-5 w-5 text-amber-500" />;
       case 'LEAVE_REQUESTED': return <CalendarClock className="h-5 w-5 text-violet-500" />;
+      case 'EMPLOYEE_OFFBOARDED': return <UserCheck className="h-5 w-5 text-rose-500" />;
+      case 'ATTENDANCE_ANOMALY_DETECTED': return <AlertTriangle className="h-5 w-5 text-orange-500" />;
+      case 'REGULARIZATION_REQUESTED': return <CalendarClock className="h-5 w-5 text-blue-500" />;
       default: return <Sparkles className="h-5 w-5 text-primary" />;
     }
   };
@@ -394,6 +418,9 @@ export default function WorkflowsPage() {
                   <option value="EMPLOYEE_JOINED">When New Employee completes Onboarding</option>
                   <option value="DOCUMENT_UPLOADED">When Document/File is Uploaded</option>
                   <option value="LEAVE_REQUESTED">When an Employee requests Leave</option>
+                  <option value="EMPLOYEE_OFFBOARDED">When an Employee is Offboarded (deactivated)</option>
+                  <option value="ATTENDANCE_ANOMALY_DETECTED">When an Attendance Anomaly is Detected (payslip time)</option>
+                  <option value="REGULARIZATION_REQUESTED">When an Attendance Correction is Requested</option>
                 </select>
               </div>
 
@@ -406,6 +433,7 @@ export default function WorkflowsPage() {
                 >
                   <option value="NOTIFY_MANAGER">Notify employee's manager</option>
                   <option value="ASSIGN_ONBOARDING_TASKS">Auto-assign onboarding tasks checklist</option>
+                  <option value="ASSIGN_OFFBOARDING_TASKS">Auto-assign offboarding (exit) checklist</option>
                   <option value="NOTIFY_TEAM">Notify teammates (Department members)</option>
                   <option value="SEND_EMAIL_ONLY">Send a direct email only (no in-app notification)</option>
                 </select>

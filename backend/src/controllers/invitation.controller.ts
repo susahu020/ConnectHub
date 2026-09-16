@@ -36,6 +36,46 @@ const buildInvitationEmail = (orgName: string, role: string, inviteLink: string)
   return { subject, text, html };
 };
 
+// Distinct from buildInvitationEmail above: that one goes out *before*
+// someone has an account, inviting them to set one up. This one goes out
+// the moment completeOnboarding actually finishes creating it — the "your
+// account exists now, here's where to go" message that was previously
+// entirely missing. The onboarding checklist mentioned below is whatever
+// the org's Workflows have configured for the EMPLOYEE_JOINED trigger
+// (see automation.service.ts's handleAssignOnboardingTasks) — this email
+// doesn't assume one exists, it just points at Tasks either way.
+const buildWelcomeEmail = (orgName: string, firstName: string, role: string, dashboardLink: string) => {
+  const subject = `Welcome to ${orgName}, ${firstName}!`;
+  const text = `Hi ${firstName},\n\nYour ${orgName} account is all set up as a ${role.toLowerCase()}. You can sign in and get started right away:\n\n${dashboardLink}\n\nCheck your Tasks list for any onboarding checklist items your team has set up for new hires, and feel free to explore the Company Wiki and Chat channels to get oriented.\n\nWelcome aboard!\n${orgName} Workspace Team`;
+  const html = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; background-color: #ffffff;">
+        <div style="text-align: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
+          <h2 style="color: #4f46e5; margin: 0;">${orgName} Portal</h2>
+        </div>
+        <div style="padding: 20px 0;">
+          <p>Hi ${firstName},</p>
+          <p>Your account is all set up as a <strong>${role.toLowerCase()}</strong> — welcome to the team!</p>
+          <div style="text-align: center; margin: 24px 0;">
+            <a href="${dashboardLink}" style="background-color: #4f46e5; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+              Go to Dashboard
+            </a>
+          </div>
+          <p>A couple of places worth checking out first:</p>
+          <ul style="color: #334155; font-size: 13px; line-height: 1.6;">
+            <li><strong>Tasks</strong> — any onboarding checklist your team has set up for new hires will show up here.</li>
+            <li><strong>Company Wiki</strong> — policies, guidelines, and team documentation.</li>
+            <li><strong>Chat</strong> — public channels to meet your new teammates.</li>
+          </ul>
+          <p style="color: #64748b; font-size: 11px; margin-top: 24px;">If anything looks off with your account, reach out to your Admin.</p>
+        </div>
+        <div style="border-top: 1px solid #f1f5f9; padding-top: 16px; font-size: 11px; color: #64748b; text-align: center;">
+          &copy; ${new Date().getFullYear()} ${orgName} Workspace. All rights reserved.
+        </div>
+      </div>
+    `;
+  return { subject, text, html };
+};
+
 /**
  * Admin or Manager invites a user.
  * Generates an onboarding token and returns the signup link.
@@ -425,7 +465,19 @@ export const completeOnboarding = async (req: Request, res: Response, next: Next
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      role: user.role,
     }, automationIo).catch((err: any) => console.error('[Automation] EMPLOYEE_JOINED trigger failed:', err));
+
+    // Welcome email — best-effort, same as the invitation email above; a
+    // failed send here must never block account creation from succeeding.
+    try {
+      const orgNameForWelcome = await getOrgName();
+      const dashboardLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`;
+      const { subject, text, html } = buildWelcomeEmail(orgNameForWelcome, user.firstName, user.role, dashboardLink);
+      await sendEmail(user.email, subject, text, html);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+    }
 
     emitDataUpdate(req, 'invitations');
     emitDataUpdate(req, 'users');

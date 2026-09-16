@@ -409,6 +409,20 @@ export const toggleUserActive = async (req: AuthenticatedRequest, res: Response,
         prisma.refreshToken.deleteMany({ where: { userId } }),
         prisma.user.update({ where: { id: userId }, data: { status: 'OFFLINE' } }),
       ]);
+
+      // Trigger workflow automation engine on offboarding, mirroring how
+      // invitation.controller.ts fires EMPLOYEE_JOINED on the way in.
+      // Fire-and-forget with its own catch so a failed automation rule
+      // never blocks or fails the deactivation itself.
+      const { AutomationService } = require('../services/automation.service');
+      const automationIo = req.app.get('io');
+      AutomationService.trigger('EMPLOYEE_OFFBOARDED', {
+        offboardedUserId: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        managerId: existing.managerId,
+        triggeredById: req.user?.id,
+      }, automationIo).catch((err: any) => console.error('[Automation] EMPLOYEE_OFFBOARDED trigger failed:', err));
     }
 
     await prisma.auditLog.create({

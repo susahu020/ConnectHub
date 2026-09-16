@@ -68,19 +68,64 @@ export function PayslipDetailModal({ payslip, orgName, onClose }: { payslip: any
             </div>
           </div>
 
+          {payslip.attendanceSummary?.overtime && payslip.attendanceSummary.overtime.appliedRule && payslip.attendanceSummary.overtime.totalOvertimeHours > 0 && (
+            <div className="border-t pt-3 space-y-1 text-[10px] text-muted-foreground">
+              <p className="font-bold text-[9px] uppercase tracking-wider text-muted-foreground">Overtime (included above)</p>
+              <p>
+                <span className="font-bold text-foreground">{payslip.attendanceSummary.overtime.totalOvertimeHours}h</span> at{' '}
+                <span className="font-bold text-foreground">${payslip.attendanceSummary.overtime.hourlyRate}/hr</span> ={' '}
+                <span className="font-bold text-foreground">${payslip.attendanceSummary.overtime.totalOvertimePay}</span>
+              </p>
+            </div>
+          )}
+
+          {payslip.statutoryDeductions && (
+            payslip.statutoryDeductions.appliedRules?.providentFund ||
+            payslip.statutoryDeductions.appliedRules?.professionalTax ||
+            payslip.statutoryDeductions.appliedRules?.incomeTax
+          ) && (
+            <div className="border-t pt-3 space-y-1 text-[10px] text-muted-foreground">
+              <p className="font-bold text-[9px] uppercase tracking-wider text-muted-foreground">Statutory deductions (included above)</p>
+              <div className="grid grid-cols-3 gap-x-3">
+                {payslip.statutoryDeductions.appliedRules.providentFund && (
+                  <div>PF: <span className="font-bold text-foreground">${payslip.statutoryDeductions.providentFundEmployee}</span></div>
+                )}
+                {payslip.statutoryDeductions.appliedRules.professionalTax && (
+                  <div>Prof. Tax: <span className="font-bold text-foreground">${payslip.statutoryDeductions.professionalTax}</span></div>
+                )}
+                {payslip.statutoryDeductions.appliedRules.incomeTax && (
+                  <div>Est. Tax: <span className="font-bold text-foreground">${payslip.statutoryDeductions.incomeTaxEstimateMonthly}</span></div>
+                )}
+              </div>
+            </div>
+          )}
+
           {payslip.notes && (
             <div className="bg-card dark:bg-card p-2.5 rounded border text-[10px] text-muted-foreground italic mt-3">Notes: &quot;{payslip.notes}&quot;</div>
           )}
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={() => window.print()}
-            className="flex-1 py-2.5 border border-border dark:border-border text-foreground dark:text-foreground text-xs font-black rounded-xl hover:bg-muted dark:hover:bg-card transition-all flex items-center justify-center gap-1.5"
-          >
-            <Download className="h-4 w-4" />
-            Print Payslip
-          </button>
+          {payslip.fileUrl ? (
+            <a
+              href={payslip.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-2.5 border border-border dark:border-border text-foreground dark:text-foreground text-xs font-black rounded-xl hover:bg-muted dark:hover:bg-card transition-all flex items-center justify-center gap-1.5"
+            >
+              <Download className="h-4 w-4" />
+              Download PDF
+            </a>
+          ) : (
+            <button
+              onClick={() => window.print()}
+              className="flex-1 py-2.5 border border-border dark:border-border text-foreground dark:text-foreground text-xs font-black rounded-xl hover:bg-muted dark:hover:bg-card transition-all flex items-center justify-center gap-1.5"
+              title="No generated PDF is on file for this payslip — this prints the on-screen summary instead."
+            >
+              <Download className="h-4 w-4" />
+              Print Payslip
+            </button>
+          )}
           <button onClick={onClose} className="flex-1 py-2.5 bg-primary text-primary-foreground text-xs font-black rounded-xl hover:bg-primary-dark transition-all">
             Close Statement
           </button>

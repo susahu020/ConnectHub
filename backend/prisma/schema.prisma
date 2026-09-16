@@ -104,6 +104,24 @@ model User {
   // scratch every pay cycle (see GeneratePayslipModal.tsx) — it's still
   // editable per-payslip for raises/bonuses/one-off adjustments.
   baseSalary       Float?
+  // Fixed monthly compensation components beyond the basic (baseSalary
+  // above, which continues to mean exactly what it always has — the
+  // figure attendance/leave proration and PF are calculated against, so
+  // nothing that already reads baseSalary changes behavior). These are
+  // NOT prorated by attendance the way baseSalary is — a fixed housing/
+  // other allowance doesn't usually shrink because someone took a sick
+  // day, unlike the wage itself. See services/overtime.service.ts-style
+  // treatment in generatePayslip/bulkGeneratePayslips: suggested as-is
+  // into the Allowances figure, same as overtime pay.
+  hraAmount        Float?
+  otherAllowancesAmount Float?
+  // Admin-settable via setEmployeeProbation in hr.controller.ts.
+  // probationReminderSentAt is a dedup flag for the daily reminder job
+  // (services/probation.service.ts) — cleared whenever probationEndDate
+  // itself is changed, so editing the date restarts the reminder window
+  // instead of silently staying "already sent" from a stale prior date.
+  probationEndDate DateTime?
+  probationReminderSentAt DateTime?
   timezone         String               @default("UTC")
   workingHours     String?
   managerId        String?
@@ -195,8 +213,11 @@ model User {
   leaveApprovals       LeaveRequest[]        @relation("LeaveApprover")
   leaveBalances        LeaveBalance[]
   attendances          Attendance[]
+  regularizationRequests  AttendanceRegularization[] @relation("RegularizationRequester")
+  regularizationApprovals AttendanceRegularization[] @relation("RegularizationApprover")
   expenseClaims        ExpenseClaim[]
   expenseApprovals     ExpenseClaim[]        @relation("ExpenseApprover")
+  expenseSecondApprovals ExpenseClaim[]      @relation("ExpenseSecondApprover")
   payslips             Payslip[]
   generatedPayslips    Payslip[]             @relation("PayslipGenerator")
   shiftAssignments     ShiftAssignment[]
@@ -205,6 +226,9 @@ model User {
   swapRequestsApproved ShiftSwapRequest[]    @relation("SwapApprover")
   recognitionsSent     Recognition[]         @relation("Sender")
   recognitionsReceived Recognition[]         @relation("Receiver")
+  performanceReviews   PerformanceReview[]   @relation("RevieweeReviews")
+  reviewsGiven         PerformanceReview[]   @relation("ReviewerReviews")
+  createdReviewCycles  PerformanceReviewCycle[] @relation("ReviewCycleCreator")
 }
 
 model Department {
@@ -813,6 +837,60 @@ model OrganizationSettings {
   // org that wanted a locked-down, editorially-controlled wiki had no way
   // to configure that.
   wikiRestrictedPublishing Boolean @default(false)
+  // ==========================================
+  // HR / PAYROLL AUTOMATION DEFAULTS
+  // ==========================================
+  // Fallback expected shift hours ("HH:MM", 24h) used for attendance
+  // Late/Half-Day detection when an employee has no ShiftAssignment
+  // covering the day — see services/attendanceStatus.service.ts. A real
+  // ShiftAssignment (Shift.startTime/endTime) always takes priority over
+  // these when one exists for that day.
+  defaultWorkStartTime String  @default("09:00")
+  defaultWorkEndTime   String  @default("18:00")
+  // Minutes after defaultWorkStartTime/shift start before a clock-in is
+  // marked LATE rather than PRESENT.
+  lateGraceMinutes     Int     @default(15)
+  // Below this many *worked* hours (clock-in to clock-out minus breaks),
+  // a day is marked HALF_DAY regardless of arrival time.
+  halfDayThresholdHours Float  @default(4)
+  // Day-of-week numbers (0 = Sunday ... 6 = Saturday) treated as
+  // non-working/weekend days when computing working days for payroll
+  // proration and absence detection. Default: Sat+Sun off.
+  weeklyOffDays        Int[]   @default([0, 6])
+  // Per-leave-type accrual policy override: { "ANNUAL": { "annualTotal": 12,
+  // "monthlyRate": 1 }, ... }. Falls back to
+  // services/leaveAccrual.service.ts's DEFAULT_LEAVE_ACCRUAL_POLICY when
+  // null — see that file for the shape and for how a monthlyRate of 0
+  // means "grant the full annualTotal immediately" rather than accruing.
+  leaveAccrualPolicy   Json?
+  // Statutory payroll deduction policy (Provident Fund, Professional Tax,
+  // simplified income-tax estimate) — see
+  // services/statutoryDeductions.service.ts for the shape and for why
+  // every rule defaults to disabled until an Admin explicitly configures
+  // and opts into it. Falls back to DEFAULT_STATUTORY_DEDUCTION_POLICY
+  // (all rules off) when null, same pattern as leaveAccrualPolicy above.
+  payrollStatutoryPolicy Json?
+  // Attendance-anomaly detection thresholds (excessive absences/lateness/
+  // half-days/unpaid leave) — see services/attendanceAnomaly.service.ts.
+  // Unlike payrollStatutoryPolicy this is pure flagging with no money
+  // involved, so it falls back to DEFAULT_ATTENDANCE_ANOMALY_POLICY
+  // (enabled, sensible thresholds) when null, rather than defaulting to
+  // disabled.
+  attendanceAnomalyPolicy Json?
+  // Office coordinates + radius for verifying clock-in location — see
+  // services/geofence.service.ts. Falls back to
+  // DEFAULT_ATTENDANCE_GEOFENCE_POLICY (disabled) when null.
+  attendanceGeofencePolicy Json?
+  // Claims strictly greater than this amount require a second, different
+  // Admin's sign-off beyond the normal manager/admin approval — see
+  // ExpenseStatus.PENDING_SECOND_APPROVAL. Null (the default) disables the
+  // feature entirely; every claim is single-approval as before.
+  expenseSecondApprovalThreshold Float?
+  // Daily-threshold-based overtime pay calculation — see
+  // services/overtime.service.ts. Falls back to DEFAULT_OVERTIME_POLICY
+  // (disabled) when null, same opt-in-required treatment as
+  // payrollStatutoryPolicy above (real money, org-specific policy).
+  overtimePolicy Json?
   updatedAt            DateTime @updatedAt
   updatedById          String?
 }
@@ -1106,6 +1184,12 @@ enum AttendanceStatus {
 
 enum ExpenseStatus {
   PENDING
+  // Only reached when the claim amount exceeds
+  // OrganizationSettings.expenseSecondApprovalThreshold — the employee's
+  // manager (or an Admin) has approved, but a second, different Admin
+  // still needs to sign off before it's fully APPROVED. Skipped entirely
+  // when no threshold is configured (the default) or the claim is under it.
+  PENDING_SECOND_APPROVAL
   APPROVED
   REJECTED
 }
@@ -1122,6 +1206,24 @@ enum SwapStatus {
   REJECTED
 }
 
+enum RegularizationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PerformanceCycleStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum PerformanceReviewStatus {
+  PENDING       // Auto-created when a cycle activates; reviewer hasn't filled it out yet.
+  SUBMITTED     // Reviewer has filled out and submitted their assessment.
+  ACKNOWLEDGED  // Employee has read it and (optionally) added their own comments.
+}
+
 model LeaveRequest {
   id            String       @id @default(uuid())
   userId        String
@@ -1129,7 +1231,17 @@ model LeaveRequest {
   leaveType     String       // e.g., ANNUAL, SICK, CASUAL, UNPAID
   startDate     DateTime
   endDate       DateTime
+  // Only valid when startDate == endDate (a single day) — enforced in
+  // requestLeave, not at the DB level. Deducts 0.5 from LeaveBalance.used
+  // instead of a full day; see payroll.service.ts's ApprovedLeaveLite for
+  // how this also halves the day's contribution to payroll proration.
+  isHalfDay     Boolean      @default(false)
   reason        String
+  // Optional supporting document (e.g. a medical certificate for sick
+  // leave) — same "client uploads via /files/upload, passes back the URL"
+  // pattern ExpenseClaim.receiptUrl already uses, not a bespoke upload
+  // path.
+  attachmentUrl String?
   status        LeaveStatus  @default(PENDING)
   approvedById  String?
   approvedBy    User?        @relation("LeaveApprover", fields: [approvedById], references: [id], onDelete: SetNull)
@@ -1162,8 +1274,19 @@ model Attendance {
   status        AttendanceStatus   @default(PRESENT)
   ipAddress     String?
   location      String?
+  // GPS coordinates submitted at clock-in, and the result of checking them
+  // against OrganizationSettings.attendanceGeofencePolicy at that moment —
+  // see services/geofence.service.ts. All null when geofencing isn't
+  // enabled/configured, or the client didn't share location. This is a
+  // record of what was checked at the time; it doesn't retroactively
+  // change if the office location policy is edited later.
+  latitude              Float?
+  longitude             Float?
+  locationVerified      Boolean?
+  distanceFromOfficeMeters Float?
   notes         String?
   breaks        AttendanceBreak[]
+  regularizations AttendanceRegularization[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 }
@@ -1174,6 +1297,34 @@ model AttendanceBreak {
   attendance    Attendance   @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
   startTime     DateTime
   endTime       DateTime?
+}
+
+// An employee-initiated request to correct their own attendance — either
+// fixing a wrong clock-in/out on an existing log, or creating a log for a
+// day nothing was recorded at all (attendanceId null). Distinct from an
+// Admin directly editing an Attendance row (updateAttendanceLog in
+// hr.controller.ts, which stays as an unrestricted override) — this is the
+// employee-facing path, gated through the same manager-approval flow as
+// leave/expense requests rather than any direct write access.
+model AttendanceRegularization {
+  id                String                @id @default(uuid())
+  userId            String
+  user              User                  @relation("RegularizationRequester", fields: [userId], references: [id], onDelete: Cascade)
+  date              DateTime              // the calendar day being corrected
+  // Null when the day has no Attendance row at all yet (a full no-show the
+  // employee says was actually worked) — approval creates one instead of
+  // updating an existing row in that case.
+  attendanceId      String?
+  attendance        Attendance?           @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+  requestedClockIn  DateTime?
+  requestedClockOut DateTime?
+  reason            String
+  status            RegularizationStatus  @default(PENDING)
+  approvedById      String?
+  approvedBy        User?                 @relation("RegularizationApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  managerNotes      String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 }
 
 model Holiday {
@@ -1200,6 +1351,13 @@ model ExpenseClaim {
   approvedById  String?
   approvedBy    User?        @relation("ExpenseApprover", fields: [approvedById], references: [id], onDelete: SetNull)
   managerNotes  String?
+  // Second-tier approval fields — only populated when the claim actually
+  // went through PENDING_SECOND_APPROVAL. See updateExpenseStatus in
+  // hr.controller.ts for the transition logic.
+  secondApprovedById String?
+  secondApprovedBy   User?    @relation("ExpenseSecondApprover", fields: [secondApprovedById], references: [id], onDelete: SetNull)
+  secondApproverNotes String?
+  secondApprovedAt    DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -1219,6 +1377,24 @@ model Payslip {
   generatedBy   User         @relation("PayslipGenerator", fields: [generatedById], references: [id], onDelete: Cascade)
   fileUrl       String?
   notes         String?
+  // System-computed attendance/leave breakdown at the moment this payslip
+  // was generated (working days, absences, unpaid leave, suggested
+  // pro-rated basic, etc.) — see services/payroll.service.ts. Recorded
+  // for audit/transparency even when the admin overrides the suggested
+  // figures above; never used to silently change netSalary on its own.
+  attendanceSummary Json?
+  // System-computed statutory deduction breakdown (Provident Fund,
+  // Professional Tax, simplified income-tax estimate) at the moment this
+  // payslip was generated — see services/statutoryDeductions.service.ts.
+  // Same audit-trail spirit as attendanceSummary above: recorded for
+  // transparency, never silently overriding the admin-entered
+  // basicSalary/allowances/deductions/netSalary above on its own.
+  statutoryDeductions Json?
+  // Attendance-anomaly flags (see services/attendanceAnomaly.service.ts)
+  // detected at generation time — an audit record of what was surfaced to
+  // whoever generated this payslip, not something that blocks or changes
+  // any of the figures above.
+  anomalies Json?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -1275,4 +1451,47 @@ model Recognition {
   badge         String       // e.g., TEAM_PLAYER, INNOVATOR, CUSTOMER_CHAMPION, ROCKSTAR
   message       String
   createdAt     DateTime     @default(now())
+}
+
+model PerformanceReviewCycle {
+  id            String                    @id @default(uuid())
+  name          String                    // e.g. "H1 2026 Review"
+  startDate     DateTime
+  endDate       DateTime
+  status        PerformanceCycleStatus    @default(DRAFT)
+  createdById   String
+  createdBy     User                      @relation("ReviewCycleCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  reviews       PerformanceReview[]
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+}
+
+model PerformanceReview {
+  id                  String                   @id @default(uuid())
+  cycleId             String
+  cycle               PerformanceReviewCycle   @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employeeId          String
+  employee            User                     @relation("RevieweeReviews", fields: [employeeId], references: [id], onDelete: Cascade)
+  // Nullable + SetNull, matching the LeaveRequest/ExpenseClaim
+  // approvedById convention elsewhere in this schema: if the reviewer's
+  // account is later deleted, the review record (and whatever the employee
+  // has already seen/acknowledged) is preserved rather than cascade-deleted.
+  reviewerId          String?
+  reviewer            User?                    @relation("ReviewerReviews", fields: [reviewerId], references: [id], onDelete: SetNull)
+  status              PerformanceReviewStatus  @default(PENDING)
+  overallRating       Int?                     // 1-5, set by the reviewer on submit
+  strengths           String?
+  areasForImprovement String?
+  goalsForNextCycle   String?
+  managerComments     String?
+  employeeComments    String?
+  submittedAt         DateTime?
+  acknowledgedAt      DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  // One review per employee per cycle — activating a cycle auto-generates
+  // exactly one PerformanceReview per active employee (see
+  // performance.controller.ts's activateReviewCycle).
+  @@unique([cycleId, employeeId])
 }

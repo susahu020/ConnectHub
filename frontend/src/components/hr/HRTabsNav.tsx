@@ -1,9 +1,9 @@
 import React from 'react';
-import { Calendar, Clock, CalendarDays, CreditCard, FileText, ArrowLeftRight, Award } from 'lucide-react';
+import { Calendar, Clock, CalendarDays, CreditCard, FileText, ArrowLeftRight, Award, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CurvedTabs } from '../ui/CurvedTabs';
 
-export type HRTabType = 'leave' | 'attendance' | 'holidays' | 'expenses' | 'payslips' | 'shifts' | 'recognition';
+export type HRTabType = 'leave' | 'attendance' | 'holidays' | 'expenses' | 'payslips' | 'shifts' | 'recognition' | 'performance';
 
 // label is the stable English fallback/dev-reference — actual display text
 // comes from t(`hr.tabs.${tab.id}`) in the component below. Kept as a
@@ -18,6 +18,7 @@ const TABS: { id: HRTabType; label: string; icon: React.ReactNode }[] = [
   { id: 'payslips', label: 'Payslips', icon: <FileText className="h-4 w-4" /> },
   { id: 'shifts', label: 'Shifts', icon: <ArrowLeftRight className="h-4 w-4" /> },
   { id: 'recognition', label: 'Recognition', icon: <Award className="h-4 w-4" /> },
+  { id: 'performance', label: 'Performance', icon: <Star className="h-4 w-4" /> },
 ];
 
 export function HRTabsNav({ activeTab, onChange }: { activeTab: HRTabType; onChange: (tab: HRTabType) => void }) {

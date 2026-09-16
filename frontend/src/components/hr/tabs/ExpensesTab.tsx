@@ -23,6 +23,13 @@ export function ExpensesTab({
   const { t } = useTranslation();
   const myClaims = expenses.filter((c: any) => c.userId === currentUserId);
   const pendingClaims = expenses.filter((c: any) => c.status === 'PENDING' && c.userId !== currentUserId);
+  // Second-tier queue: only Admins act on these, and never the Admin who
+  // already gave the first approval (see updateExpenseStatus's
+  // self-double-approval guard on the backend) — filtered out here too so
+  // an Admin never sees an item in their queue they can't actually act on.
+  const awaitingSecondApproval = isAdmin
+    ? expenses.filter((c: any) => c.status === 'PENDING_SECOND_APPROVAL' && c.approvedById !== currentUserId)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -96,7 +103,9 @@ export function ExpensesTab({
                         </button>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-muted-foreground italic">{claim.managerNotes || '—'}</td>
+                    <td className="px-5 py-4 text-muted-foreground italic">
+                      {[claim.managerNotes, claim.secondApproverNotes].filter(Boolean).join(' · ') || '—'}
+                    </td>
                   </tr>
                 ))
               )}
@@ -178,6 +187,78 @@ export function ExpensesTab({
                     </tr>
                   ))
                 )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {isAdmin && awaitingSecondApproval.length > 0 && (
+        <div className="bg-card dark:bg-card border border-blue-500/20 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-border dark:border-border bg-blue-500/5">
+            <p className="text-sm font-bold text-foreground dark:text-foreground">Awaiting Second Approval</p>
+            <p className="text-[10px] text-muted-foreground">These claims exceeded the org's second-approval threshold and need a different Admin's sign-off.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-muted dark:bg-card/50 text-[10px] font-black uppercase text-muted-foreground tracking-wider border-b">
+                  <th className="px-5 py-3">{t('hr.expenses.employee')}</th>
+                  <th className="px-5 py-3">{t('hr.expenses.claim')}</th>
+                  <th className="px-5 py-3">{t('hr.expenses.amount')}</th>
+                  <th className="px-5 py-3">{t('hr.expenses.receipt')}</th>
+                  <th className="px-5 py-3 text-right">{t('hr.expenses.actions')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y text-xs">
+                {awaitingSecondApproval.map((claim: any) => (
+                  <tr key={claim.id} className="hover:bg-muted/50 dark:hover:bg-card/30">
+                    <td className="px-5 py-4">
+                      <p className="font-bold text-foreground dark:text-foreground">
+                        {claim.user?.firstName} {claim.user?.lastName}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground leading-none mt-0.5">{claim.user?.designation}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="font-bold text-foreground dark:text-foreground">{claim.title}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase leading-none mt-0.5">{claim.category}</p>
+                    </td>
+                    <td className="px-5 py-4 font-bold text-foreground dark:text-foreground">
+                      {claim.currency} {claim.amount.toLocaleString()}
+                    </td>
+                    <td className="px-5 py-4">
+                      {claim.receiptUrl ? (
+                        <a href={claim.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
+                          <ExternalLink className="h-3 w-3" />
+                          {t('hr.expenses.viewReceipt')}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => onUpdateExpenseStatus(claim.id, 'APPROVED')}
+                          className="p-1.5 rounded-lg bg-green-500/10 text-green-600 hover:bg-green-500/20"
+                          title={t('hr.expenses.approve')}
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            const notes = prompt(t('hr.expenses.rejectionNotesPrompt'));
+                            onUpdateExpenseStatus(claim.id, 'REJECTED', notes || undefined);
+                          }}
+                          className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 hover:bg-rose-500/20"
+                          title={t('hr.expenses.reject')}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

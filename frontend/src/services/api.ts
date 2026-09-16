@@ -495,7 +495,7 @@ export const api = {
   getSystemHealth: () => request('/admin/system-health'),
   sendTestHealthAlert: (webhookUrl?: string) => request('/admin/system-health/test-alert', 'POST', webhookUrl ? { webhookUrl } : {}),
   getOrganizationSettings: () => request('/organization/settings'),
-  updateOrganizationSettings: (body: Record<string, string | number | null | string[] | boolean>) => request('/admin/organization-settings', 'PUT', body),
+  updateOrganizationSettings: (body: Record<string, string | number | null | string[] | boolean | object>) => request('/admin/organization-settings', 'PUT', body),
   uploadOrganizationLogo: (formData: FormData) => request('/admin/organization-settings/logo', 'POST', formData, true),
   uploadOrganizationFavicon: (formData: FormData) => request('/admin/organization-settings/favicon', 'POST', formData, true),
   getTeams: (departmentId?: string) => request(`/teams${departmentId ? `?departmentId=${departmentId}` : ''}`),
@@ -513,18 +513,25 @@ export const api = {
 
   // HR Module
   getLeaves: () => request('/hr/leaves'),
-  requestLeave: (body: { leaveType: string; startDate: string; endDate: string; reason: string }) => 
+  requestLeave: (body: { leaveType: string; startDate: string; endDate: string; reason: string; isHalfDay?: boolean; attachmentUrl?: string }) => 
     request('/hr/leaves', 'POST', body),
   getLeaveBalances: () => request('/hr/leaves/balances'),
   updateLeaveStatus: (id: string, body: { status: 'APPROVED' | 'REJECTED'; managerNotes?: string }) => 
     request(`/hr/leaves/${id}/status`, 'PUT', body),
 
   getTodayAttendance: () => request('/hr/attendance/today'),
-  clockIn: (body?: { location?: string; notes?: string }) => request('/hr/attendance/clock-in', 'POST', body || {}),
+  clockIn: (body?: { location?: string; notes?: string; latitude?: number; longitude?: number }) => request('/hr/attendance/clock-in', 'POST', body || {}),
   clockOut: (body?: { notes?: string }) => request('/hr/attendance/clock-out', 'POST', body || {}),
   startBreak: () => request('/hr/attendance/break-start', 'POST'),
   endBreak: () => request('/hr/attendance/break-end', 'POST'),
   getAttendanceLogs: (params?: string) => request(`/hr/attendance/logs${params ? `?${params}` : ''}`),
+  requestRegularization: (body: { date: string; requestedClockIn?: string; requestedClockOut?: string; reason: string }) =>
+    request('/hr/attendance/regularizations', 'POST', body),
+  getMyRegularizations: () => request('/hr/attendance/regularizations/mine'),
+  getRegularizationsToReview: () => request('/hr/attendance/regularizations'),
+  updateRegularizationStatus: (id: string, body: { status: 'APPROVED' | 'REJECTED'; managerNotes?: string }) =>
+    request(`/hr/attendance/regularizations/${id}/status`, 'PUT', body),
+  getPayrollReconciliationReport: (month: number, year: number) => request(`/hr/payroll/reconciliation?month=${month}&year=${year}`),
 
   getHolidays: () => request('/hr/holidays'),
   createHoliday: (body: { name: string; date: string; description?: string; isMandatory?: boolean }) => 
@@ -538,13 +545,21 @@ export const api = {
     request(`/hr/expenses/${id}/status`, 'PUT', body),
 
   getPayslips: () => request('/hr/payslips'),
+  previewPayrollCalculation: (employeeId: string, month: number, year: number) =>
+    request(`/hr/payslips/calculate/${employeeId}?month=${month}&year=${year}`),
   generatePayslip: (body: { employeeId: string; month: number; year: number; basicSalary: number; allowances?: number; deductions?: number; notes?: string; fileUrl?: string; updateStoredSalary?: boolean }) => 
     request('/hr/payslips', 'POST', body),
+  bulkGeneratePayslips: (month: number, year: number, employeeIds?: string[]) =>
+    request('/hr/payslips/bulk-generate', 'POST', { month, year, employeeIds }),
   updatePayslipStatus: (id: string, status: 'PAID' | 'UNPAID' | 'DRAFT') => 
     request(`/hr/payslips/${id}/status`, 'PUT', { status }),
   getEmployeeBaseSalary: (employeeId: string) => request(`/hr/employees/${employeeId}/base-salary`),
-  setEmployeeBaseSalary: (employeeId: string, baseSalary: number | null) =>
-    request(`/hr/employees/${employeeId}/base-salary`, 'PUT', { baseSalary }),
+  setEmployeeBaseSalary: (employeeId: string, body: { baseSalary?: number | null; hraAmount?: number | null; otherAllowancesAmount?: number | null }) =>
+    request(`/hr/employees/${employeeId}/base-salary`, 'PUT', body),
+  getEmployeeProbation: (employeeId: string) => request(`/hr/employees/${employeeId}/probation`),
+  setEmployeeProbation: (employeeId: string, probationEndDate: string | null) =>
+    request(`/hr/employees/${employeeId}/probation`, 'PUT', { probationEndDate }),
+  getEmployeesOnProbation: () => request('/hr/employees/on-probation'),
 
   getShifts: () => request('/hr/shifts'),
   createShift: (body: { name: string; startTime: string; endTime: string; color?: string; description?: string }) => 
@@ -581,4 +596,17 @@ export const api = {
   getCelebrations: () => request('/hr/celebrations'),
   getMyWishes: () => request('/hr/my-wishes'),
   getCelebrationWishes: () => request('/hr/celebration-wishes'),
+
+  // Performance Reviews
+  createReviewCycle: (body: { name: string; startDate: string; endDate: string }) => request('/hr/performance/cycles', 'POST', body),
+  getReviewCycles: () => request('/hr/performance/cycles'),  activateReviewCycle: (id: string) => request(`/hr/performance/cycles/${id}/activate`, 'POST'),
+  closeReviewCycle: (id: string) => request(`/hr/performance/cycles/${id}/close`, 'POST'),
+  deleteReviewCycle: (id: string) => request(`/hr/performance/cycles/${id}`, 'DELETE'),
+  getCycleReviews: (id: string) => request(`/hr/performance/cycles/${id}/reviews`),
+  getMyPerformanceReviews: () => request('/hr/performance/reviews/mine'),
+  getReviewsToGive: () => request('/hr/performance/reviews/to-give'),
+  submitPerformanceReview: (id: string, body: { overallRating: number; strengths?: string; areasForImprovement?: string; goalsForNextCycle?: string; managerComments?: string }) =>
+    request(`/hr/performance/reviews/${id}/submit`, 'PUT', body),
+  acknowledgePerformanceReview: (id: string, body: { employeeComments?: string }) =>
+    request(`/hr/performance/reviews/${id}/acknowledge`, 'PUT', body),
 };

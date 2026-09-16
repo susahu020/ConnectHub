@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Layers } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuthStore } from '../../../lib/store';
+import { getBrowserCoordinates } from '../../../lib/geolocation';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '../../../hooks/useSocket';
@@ -19,11 +20,14 @@ import { ExpensesTab } from '../../../components/hr/tabs/ExpensesTab';
 import { PayslipsTab } from '../../../components/hr/tabs/PayslipsTab';
 import { ShiftsTab } from '../../../components/hr/tabs/ShiftsTab';
 import { RecognitionTab } from '../../../components/hr/tabs/RecognitionTab';
+import { PerformanceTab } from '../../../components/hr/tabs/PerformanceTab';
+import { RegularizationPanel } from '../../../components/hr/tabs/RegularizationPanel';
 import { EditAttendanceModal } from '../../../components/hr/modals/EditAttendanceModal';
 import { RequestLeaveModal } from '../../../components/hr/modals/RequestLeaveModal';
 import { ExpenseClaimModal } from '../../../components/hr/modals/ExpenseClaimModal';
 import { PayslipDetailModal } from '../../../components/hr/modals/PayslipDetailModal';
 import { GeneratePayslipModal } from '../../../components/hr/modals/GeneratePayslipModal';
+import { BulkGeneratePayslipsModal } from '../../../components/hr/modals/BulkGeneratePayslipsModal';
 import { AssignShiftModal } from '../../../components/hr/modals/AssignShiftModal';
 import { RequestSwapModal } from '../../../components/hr/modals/RequestSwapModal';
 import { CreateShiftModal } from '../../../components/hr/modals/CreateShiftModal';
@@ -46,6 +50,8 @@ export default function HRPortal() {
 
   // Manager-only Modals
   const [generatePayslipOpen, setGeneratePayslipOpen] = useState(false);
+  const [bulkGeneratePayslipsOpen, setBulkGeneratePayslipsOpen] = useState(false);
+  const [bulkGenerateResult, setBulkGenerateResult] = useState<any>(null);
   const [assignShiftOpen, setAssignShiftOpen] = useState(false);
   const [addHolidayOpen, setAddHolidayOpen] = useState(false);
   const [createShiftOpen, setCreateShiftOpen] = useState(false);
@@ -95,6 +101,12 @@ export default function HRPortal() {
       queryClient.invalidateQueries({ queryKey: ['hr-celebrations'] });
       queryClient.invalidateQueries({ queryKey: ['hr-celebration-wishes'] });
       queryClient.invalidateQueries({ queryKey: ['my-wishes'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-performance-cycles'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-performance-reviews-mine'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-performance-reviews-to-give'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-performance-cycle-reviews'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-regularizations-mine'] });
+      queryClient.invalidateQueries({ queryKey: ['hr-regularizations-to-review'] });
     };
 
     socket.on('hr_update', handleHRUpdate);
@@ -280,6 +292,21 @@ export default function HRPortal() {
     onError: (err: any) => toast.error(err.message || 'Failed to generate payslip'),
   });
 
+  const bulkGeneratePayslipsMutation = useMutation({
+    mutationFn: ({ month, year }: { month: number; year: number }) => api.bulkGeneratePayslips(month, year),
+    onSuccess: (result: any) => {
+      setBulkGenerateResult(result);
+      if (result.generated.length > 0) {
+        toast.success(`Generated ${result.generated.length} payslip(s)`);
+      } else if (result.totalTargeted === 0) {
+        toast('No active employees to generate payslips for.');
+      } else {
+        toast('No new payslips generated — everyone targeted already has one for this period.');
+      }
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to run bulk payroll'),
+  });
+
   const updatePayslipStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: any }) => api.updatePayslipStatus(id, status),
     onSuccess: () => {
@@ -448,7 +475,14 @@ export default function HRPortal() {
                 attendanceLogs={attendanceLogs}
                 isManager={isManager}
                 isAdmin={isAdmin}
-                onClockIn={() => clockInMutation.mutate(undefined)}
+                onClockIn={async () => {
+                  // Best-effort — never blocks clocking in. See
+                  // lib/geolocation.ts and services/geofence.service.ts on
+                  // the backend for how a denied/unavailable location is
+                  // handled (treated as "unverified", not an error).
+                  const coords = await getBrowserCoordinates();
+                  clockInMutation.mutate(coords ? { latitude: coords.latitude, longitude: coords.longitude } : undefined);
+                }}
                 onClockOut={(notes) => clockOutMutation.mutate({ notes })}
                 onStartBreak={() => startBreakMutation.mutate()}
                 onEndBreak={() => endBreakMutation.mutate()}
@@ -459,6 +493,8 @@ export default function HRPortal() {
                 onDeleteLog={(id) => deleteAttendanceLogMutation.mutate(id)}
               />
             )}
+
+            {activeTab === 'attendance' && <RegularizationPanel isManager={isManager} />}
 
             {activeTab === 'holidays' && (
               <HolidaysTab
@@ -487,6 +523,10 @@ export default function HRPortal() {
                 isManager={isManager}
                 isAdmin={isAdmin}
                 onGeneratePayslip={() => setGeneratePayslipOpen(true)}
+                onBulkGeneratePayslips={() => {
+                  setBulkGenerateResult(null);
+                  setBulkGeneratePayslipsOpen(true);
+                }}
                 onViewPayslip={(pay) => {
                   setActivePayslip(pay);
                   setPayslipModalOpen(true);
@@ -525,6 +565,10 @@ export default function HRPortal() {
                 onDeleteRecognition={(id) => deleteRecognitionMutation.mutate(id)}
               />
             )}
+
+            {activeTab === 'performance' && (
+              <PerformanceTab isAdmin={isAdmin} isManager={isManager} />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -560,7 +604,9 @@ export default function HRPortal() {
           const startDate = (target as any).startDate.value;
           const endDate = (target as any).endDate.value;
           const reason = (target as any).reason.value;
-          requestLeaveMutation.mutate({ leaveType, startDate, endDate, reason });
+          const isHalfDay = (target as any).isHalfDay.checked;
+          const attachmentUrl = (target as any).attachmentUrl.value;
+          requestLeaveMutation.mutate({ leaveType, startDate, endDate, reason, isHalfDay, attachmentUrl: attachmentUrl || undefined });
         }}
       />
 
@@ -603,6 +649,14 @@ export default function HRPortal() {
           const updateStoredSalary = (target as any).updateStoredSalary.checked;
           generatePayslipMutation.mutate({ employeeId, month, year, basicSalary, allowances, deductions, notes, updateStoredSalary });
         }}
+      />
+
+      <BulkGeneratePayslipsModal
+        open={bulkGeneratePayslipsOpen}
+        onClose={() => setBulkGeneratePayslipsOpen(false)}
+        isPending={bulkGeneratePayslipsMutation.isPending}
+        result={bulkGenerateResult}
+        onSubmit={(month, year) => bulkGeneratePayslipsMutation.mutate({ month, year })}
       />
 
       <AssignShiftModal

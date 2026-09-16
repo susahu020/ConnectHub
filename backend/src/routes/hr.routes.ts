@@ -20,9 +20,15 @@ import {
   updateExpenseStatus,
   getPayslips,
   generatePayslip,
+  previewPayrollCalculation,
+  bulkGeneratePayslips,
   updatePayslipStatus,
+  getPayrollReconciliationReport,
   getEmployeeBaseSalary,
   setEmployeeBaseSalary,
+  getEmployeeProbation,
+  setEmployeeProbation,
+  getEmployeesOnProbation,
   getShifts,
   createShift,
   getShiftAssignments,
@@ -36,8 +42,13 @@ import {
   createRecognition,
   deleteLeaveRequest,
   updateLeaveBalance,
+  runLeaveAccrual,
   updateAttendanceLog,
   deleteAttendanceLog,
+  requestRegularization,
+  getMyRegularizations,
+  getRegularizationsToReview,
+  updateRegularizationStatus,
   deleteExpenseClaim,
   deletePayslip,
   deleteShiftAssignment,
@@ -58,6 +69,7 @@ router.get('/hr/leaves/balances', authenticate as any, getLeaveBalances as any);
 router.put('/hr/leaves/:id/status', authenticate as any, authorize(['ADMIN', 'MANAGER']), updateLeaveStatus as any);
 router.delete('/hr/leaves/:id', authenticate as any, deleteLeaveRequest as any);
 router.put('/hr/leaves/balances/:id', authenticate as any, authorize(['ADMIN']), updateLeaveBalance as any);
+router.post('/hr/leaves/balances/accrue', authenticate as any, authorize(['ADMIN']), runLeaveAccrual as any);
 
 // Attendance
 router.get('/hr/attendance/today', authenticate as any, getTodayStatus as any);
@@ -68,6 +80,10 @@ router.post('/hr/attendance/break-end', authenticate as any, endBreak as any);
 router.get('/hr/attendance/logs', authenticate as any, getAttendanceLogs as any);
 router.put('/hr/attendance/logs/:id', authenticate as any, authorize(['ADMIN']), updateAttendanceLog as any);
 router.delete('/hr/attendance/logs/:id', authenticate as any, authorize(['ADMIN']), deleteAttendanceLog as any);
+router.post('/hr/attendance/regularizations', authenticate as any, requestRegularization as any);
+router.get('/hr/attendance/regularizations/mine', authenticate as any, getMyRegularizations as any);
+router.get('/hr/attendance/regularizations', authenticate as any, authorize(['ADMIN', 'MANAGER']), getRegularizationsToReview as any);
+router.put('/hr/attendance/regularizations/:id/status', authenticate as any, authorize(['ADMIN', 'MANAGER']), updateRegularizationStatus as any);
 
 // Holidays
 router.get('/hr/holidays', authenticate as any, getHolidays as any);
@@ -82,11 +98,17 @@ router.delete('/hr/expenses/:id', authenticate as any, deleteExpenseClaim as any
 
 // Payslips
 router.get('/hr/payslips', authenticate as any, getPayslips as any);
+router.get('/hr/payslips/calculate/:employeeId', authenticate as any, authorize(['ADMIN']), previewPayrollCalculation as any);
+router.post('/hr/payslips/bulk-generate', authenticate as any, authorize(['ADMIN']), bulkGeneratePayslips as any);
+router.get('/hr/payroll/reconciliation', authenticate as any, authorize(['ADMIN']), getPayrollReconciliationReport as any);
 router.post('/hr/payslips', authenticate as any, authorize(['ADMIN']), generatePayslip as any);
 router.put('/hr/payslips/:id/status', authenticate as any, authorize(['ADMIN']), updatePayslipStatus as any);
 router.delete('/hr/payslips/:id', authenticate as any, authorize(['ADMIN']), deletePayslip as any);
 router.get('/hr/employees/:id/base-salary', authenticate as any, authorize(['ADMIN']), getEmployeeBaseSalary as any);
 router.put('/hr/employees/:id/base-salary', authenticate as any, authorize(['ADMIN']), setEmployeeBaseSalary as any);
+router.get('/hr/employees/:id/probation', authenticate as any, authorize(['ADMIN']), getEmployeeProbation as any);
+router.put('/hr/employees/:id/probation', authenticate as any, authorize(['ADMIN']), setEmployeeProbation as any);
+router.get('/hr/employees/on-probation', authenticate as any, authorize(['ADMIN', 'MANAGER']), getEmployeesOnProbation as any);
 
 // Shifts
 router.get('/hr/shifts', authenticate as any, getShifts as any);

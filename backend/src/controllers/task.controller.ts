@@ -5,6 +5,109 @@ import { createNotification } from '../services/notification.service';
 import { emitDataUpdate } from '../utils/realtime';
 import { logAudit } from '../utils/auditLog';
 
+// ==========================================
+// TASK / PROJECT VISIBILITY (RBAC)
+// ==========================================
+// Standard workflow: a task is visible to its assignee, its creator, anyone
+// explicitly watching it, and anyone on the project team it belongs to
+// (so Kanban/Gantt/Timeline boards keep working for real collaborators).
+// Managers additionally get oversight of their own department's tasks
+// (either because they're formally assigned as that department's manager,
+// or because they belong to it). Admins see everything. Nobody else can
+// list or open a task — previously getTasks/getTaskDetails applied no
+// scoping at all, so any authenticated user could browse or open any
+// task company-wide regardless of assignment, project, or department.
+export type VisibilityUser = { id: string; role?: string; departmentId?: string | null };
+
+export const buildTaskVisibilityWhere = (user: VisibilityUser) => {
+  if (user.role === 'ADMIN') return {};
+
+  const or: any[] = [
+    { assigneeId: user.id },
+    { creatorId: user.id },
+    { watcherIds: { has: user.id } },
+    { project: { team: { members: { some: { userId: user.id } } } } },
+  ];
+
+  if (user.role === 'MANAGER') {
+    if (user.departmentId) {
+      or.push({ departmentId: user.departmentId });
+      // A task's own departmentId defaults to whoever created it, which
+      // doesn't always match the assignee's actual department (e.g. a
+      // cross-department assignment). A manager should also see tasks
+      // assigned into their department regardless of who created them.
+      or.push({ assignee: { departmentId: user.departmentId } });
+    }
+    or.push({ department: { managerId: user.id } });
+    or.push({ assignee: { department: { managerId: user.id } } });
+  }
+
+  return { OR: or };
+};
+
+export const canViewTask = async (
+  task: { assigneeId: string | null; creatorId: string; watcherIds?: string[]; departmentId: string | null; projectId: string | null },
+  user: VisibilityUser
+): Promise<boolean> => {
+  if (user.role === 'ADMIN') return true;
+  if (task.assigneeId === user.id || task.creatorId === user.id) return true;
+  if (task.watcherIds?.includes(user.id)) return true;
+
+  if (user.role === 'MANAGER' && task.departmentId) {
+    if (task.departmentId === user.departmentId) return true;
+    const dept = await prisma.department.findUnique({ where: { id: task.departmentId }, select: { managerId: true } });
+    if (dept?.managerId === user.id) return true;
+  }
+
+  // Manager oversight based on the assignee's actual department, which can
+  // differ from the task's own departmentId (see comment above).
+  if (user.role === 'MANAGER' && task.assigneeId) {
+    const assignee = await prisma.user.findUnique({ where: { id: task.assigneeId }, select: { departmentId: true } });
+    if (assignee?.departmentId) {
+      if (assignee.departmentId === user.departmentId) return true;
+      const assigneeDept = await prisma.department.findUnique({ where: { id: assignee.departmentId }, select: { managerId: true } });
+      if (assigneeDept?.managerId === user.id) return true;
+    }
+  }
+
+  if (task.projectId) {
+    const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { teamId: true } });
+    if (project) {
+      const membership = await prisma.teamMember.findFirst({ where: { teamId: project.teamId, userId: user.id } });
+      if (membership) return true;
+    }
+  }
+
+  return false;
+};
+
+// A project itself carries no per-task detail, but it does reveal a
+// workspace's existence/description, so it gets the same treatment:
+// visible to its team members, anyone with a task in it (assignee /
+// creator / watcher — tasks aren't restricted to formal team members),
+// the department's manager, and admins.
+export const buildProjectVisibilityWhere = (user: VisibilityUser) => {
+  if (user.role === 'ADMIN') return {};
+
+  const or: any[] = [
+    { team: { members: { some: { userId: user.id } } } },
+    {
+      tasks: {
+        some: {
+          OR: [{ assigneeId: user.id }, { creatorId: user.id }, { watcherIds: { has: user.id } }],
+        },
+      },
+    },
+  ];
+
+  if (user.role === 'MANAGER') {
+    if (user.departmentId) or.push({ team: { departmentId: user.departmentId } });
+    or.push({ team: { department: { managerId: user.id } } });
+  }
+
+  return { OR: or };
+};
+
 export const createTask = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { 
@@ -110,8 +213,13 @@ export const getTasks = async (req: AuthenticatedRequest, res: Response, next: N
       whereClause.projectId = projectId === 'unassigned' ? null : (projectId as string);
     }
 
+    const visibilityWhere = buildTaskVisibilityWhere(req.user!);
+    const finalWhere = Object.keys(visibilityWhere).length > 0
+      ? { AND: [whereClause, visibilityWhere] }
+      : whereClause;
+
     const tasks = await prisma.task.findMany({
-      where: whereClause,
+      where: finalWhere,
       include: {
         assignee: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, designation: true } },
         creator: { select: { id: true, firstName: true, lastName: true } },
@@ -163,6 +271,11 @@ export const getTaskDetails = async (req: AuthenticatedRequest, res: Response, n
 
     if (!task) {
       res.status(404).json({ message: 'Task not found.' });
+      return;
+    }
+
+    if (!(await canViewTask(task, req.user!))) {
+      res.status(403).json({ message: 'You do not have permission to view this task.' });
       return;
     }
 
@@ -444,6 +557,7 @@ export const addTaskComment = async (req: AuthenticatedRequest, res: Response, n
 export const getProjects = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const projects = await prisma.project.findMany({
+      where: buildProjectVisibilityWhere(req.user!),
       include: {
         tasks: {
           select: {
